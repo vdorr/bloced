@@ -561,8 +561,7 @@ def implement_dfs(model, meta, codegen, out_fobj) :
 #	gsorted = [ __tsort(__graph_part(g, comp)) for comp in __components(g) ]
 
 #TODO be aware of components
-	print graph_components(graph)
-#	for comp in graph_components(g) :
+#	print graph_components(graph)
 
 	code = codegen(graph, delays, {})
 
