@@ -1,0 +1,20 @@
+
+DEPENDENCIES
+- xclip
+
+WHY
+
+blocks are not "configurable"
+- 
+
+Delay have constant default value
+- 
+
+dfs.py
+- all neccessary data in one clean object hierarchy
+- gui toolkit and file format agnostic
+
+TODO
+
+unit testing
+- use python files to specify input graph data for implementer chain

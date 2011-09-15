@@ -1,0 +1,9 @@
+
+support for avrdude & dfu-programmer
+
+onboard peripherals
+
+freemodbus
+
+arduino hw & wiring interoperability
+
