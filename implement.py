@@ -369,7 +369,8 @@ def __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter) :
 
 #TODO generalize slightly so it is possible to start traversal at any node
 #TODO make sorter able to distinguish connected components
-def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree) :
+def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree,
+		sinks_to_sources, undirected) :
 	terms = list(__dft_alt_p_sorter(g[root].p))
 	pre_visit(root, visited, terms)
 	stack = [ (root, None, terms.__iter__()) ]
@@ -414,9 +415,54 @@ def __dft_alt_nonrecursive(g,
 		pre_tree(v, visited)
 		assert(not v in visited)
 		visited[v] = True
-		visited_per_tree = {}
-		__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree)
+#		visited_per_tree = {}
+#		__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree,
+#			sinks_to_sources, False)
+		dft(g, v, pre_visit, pre_dive, post_dive, post_visit, sinks_to_sources, False, visited)
+#		dft(g, v,
+#			pre_visit = pre_visit,
+#			pre_dive = pre_dive,
+#			post_dive = post_dive,
+#			post_visit = post_visit,
+#			sinks_to_sources=sinks_to_sources,
+#			undirected=False,
+#			visited=visited) 
 		post_tree(v, visited)
+
+# ------------------------------------------------------------------------------------------------------------
+
+def dft(g, v,
+		pre_visit = lambda *a, **b: None,
+		pre_dive = lambda *a, **b: None,
+		post_dive = lambda *a, **b: None,
+		post_visit = lambda *a, **b: None,
+		sinks_to_sources=True,
+		undirected=False,
+		visited={}) :
+	visited[v] = True
+	visited_per_tree = None#{}#XXX ?!?!?!
+	__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree,
+		sinks_to_sources, undirected)
+
+# ------------------------------------------------------------------------------------------------------------
+
+#def post_visit(g, code, tmp, d_stack, n, visited) :
+def __graph_components_post_visit(comps, n, visited) :
+	print n
+	pass
+
+def graph_components(g) :
+	comps = []
+	dft_alt(g, post_visit = partial(__graph_components_post_visit, comps))
+
+	visited={}
+	for v, _ in g.items() :
+		if not v in visited :
+			dft(g, v, post_visit = partial(__graph_components_post_visit, comps),
+				undirected=True, visited=visited)
+
+#TODO
+	return comps
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -518,18 +564,6 @@ def printg(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def post_visit(g, code, tmp, d_stack, n, visited) :
-def __graph_components_post_visit(comps, n, visited) :
-	pass
-
-def graph_components(g) :
-	comps = []
-	dft_alt(g, post_visit = partial(__graph_components_post_visit, comps))
-#TODO
-	return comps
-
-# ------------------------------------------------------------------------------------------------------------
-
 def implement_dfs(model, meta, codegen, out_fobj) :
 #	from fcodegen import codegen
 #	g, conns, delays = __make_dag(model, meta)
@@ -543,6 +577,8 @@ def implement_dfs(model, meta, codegen, out_fobj) :
 #	for comp in graph_components(g) :
 
 	code = codegen(graph, delays, {})
+
+	print graph_components(graph)
 
 #	printg(graph)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
