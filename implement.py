@@ -198,13 +198,15 @@ def __expand_delays(blocks, conns) :
 	delays = { b for b in blocks if isinstance(b.prototype, DelayProto) }
 
 #	expddel_t = namedtuple("expddel_t", ["i", "o"])
-	def expddel(nr) :
+	def expddel(d, nr) :
 		i = BlockModel(DelayInProto(), None)
 		o = BlockModel(DelayOutProto(), None)
 		i.nr = o.nr = nr
-		return (i, o) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
+		i.delay = o.delay = d
+		return (d, (i, o)) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
 
-	expd = { delay : expddel(nr) for delay, nr in zip(delays, count()) }
+	expd = dict([ expddel(delay, nr) for delay, nr in zip(delays, count()) ])
+#	print expd
 
 #def dict_map(d, k_map, v_map, item_filter=lambda k,v: True) :
 #	return { k_map(*i): v_map(*i) for i in d.items() if item_filter(*i) }

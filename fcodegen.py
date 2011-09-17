@@ -72,7 +72,7 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 # ------------------------------------------------------------------------------------------------------------
 
 # execution
-def post_visit(g, code, tmp, d_stack, n, visited) :
+def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
@@ -80,9 +80,20 @@ def post_visit(g, code, tmp, d_stack, n, visited) :
 #	print n, "!"
 #	__execute(code, n)
 	if isinstance(n.prototype, core.DelayInProto) :
+		del_in, del_out = expd_dels[n.delay]
+		if not del_out in visited :
+#			print "del_in:", del_in, del_in.terms[0]
+			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
+			code.append("del%i to tmp%i" % (n.nr, slot))
+#		print "visited:", visited, "n.delay=", n.delay, del_out in visited
 		code.append("to del%i" % n.nr)
 	elif isinstance(n.prototype, core.DelayOutProto) :
-		code.append("del%i" % n.nr)
+		del_in, del_out = expd_dels[n.delay]
+		if del_in in visited :
+			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+			code.append("tmp%i" % slot)
+		else :
+			code.append("del%i" % n.nr)
 	else :
 		code.append(n.prototype.exe_name)
 
@@ -104,6 +115,7 @@ def post_visit(g, code, tmp, d_stack, n, visited) :
 #				print "post_visit, leaving on d:", succs[0]
 #XXX				d_stack.append(succs[0])
 				d_stack.append((n, out_term, out_t_nr))
+#			print "list(succs)=", list(succs)
 			slot = add_tmp_ref(tmp, list(succs)) #XXX including one to be taken from d, not good
 			code.append("to tmp%i" % slot)
 			pass # leading to multiple inputs, store in temp
@@ -125,7 +137,7 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 def codegen_alt(g, expd_dels, meta) :
 
-#	pprint(g)
+#	pprint(expd_dels)
 
 	numbering = sethi_ullman(g)
 #	pprint(numbering)
@@ -138,7 +150,7 @@ def codegen_alt(g, expd_dels, meta) :
 		partial(pre_visit, g, numbering),
 		partial(pre_dive, code, tmp),
 		partial(post_dive, g, code, tmp, d_stack),
-		partial(post_visit, g, code, tmp, d_stack),
+		partial(post_visit, g, code, tmp, d_stack, expd_dels),
 		partial(pre_tree, g, code, tmp, d_stack),
 		partial(post_tree, g, code, tmp, d_stack))
 
