@@ -315,8 +315,12 @@ def __make_dag_alt(model, meta) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def __dft_alt_roots_sorter(leafs) :
-	return sorted(leafs)
+#TODO TODO TODO take into account sethi-ullman numbering
+def __dft_alt_roots_sorter(g, roots) :
+	comps = {}
+	for comp, number in zip(graph_components(g), count()) :
+		comps.update({ n : number for n in comp})
+	return sorted(roots, key=lambda n: comps[n])
 #	return leafs
 
 def __dft_alt_term_sorter(preds) :
@@ -336,7 +340,7 @@ def __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter) :
 	p_or_s = 1 if sinks_to_sources else 0
 #	s = roots_sorter([ v for v, neighbourhood in g.items()
 #		if all([ len(follows) == 0 for t, follows in neighbourhood[p_or_s] ]) ])
-	s = roots_sorter([ v for v, nbrhd in g.items() if dft_alt_succs_count(nbrhd[p_or_s]) == 0 ])
+	s = roots_sorter(g, [ v for v, nbrhd in g.items() if dft_alt_succs_count(nbrhd[p_or_s]) == 0 ])
 	return s
 
 # ------------------------------------------------------------------------------------------------------------
