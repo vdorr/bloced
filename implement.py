@@ -166,8 +166,10 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 # ------------------------------------------------------------------------------------------------------------
 
 def __cut_joint_alt(g, j) :
-	print "__cut_joint_alt:", g[j]
-	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
+	print "__cut_joint_alt:", g[j].p
+#	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
+	succs = g[j].s
+	((it, it_nr, ((pb, pt, pt_nr),)),) = g[j].p
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
@@ -288,7 +290,7 @@ def __make_dag_alt(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
-#	pprint(conns0)
+	pprint(model.connections)
 #	exit(666)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))

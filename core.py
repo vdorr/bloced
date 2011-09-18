@@ -30,7 +30,7 @@ class DelayProto(BlockPrototype):
 class ProbeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", W, 0.5) ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special", exe_name="probe")
 
 class GotoProto(BlockPrototype):
 	def __init__(self) :

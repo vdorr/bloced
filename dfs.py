@@ -460,7 +460,7 @@ class GraphModel(object) :
 
 
 	def can_connect(self, sb, st, tb, tt) :
-		print "can_connect:", sb, st, tb, tt
+#		print "can_connect:", sb, st, tb, tt
 #TODO if variadic check max count
 		st, sn = st if isinstance(st, tuple) else (st, 0)
 		tt, tn = tt if isinstance(tt, tuple) else (tt, 0)
@@ -516,10 +516,10 @@ class GraphModel(object) :
 			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == OUTPUT_TERM else (b1, t1, b0, t0)
 
 			if not isinstance(t0, tuple) and t0.variadic :
-				print "add_connection 1"
+	#			print "add_connection 1"
 				m0, t0 = self.__add_variadic_term(b0, t0, deserializing=deserializing)
 			if not isinstance(t1, tuple) and t1.variadic :
-				print "add_connection 2"
+	#			print "add_connection 2"
 				m1, t1 = self.__add_variadic_term(b1, t1, deserializing=deserializing)
 
 		if (b0, t0) in self.__connections :

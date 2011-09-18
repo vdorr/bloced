@@ -142,9 +142,9 @@ def codegen_alt(g, expd_dels, meta) :
 	assert(tmp_used_slots(tmp) == 0)
 
 	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
-	print del_init
-	print tmp
-	print code
+#	print del_init
+#	print tmp
+#	print code
 	output = (": tsk" + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * len(tmp)) + linesep +

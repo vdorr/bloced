@@ -45,10 +45,15 @@ def term_nfo(t0) :
 
 def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 
+#	print "get_dfs_model_data2(1):", connections
+
 	n = dict(zip(blocks, count()))
 
 	struct = [ ((n[b0], term_nfo(t0)), [ (n[b1], term_nfo(t1)) for b1, t1 in vals ])
 			for (b0, t0), vals in connections.items() ]
+
+#	print "get_dfs_model_data2: connections=", connections
+#	print "get_dfs_model_data2: struct=", struct
 
 	types = [ (nr, block.prototype.type_name) for block, nr in n.iteritems() ]
 
@@ -79,6 +84,10 @@ def stname(t0) :
 
 def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 
+#	print "load_to_dfs_model(1):", types
+#	print "load_to_dfs_model: struct=", struct
+#	print "load_to_dfs_model(3):", meta
+
 	if len(meta) == 2 :
 		graph_meta, block_meta, = meta
 		conn_meta = {} #TODO
@@ -97,6 +106,8 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 		blocks[n] = b
 		m.add_block(b)
 
+	pprint(blocks)
+
 #	conn_list = []
 	for (block_nr, term_name), conns in struct :
 		sb = blocks[block_nr]
@@ -105,21 +116,31 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 			st = dfs.Out(0, "", dfs.C, 0)
 			sb.terms.append(st)
 		else :
+#			print "load_to_dfs_model(3):", term_name
 			t_name = stname(term_name)
 			st, = tuple(islice(dropwhile(lambda t: t.name != t_name, sb.terms), 0, 1))
 #			st = tuple(islice(dropwhile(lambda t: t.name != term_name, sb.terms), 0, 1))[0]
 #			assert(st==tuple(islice(dropwhile(lambda t: t.name != term_name, sb.terms), 0, 1))[0])
 
+		if isinstance(term_name, tuple) :
+			st = (st, term_name[1])
+#		print "term_name=", term_name, "st=", st
+
+#		print (block_nr, term_name), conns
 		for ntb, stt in conns :
 
-#			print "load_to_dfs_model:", ntb, stt
+#			print "load_to_dfs_model(4):", ntb, stt
 
 			tb = blocks[ntb]
+
+			print "ntb, stt:", ntb, "'", stt, "'"
 
 #			print "666: ", stt
 			if isinstance(tb.prototype, core.JointProto) :
 				tt = dfs.In(0, "", dfs.C, 0)
+#				assert(len(tb.inputs) == 0)
 				tb.terms.append(tt)
+				print ntb, stt, [ (tx.name, tx.direction) for tx in tb.terms ]
 			else :
 				stt_name = stname(stt)
 				tt, = tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))
@@ -128,13 +149,18 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 			meta = (conn_meta[(block_nr, term_name, ntb, stt)] 
 				if (block_nr, term_name, ntb, stt) in conn_meta else {})
 
-			m.add_connection(sb, st, tb, (tt, stt[1]) if isinstance(stt, tuple) else tt,
+#			if isinstance(term_name, tuple) :
+#				st = (st, term_name[1])
+#			print "stt=", stt, "tt=", tt
+
+			m.add_connection(sb, st, tb, (tt, stt[1]) if isinstance(stt, tuple) else tt,#XXX check this if problem with varterm occurs!
 				meta=meta, deserializing=deserializing)
 
 #			conn_list.append((sb, st, tb, tt))
 #			print "load_to_dfs_model:", (sb, st, tb, tt)
 #			m.add_connection(sb, st, tb, tt, meta=meta, deserializing=deserializing)
 
+#	print "load_to_dfs_model(5):", m.connections
 
 #	print "conn_list:", conn_list
 #	return blocks.values(), conn_list
