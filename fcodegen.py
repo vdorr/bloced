@@ -41,6 +41,7 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 #	assert(m in visited)
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
 	if isinstance(m.prototype, core.ConstProto) :
+		assert(m.value != None)
 		code.append(str(m.value))
 #		print "post_dive:", n, nt, "<-", m, mt, "code:", str(m.value)
 	elif (m, mt, mt_nr) in d_stack : #XXX or (n, nt) == d_stack[-1] ??!?!? nope, it is equal
@@ -78,6 +79,7 @@ def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 		else :
 			code.append("del%i" % n.nr)
 	else :
+		assert(n.prototype.exe_name != None)
 		code.append(n.prototype.exe_name)
 
 	#manage outputs
@@ -140,6 +142,9 @@ def codegen_alt(g, expd_dels, meta) :
 	assert(tmp_used_slots(tmp) == 0)
 
 	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
+	print del_init
+	print tmp
+	print code
 	output = (": tsk" + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * len(tmp)) + linesep +

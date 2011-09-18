@@ -287,6 +287,10 @@ def __merge_g_and_conns(g, conns) :
 def __make_dag_alt(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
+
+#	pprint(conns0)
+#	exit(666)
+
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 #	print"__make_dag_alt(1)"
 #	pprint(conns1)
@@ -304,7 +308,7 @@ def __make_dag_alt(model, meta) :
 #		) for b in blocks }
 #)
 #	print"__make_dag_alt(4)"
-	pprint(graph)
+#	pprint(graph)
 #	print"__make_dag_alt(5)"
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :

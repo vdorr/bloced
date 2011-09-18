@@ -65,6 +65,7 @@ def post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 		((m, m_t, m_t_nr), ) = preds
 #		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees
 		if isinstance(m.prototype, core.ConstProto) :
+			assert(m.value != None)
 			args.append(str(m.value))
 		elif (n, in_term, in_t_nr) in subtrees :
 			args.append(subtrees.pop((n, in_term, in_t_nr)))
@@ -96,6 +97,7 @@ def post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 #			code.append("del%i" % n.nr)
 #		exe_name = "get_del%i" % n.nr
 	else :
+		assert(n.prototype.exe_name != None)
 		exe_name = n.prototype.exe_name
 
 	expr = exe_name + "(" + string.join(args, ", ") + string.join(outs, ", ") + ")"
