@@ -22,8 +22,6 @@ from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get
 # ------------------------------------------------------------------------------------------------------------
 
 #def pre_dive(code, tmp, subtrees, n, nt, nt_nr, m, mt, mt_nr, visited) :
-###	current_expression = expression[-1]
-##	expression.append(((n, nt, nt_nr), ""))
 ###	print "pre_dive:", n, nt, nt_nr, "->", m, mt, mt_nr
 #	pass
 
@@ -31,44 +29,12 @@ from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get
 
 ## single input preparation
 #def post_dive(g, code, tmp, subtrees, n, nt, nt_nr, m, mt, mt_nr, visited) :
-##	current_expression = expression.pop()#[-1]
-##	expr_for_term = current_expression[0]
-###	print "post_dive:", (n, nt, nt_nr), expr_for_term
-##	assert((n, nt, nt_nr) == expr_for_term)
-
-###	print "post_dive:", n, nt, nt_nr, "<-", m, mt, mt_nr
-
-##	outputs = g[m].s
-###out_term, out_t_nr, succs = outputs[0]
-##	if len(outputs) == 1 and len(outputs[0][2]) == 1 : # single out, single successor
-###		print "\tembedable"
-##		pass
-##	else :
-##		pass
-###		code.append(expr)
-
-
-###	if isinstance(m.prototype, core.ConstProto) :
-###		code.append(str(m.value))
-####		print "post_dive:", n, nt, "<-", m, mt, "code:", str(m.value)
-###	elif (m, mt, mt_nr) in subtrees :
-###		subtrees.remove((m, mt, mt_nr))
-####		pop_tmp_ref(tmp, n, nt, nt_nr)
-####		print "post_dive:", n, nt, "<-", m, mt, "code:", "nop, d stack"
-###	else :
-###		slot = pop_tmp_ref(tmp, n, nt, nt_nr)
-###		if slot != None:
-###			code.append("tmp%i" % slot)
-####			print "post_dive:", n, nt, "<-", m, mt, "code:", "tmp%i" % slot
-###		else :
-###			raise Exception("holy shit!")
-####	print "post_dive:", n, nt, "<-", m, mt, "code[-1]=", code[-1]
 #	pass
 
 # ------------------------------------------------------------------------------------------------------------
 
 # execution
-def post_visit(g, code, tmp, subtrees, n, visited) :
+def post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 
 #TODO can i get rid off som cycles by use of other callbacks?
 	if isinstance(n.prototype, core.ConstProto) :
@@ -113,9 +79,22 @@ def post_visit(g, code, tmp, subtrees, n, visited) :
 #	print "\targs:", args
 
 	if isinstance(n.prototype, core.DelayInProto) :
+		del_in, del_out = expd_dels[n.delay]
+		if not del_out in visited :
+			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
+			code.append("tmp%i = del%i;" % (slot, n.nr))
+#		code.append("to del%i" % n.nr)
 		exe_name = "set_del%i" % n.nr
 	elif isinstance(n.prototype, core.DelayOutProto) :
-		exe_name = "get_del%i" % n.nr
+		del_in, del_out = expd_dels[n.delay]
+		if del_in in visited :
+			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+			exe_name = "tmp%i" % slot
+#			code.append("tmp%i" % slot)
+		else :
+			exe_name = "get_del%i" % n.nr
+#			code.append("del%i" % n.nr)
+#		exe_name = "get_del%i" % n.nr
 	else :
 		exe_name = n.prototype.exe_name
 
@@ -149,39 +128,9 @@ def post_visit(g, code, tmp, subtrees, n, visited) :
 		else :
 			code.append(expr + ";")
 
-#	if is_expr : # single out, single successor
-#		((out_term, out_t_nr, succs), ) = outputs
-#		subtrees[succs[0]] = expr
-#	else :
-#		for out_term, out_t_nr, succs in outputs :
-#			slot = add_tmp_ref(tmp, list(succs))
-
-
-
-
-##			print "out_term, succs", out_term, succs
-#			if len(succs) == 1 :
-#				if len(n.prototype.outputs) == 1 :
-##					d_stack.append((n, out_term, out_t_nr))
-#					pass
-#				else :
-##					slot = add_tmp_ref(tmp, list(succs))
-##					code.append("to tmp%i" % slot)
-#					pass
-##			elif len(succs) > 1 :
-##				if len(n.prototype.outputs) == 1 :
-##					code.append("dup")
-##					d_stack.append((n, out_term, out_t_nr))
-##				slot = add_tmp_ref(tmp, list(succs))
-##				code.append("to tmp%i" % slot)
-##			else :
-##				code.append("drop")
-
-
 # ------------------------------------------------------------------------------------------------------------
 
 #def pre_tree(g, code, tmp, subtrees, n, visited) :
-##	assert(len(d_stack)==0)
 #	pass
 
 # ------------------------------------------------------------------------------------------------------------
@@ -198,8 +147,6 @@ def codegen_alt(g, expd_dels, meta) :
 
 #	pprint(g)
 
-#	numbering = sethi_ullman(g)
-
 	tmp = temp_init()
 	subtrees = {}
 	code = []
@@ -207,7 +154,7 @@ def codegen_alt(g, expd_dels, meta) :
 #		partial(pre_visit, g, numbering, subtrees),
 #		partial(pre_dive, code, tmp, subtrees),
 #		partial(post_dive, g, code, tmp, subtrees),
-		post_visit = partial(post_visit, g, code, tmp, subtrees),
+		post_visit = partial(post_visit, g, code, tmp, subtrees, expd_dels),
 #		partial(pre_tree, g, code, tmp, subtrees),
 #		partial(post_tree, g, code, tmp, subtrees)
 	)

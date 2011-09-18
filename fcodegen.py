@@ -19,19 +19,6 @@ from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def __execute(code, v) :
-##	if isinstance(v.prototype, core.ConstProto) :
-##		code.append(str(v.value))
-#	if isinstance(v.prototype, core.DelayInProto) :
-#		code.append("to del%i" % v.nr)
-#	elif isinstance(v.prototype, core.DelayOutProto) :
-#		code.append("del%i" % v.nr)
-#	else :
-##		print v, "exename:", v.prototype.exe_name
-#		code.append(v.prototype.exe_name)
-
-# ------------------------------------------------------------------------------------------------------------
-
 def pre_visit(g, numbering, n, visited, terms_to_visit) :
 	number, indices = numbering[n]
 #	depth_limit = 32
@@ -77,15 +64,11 @@ def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
-#	print n, "!"
-#	__execute(code, n)
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 		if not del_out in visited :
-#			print "del_in:", del_in, del_in.terms[0]
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("del%i to tmp%i" % (n.nr, slot))
-#		print "visited:", visited, "n.delay=", n.delay, del_out in visited
 		code.append("to del%i" % n.nr)
 	elif isinstance(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]

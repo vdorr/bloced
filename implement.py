@@ -166,7 +166,7 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 # ------------------------------------------------------------------------------------------------------------
 
 def __cut_joint_alt(g, j) :
-#	print "__cut_joint_alt:", g[j]
+	print "__cut_joint_alt:", g[j]
 	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
@@ -304,7 +304,7 @@ def __make_dag_alt(model, meta) :
 #		) for b in blocks }
 #)
 #	print"__make_dag_alt(4)"
-#	pprint(graph)
+	pprint(graph)
 #	print"__make_dag_alt(5)"
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
@@ -317,7 +317,6 @@ def __make_dag_alt(model, meta) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO TODO TODO take into account sethi-ullman numbering
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp, number in zip(graph_components(g), count()) :
