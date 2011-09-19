@@ -104,17 +104,36 @@ def get_term_poly(tx, ty, tsz, side, direction) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class Block(Canvas) :
+class BlockBase(object) :
 
-	def onMouseDown(self, e) :
+	def get_wires(self, sel_blocks=None) :
+		sel_blocks = sel_blocks if sel_blocks else (self, )
+#		return filter(lambda c:
+#			reduce(lambda x, blck: x or (blck.model in (c[0][0], c[0][2])), sel_blocks, False),
+#			self.editor.connection2line.items())
+		return [ ((b0, t0, b1, t1), data) for (b0, t0, b1, t1), data in self.editor.connection2line.items()
+			if all([ blck.model in (b0, b1) for blck in sel_blocks ]) ]
+
+	#TODO move to superclass?
+	def bind_as_term(self, o) :
+		self.tag_bind(o, "<B1-Motion>", self.term_onMouseMove)#TODO use partial(
+		self.tag_bind(o, "<ButtonPress-1>", self.term_onMouseDown)
+		self.tag_bind(o, "<ButtonRelease-1>", self.term_onMouseUp)
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+class Block(Canvas, BlockBase) :
+
+	def term_onMouseDown(self, e) :
 		self.term_hit = True
 		self.editor.clear_selection()
 		return self.editor.blckMouseDown(self, e)
 
-	def onMouseMove(self, e) :
+	def term_onMouseMove(self, e) :
 		return self.editor.blckMouseMove(self, e)
 
-	def onMouseUp(self, e) :
+	def term_onMouseUp(self, e) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
 
@@ -203,22 +222,6 @@ class Block(Canvas) :
 		self.canvas.coords(self.window, self.model.left, self.model.top)
 		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
 
-	#TODO move to superclass?
-	def bind_as_term(self, o) :
-		self.tag_bind(o, "<B1-Motion>", self.onMouseMove)#TODO use partial(
-		self.tag_bind(o, "<ButtonPress-1>", self.onMouseDown)
-		self.tag_bind(o, "<ButtonRelease-1>", self.onMouseUp)
-
-	#TODO move to superclass?
-	def get_wires(self, sel_blocks=None) :
-		sel_blocks = sel_blocks if sel_blocks else (self, )
-		v = [ ((b0, t0, b1, t1), data) for (b0, t0, b1, t1), data in self.editor.connection2line.items()
-			if all([ blck.model in (b0, b1) for blck in sel_blocks ]) ]
-		assert(v==filter(lambda c:
-			reduce(lambda x, blck: x or (blck.model in (c[0][0], c[0][2])), sel_blocks, False),
-			self.editor.connection2line.items()))
-		return v
-
 	def onMouseDownW(self, e) :
 		if self.term_hit :
 			return None
@@ -252,7 +255,7 @@ class Block(Canvas) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class Joint(object) :
+class Joint(BlockBase) :
 
 	def __init__(self, editor, model) :
 		self.editor = editor
@@ -269,15 +272,6 @@ class Joint(object) :
 	def reshape(self) :
 		self.canvas.coords(self.window, self.model.left, self.model.top,
 			self.model.width+self.model.left, self.model.height+self.model.top)
-
-#TODO move to superclass
-	def get_wires(self, sel_blocks=None) :
-		sel_blocks = sel_blocks if sel_blocks else (self, )
-#		return filter(lambda c:
-#			reduce(lambda x, blck: x or (blck.model in (c[0][0], c[0][2])), sel_blocks, False),
-#			self.editor.connection2line.items())
-		return [ ((b0, t0, b1, t1), data) for (b0, t0, b1, t1), data in self.editor.connection2line.items()
-			if all([ blck.model in (b0, b1) for blck in sel_blocks ]) ]
 
 	def onMouseDownW(self, e) :
 		if self.editor.manipulating :
@@ -407,10 +401,10 @@ class BlockEditor(Frame, GraphModelListener) :
 		if tblock :
 #			print "blckMouseUp:", tblock
 			blck, dstterm = tblock
-			if isinstance(blck.model.prototype, core.JointProto) :
-				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
-				blck.model.terms.append(dstterm)
-				self.canv.tag_raise(blck.window)
+#			if isinstance(blck.model.prototype, core.JointProto) :
+#				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
+#				blck.model.terms.append(dstterm)
+#				self.canv.tag_raise(blck.window)
 			if ( dstterm != None and blck != sender and srcterm != dstterm and
 			     self.model.can_connect(sender.model, srcterm, blck.model, dstterm) ) :
 				self.model.add_connection(sender.model, srcterm, blck.model, dstterm)
@@ -479,12 +473,12 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	def connection_removed(self, sb, st, tb, tt) :
 		for block, term in ((sb, st), (tb, tt)) :
-			if isinstance(block.prototype, core.JointProto) :
-				block.terms.remove(term)
-				if not block.terms and block in self.model.blocks :
-					self.model.remove_block(block)
-			else :
-				self.block_index[block].reshape()
+#			if isinstance(block.prototype, core.JointProto) :
+#				block.terms.remove(term)
+#				if not block.terms and block in self.model.blocks :
+#					self.model.remove_block(block)
+#			else :
+			self.block_index[block].reshape()
 		self.canv.delete(self.connection2line[(sb, st, tb, tt)][0])
 		self.connection2line.pop((sb, st, tb, tt))
 

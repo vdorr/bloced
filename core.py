@@ -14,7 +14,10 @@ class BlockFactory(object) :
 
 class JointProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Joint", [], default_size=(8,8), category="Special")
+		BlockPrototype.__init__(self, "Joint",
+			[ Out(0, "y", C, 0, variadic=True),
+			  In(0, "x", C, 0) ],
+			default_size=(8,8), category="Special")
 
 class ConstProto(BlockPrototype):
 	def __init__(self) :
