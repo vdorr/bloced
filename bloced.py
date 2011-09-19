@@ -364,23 +364,29 @@ class BlockEditor(Frame, GraphModelListener) :
 		xo, yo = tuple(self.canv.coords(sender.window))
 		self.canv.coords(self.line, self.offset[0], self.offset[1], e.x+xo, e.y+yo)
 
-	def __get_term_at(self, blck, dstx, dsty) :
+	def __get_term_at(self, blck, dstx, dsty, filt_dir=None) :
 		xo1, yo1, ro1, bo1 = tuple(self.canv.bbox(blck.window))
 		tdstx, tdsty = dstx - xo1, dsty - yo1
-		term = None
 		if blck.model.prototype.__class__ != core.JointProto :
-			term = blck.find_overlapping(tdstx-1, tdsty-1, tdstx+1, tdsty+1)
-		dstterm = None
-		if term and term[0] in blck.window2term :
-			dstterm = blck.window2term[term[0]]
-		return (blck, dstterm)
+			terms = blck.find_overlapping(tdstx-1, tdsty-1, tdstx+1, tdsty+1)
+			dstterms = [ blck.window2term[t] for t in terms if t in blck.window2term ]
+		else :
+			dstterms = blck.model.terms #TODO TODO TODO
+#		print "__get_term_at:", [(t, t.direction, t.direction ==filt_dir) for t in dstterms]
+#		dstterm = None
+#		if terms and terms[0] in blck.window2term :
+#			dstterm = blck.window2term[terms[0]]
+		f_dstterms = [ t for t in dstterms if (filt_dir == None or t.direction == filt_dir) ]
+		return (blck, f_dstterms[0] if f_dstterms else None)
 
-	def __get_obj_at(self, dstx, dsty) :
+	def __get_obj_at(self, dstx, dsty, filt_dir=None) :
 		a = 2
 		hits = self.canv.find_overlapping(dstx-a, dsty-a, dstx+a, dsty+a)
-		hit_blocks = [ self.__get_term_at(self.window_index[w], dstx, dsty)
+		hit_blocks = [ self.__get_term_at(self.window_index[w], dstx, dsty, filt_dir)
 				for w in hits if w in self.window_index ]
 		hit_wires = [ conn for conn, (w, etc) in self.connection2line.items() if w in hits ]
+#		pprint(self.window_index)
+#		print(hits)
 #		print "__get_obj_at: b:", hit_blocks, " w:", hit_wires
 		return ( hit_blocks[0] if hit_blocks else None, hit_wires[0] if hit_wires else None)
 
@@ -396,15 +402,19 @@ class BlockEditor(Frame, GraphModelListener) :
 		dstx = e.x + xo0
 		dsty = e.y + yo0
 
-		tblock, twire = self.__get_obj_at(dstx, dsty)
+		tblock, twire = self.__get_obj_at(dstx, dsty,
+			INPUT_TERM if srcterm.direction == OUTPUT_TERM else OUTPUT_TERM)
 
 		if tblock :
 #			print "blckMouseUp:", tblock
 			blck, dstterm = tblock
-#			if isinstance(blck.model.prototype, core.JointProto) :
+			if isinstance(blck.model.prototype, core.JointProto) :
+#				print "kvak", blck, blck.model, blck.model.terms, dstterm
 #				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
 #				blck.model.terms.append(dstterm)
 #				self.canv.tag_raise(blck.window)
+				pass
+			print "kvak2", sender.model, srcterm, blck.model, dstterm
 			if ( dstterm != None and blck != sender and srcterm != dstterm and
 			     self.model.can_connect(sender.model, srcterm, blck.model, dstterm) ) :
 				self.model.add_connection(sender.model, srcterm, blck.model, dstterm)
