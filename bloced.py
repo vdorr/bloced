@@ -371,7 +371,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			terms = blck.find_overlapping(tdstx-1, tdsty-1, tdstx+1, tdsty+1)
 			dstterms = [ blck.window2term[t] for t in terms if t in blck.window2term ]
 		else :
-			dstterms = blck.model.terms #TODO TODO TODO
+			dstterms = blck.model.terms
 #		print "__get_term_at:", [(t, t.direction, t.direction ==filt_dir) for t in dstterms]
 #		dstterm = None
 #		if terms and terms[0] in blck.window2term :
@@ -408,13 +408,12 @@ class BlockEditor(Frame, GraphModelListener) :
 		if tblock :
 #			print "blckMouseUp:", tblock
 			blck, dstterm = tblock
-			if isinstance(blck.model.prototype, core.JointProto) :
+#			if isinstance(blck.model.prototype, core.JointProto) :
 #				print "kvak", blck, blck.model, blck.model.terms, dstterm
 #				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
 #				blck.model.terms.append(dstterm)
 #				self.canv.tag_raise(blck.window)
-				pass
-			print "kvak2", sender.model, srcterm, blck.model, dstterm
+#			print "kvak2", sender.model, srcterm, blck.model, dstterm
 			if ( dstterm != None and blck != sender and srcterm != dstterm and
 			     self.model.can_connect(sender.model, srcterm, blck.model, dstterm) ) :
 				self.model.add_connection(sender.model, srcterm, blck.model, dstterm)

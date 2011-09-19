@@ -112,10 +112,11 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 	for (block_nr, term_name), conns in struct :
 		sb = blocks[block_nr]
 	
-		if isinstance(sb.prototype, core.JointProto) :
-			st = dfs.Out(0, "", dfs.C, 0)
-			sb.terms.append(st)
-		else :
+#		if isinstance(sb.prototype, core.JointProto) :
+#			st = dfs.Out(0, "", dfs.C, 0)
+#			sb.terms.append(st)
+#		else :
+		if True :
 #			print "load_to_dfs_model(3):", term_name
 			t_name = stname(term_name)
 			st, = tuple(islice(dropwhile(lambda t: t.name != t_name, sb.terms), 0, 1))
@@ -136,12 +137,13 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 			print "ntb, stt:", ntb, "'", stt, "'"
 
 #			print "666: ", stt
-			if isinstance(tb.prototype, core.JointProto) :
-				tt = dfs.In(0, "", dfs.C, 0)
-#				assert(len(tb.inputs) == 0)
-				tb.terms.append(tt)
-				print ntb, stt, [ (tx.name, tx.direction) for tx in tb.terms ]
-			else :
+#			if isinstance(tb.prototype, core.JointProto) :
+#				tt = dfs.In(0, "", dfs.C, 0)
+##				assert(len(tb.inputs) == 0)
+#				tb.terms.append(tt)
+#				print ntb, stt, [ (tx.name, tx.direction) for tx in tb.terms ]
+#			else :
+			if True :
 				stt_name = stname(stt)
 				tt, = tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))
 				assert(tt==tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))[0])
