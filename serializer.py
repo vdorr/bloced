@@ -106,7 +106,7 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 		blocks[n] = b
 		m.add_block(b)
 
-	pprint(blocks)
+#	pprint(blocks)
 
 #	conn_list = []
 	for (block_nr, term_name), conns in struct :
@@ -116,12 +116,9 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 #			st = dfs.Out(0, "", dfs.C, 0)
 #			sb.terms.append(st)
 #		else :
-		if True :
-#			print "load_to_dfs_model(3):", term_name
-			t_name = stname(term_name)
-			st, = tuple(islice(dropwhile(lambda t: t.name != t_name, sb.terms), 0, 1))
-#			st = tuple(islice(dropwhile(lambda t: t.name != term_name, sb.terms), 0, 1))[0]
-#			assert(st==tuple(islice(dropwhile(lambda t: t.name != term_name, sb.terms), 0, 1))[0])
+#		if True :
+		t_name = stname(term_name)
+		st, = tuple(islice(dropwhile(lambda t: t.name != t_name, sb.terms), 0, 1))
 
 		if isinstance(term_name, tuple) :
 			st = (st, term_name[1])
@@ -144,9 +141,8 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 #				print ntb, stt, [ (tx.name, tx.direction) for tx in tb.terms ]
 #			else :
 			if True :
-				stt_name = stname(stt)
-				tt, = tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))
-				assert(tt==tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))[0])
+			stt_name = stname(stt)
+			tt, = tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))
 			
 			meta = (conn_meta[(block_nr, term_name, ntb, stt)] 
 				if (block_nr, term_name, ntb, stt) in conn_meta else {})
