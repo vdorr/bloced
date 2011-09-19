@@ -131,7 +131,7 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 
 			tb = blocks[ntb]
 
-			print "ntb, stt:", ntb, "'", stt, "'"
+#			print "ntb, stt:", ntb, "'", stt, "'"
 
 #			print "666: ", stt
 #			if isinstance(tb.prototype, core.JointProto) :
@@ -140,7 +140,7 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 #				tb.terms.append(tt)
 #				print ntb, stt, [ (tx.name, tx.direction) for tx in tb.terms ]
 #			else :
-			if True :
+#			if True :
 			stt_name = stname(stt)
 			tt, = tuple(islice(dropwhile(lambda t: t.name != stt_name, tb.terms), 0, 1))
 			
