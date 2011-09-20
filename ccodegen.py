@@ -37,18 +37,9 @@ from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get
 def post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 
 #TODO can i get rid off som cycles by use of other callbacks?
+
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
-
-##	print n, "!"
-#	if isinstance(v.prototype, core.DelayInProto) :
-#		code.append("to del%i" % v.nr)
-#	elif isinstance(v.prototype, core.DelayOutProto) :
-#		code.append("del%i" % v.nr)
-#	else :
-#		code.append(v.prototype.exe_name)
-
-
 
 	inputs, outputs = g[n]
 #	assert(outputs == g[n].s)

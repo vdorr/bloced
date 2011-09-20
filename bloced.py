@@ -273,24 +273,21 @@ class Joint(BlockBase) :
 		self.canvas.coords(self.window, self.model.left, self.model.top,
 			self.model.width+self.model.left, self.model.height+self.model.top)
 
+	def move(self, e, start) :
+		diffX, diffY = (e.x - start.x), (e.y - start.y)
+		self.canvas.move(self.window, diffX, diffY)
+		self.model.left, self.model.top, r, b = tuple(self.canvas.bbox(self.window))
+
 	def onMouseDownW(self, e) :
 		if self.editor.manipulating :
 			return None
 		self.editor.manipulating = "joint"
 		self.start = e
-		self.affected_wires = filter(lambda c: self.model in (c[0][0], c[0][2]), #sb, st, tb, tt
-			self.editor.connection2line.items())
+		self.affected_wires = self.get_wires()
+#		self.affected_wires = filter(lambda c: self.model in (c[0][0], c[0][2]), #sb, st, tb, tt
+#			self.editor.connection2line.items())
 		for k, v in self.affected_wires :
 			self.editor.update_connection(*(k + (False,)))
-
-#	def onMouseMoveW(self, e, nocheck=False) :
-#		if nocheck or (not self.movingObject and self.editor.manipulating == "joint") :
-#			diffX, diffY = (e.x - self.start.x), (e.y - self.start.y)
-#			self.canvas.move(self.window, diffX, diffY)
-#			self.start = e
-#			self.model.left, self.model.top, r, b = tuple(self.canvas.bbox(self.window))
-#			for k, v in self.affected_wires :
-#				self.editor.update_connection(*(k + (False,)))
 
 	def onMouseMoveW(self, e) :
 		if not self.movingObject and self.editor.manipulating == "joint" :
@@ -298,11 +295,6 @@ class Joint(BlockBase) :
 			self.start = e
 			for k, v in self.affected_wires :
 				self.editor.update_connection(*(k + (False,)))
-
-	def move(self, e, start) :
-		diffX, diffY = (e.x - start.x), (e.y - start.y)
-		self.canvas.move(self.window, diffX, diffY)
-		self.model.left, self.model.top, r, b = tuple(self.canvas.bbox(self.window))
 
 	def onMouseUpW(self, e) :
 		self.start = None
