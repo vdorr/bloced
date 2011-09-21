@@ -84,6 +84,16 @@ class SysRqProto(BlockPrototype):
 			exe_name="sysrq",
 			default_size=(64,80), category="Special")
 
+class InputProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "Input", [ Out(0, "x", E, 0.5) ],
+			default_size=(48,48), category="Special")
+
+class OutputProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "Output", [ In(0, "y", W, 0.5) ],
+			default_size=(48,48), category="Special")
+
 # ------------------------------------------------------------------------------------------------------------
 
 class SBP(BlockPrototype) :
@@ -158,6 +168,8 @@ class BasicBlocksFactory(BlockFactory) :
 #			SignalProto(),
 #			NoteProto(),
 			SysRqProto(),
+			InputProto(),
+			OutputProto(),
 
 			BinaryOp("xor", "Logic", commutative=True),
 			BinaryOp("or", "Logic", commutative=True),
