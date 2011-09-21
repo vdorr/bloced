@@ -199,8 +199,6 @@ def __expand_joints_new(g) :
 def t_unpack(term) :
 	return term if isinstance(term, tuple) else (term, 0) # XXX XXX use 0 instead of None?
 
-
-
 def __expand_delays(blocks, conns) :
 
 	delays = { b for b in blocks if isinstance(b.prototype, DelayProto) }
@@ -292,7 +290,7 @@ def __merge_g_and_conns(g, conns) :
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def __make_dag_alt(model, meta) :
+def make_dag(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
@@ -300,11 +298,6 @@ def __make_dag_alt(model, meta) :
 #	exit(666)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
-#	print"__make_dag_alt(1)"
-#	pprint(conns1)
-#	print"__make_dag_alt(2)"
-#	pprint(conns_rev)
-#	print"__make_dag_alt(3)"	
 	graph = { b : adjs_t(
 			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in __in_terms(b) ],
 			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
@@ -315,13 +308,9 @@ def __make_dag_alt(model, meta) :
 #			__out_terms(b),#[ (t, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
 #		) for b in blocks }
 #)
-#	print"__make_dag_alt(4)"
-#	pprint(graph)
-#	print"__make_dag_alt(5)"
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
-		raise Exception("__make_dag_alt: produced graph is insane")
-#	print "__make_dag_alt(3):", "is sane =", is_sane
+		raise Exception("make_dag: produced graph is insane")
 
 	__expand_joints_new(graph)
 
@@ -572,10 +561,8 @@ def printg(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 def implement_dfs(model, meta, codegen, out_fobj) :
-#	from fcodegen import codegen
-#	g, conns, delays = __make_dag(model, meta)
-##	pprint(conns)
-	graph, delays = __make_dag_alt(model, meta)
+
+	graph, delays = make_dag(model, meta)
 #	pprint(graph)
 
 #	gsorted = [ __tsort(__graph_part(g, comp)) for comp in __components(g) ]

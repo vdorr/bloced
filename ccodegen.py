@@ -7,7 +7,7 @@ import string
 from functools import partial
 from itertools import count, groupby
 from pprint import pprint
-from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get_tmp_slot, add_tmp_ref, pop_tmp_ref, tmp_used_slots
+from implement import *
 
 # ------------------------------------------------------------------------------------------------------------
 
