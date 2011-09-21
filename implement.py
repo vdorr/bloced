@@ -561,23 +561,9 @@ def printg(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 def implement_dfs(model, meta, codegen, out_fobj) :
-
 	graph, delays = make_dag(model, meta)
-#	pprint(graph)
-
-#	gsorted = [ __tsort(__graph_part(g, comp)) for comp in __components(g) ]
-
-#TODO be aware of components
-#	print graph_components(graph)
-
 	code = codegen(graph, delays, {})
-
-
-#	printg(graph)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
-
-#	gsorted = [ __tsort(__graph_part(g, comp)) for comp in __components(g) ]
-#	print codegen(g, conns, delays, list(chain(*gsorted)))
 
 # ------------------------------------------------------------------------------------------------------------
 
