@@ -531,8 +531,13 @@ class BlockEditor(Frame, GraphModelListener) :
 	
 	def get_nearest(self, x, y, ssz = 4) :
 		o = self.canv.find_overlapping(x-ssz, y-ssz, x+ssz, y+ssz)
-		return ((o, filter(lambda v: o[0] == v[1][0], self.connection2line.items()))
+
+
+		filtered = ((o, filter(lambda v: o[0] == v[1][0], self.connection2line.items()))
 			if o else (None, None))
+
+#		print "get_nearest:", o, filtered
+		return filtered
 
 	def default_mousedown(self, ee) :
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
@@ -543,32 +548,25 @@ class BlockEditor(Frame, GraphModelListener) :
 			return None
 		self.move_start = e
 		self.manipulating = False
-		o, item = self.get_nearest(e.x, e.y)
+		_, item = self.get_nearest(e.x, e.y)
 		if item :
 			route = item[0][1][1] # XXX XXX XXX fuckoff!!!
 			kneebonus = 4
 			indices = xrange(0, len(route)-2, 2)
 
-#			dist = chain(
+			dist = ([ ((i, 2), mathutils.pldist(*(route[i:i+4]+[e.x, e.y]))) for i in indices ] +
+				[ ((i, 1), mathutils.ppdist(*(route[i:i+2]+[e.x, e.y]))-kneebonus) for i in indices ])
+			#XXX test only
+#			dist_old = chain(
 #				imap(lambda i: ((i, 2),
 #					mathutils.pldist(route[i], route[i+1], route[i+2], route[i+3], e.x, e.y)),
 #						indices),
 #				imap(lambda i: ((i, 1),
 #					mathutils.ppdist(route[i], route[i+1], e.x, e.y) - kneebonus),
 #						indices))
-			dist = ([ ((i, 2), mathutils.pldist(*(route[i:i+4]+[e.x, e.y]))) for i in indices ] +
-				[ ((i, 1), mathutils.ppdist(*(route[i:i+2]+[e.x, e.y]))-kneebonus) for i in indices ])
-			#XXX test only
-			dist_old = chain(
-				imap(lambda i: ((i, 2),
-					mathutils.pldist(route[i], route[i+1], route[i+2], route[i+3], e.x, e.y)),
-						indices),
-				imap(lambda i: ((i, 1),
-					mathutils.ppdist(route[i], route[i+1], e.x, e.y) - kneebonus),
-						indices))
 			segment, dist = reduce(lambda a,b: a if a[1] < b[1] else b, dist)
 
-			assert((segment, dist) == reduce(lambda a,b: a if a[1] < b[1] else b, dist_old))
+#			assert((segment, dist) == reduce(lambda a,b: a if a[1] < b[1] else b, dist_old))
 
 			self.mdata2 = segment
 

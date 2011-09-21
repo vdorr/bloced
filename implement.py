@@ -12,6 +12,12 @@ import sys
 #	model :
 #	( from_block, from_term ) : [ ( to_block0, to_term0, ), ... ]
 
+#TODO TODO TODO revisit
+# convention: get_terms - last term in list is on top of stack
+# assumption : every block is evaluated exactly once per iteration
+#	- except constants
+#	- evaluation of stateless components can (should) be optimized
+
 # ------------------------------------------------------------------------------------------------------------
 
 adjs_t = namedtuple("a", [ "p", "s", ])
@@ -166,7 +172,7 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 # ------------------------------------------------------------------------------------------------------------
 
 def __cut_joint_alt(g, j) :
-	print "__cut_joint_alt:", g[j].p
+#	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
 	succs = g[j].s
 	((it, it_nr, ((pb, pt, pt_nr),)),) = g[j].p
@@ -290,7 +296,7 @@ def __make_dag_alt(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
-	pprint(model.connections)
+#	pprint(model.connections)
 #	exit(666)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
@@ -529,6 +535,7 @@ def get_tmp_slot(tmp) :
 # ------------------------------------------------------------------------------------------------------------
 
 def add_tmp_ref(tmp, refs) :
+	assert(len(refs)>0)
 	slot = get_tmp_slot(tmp)
 	tmp[slot] = list(refs)
 	return slot
@@ -542,6 +549,8 @@ def pop_tmp_ref(tmp, b, t, t_nr) :
 			slot.remove((b, t, t_nr))
 			if len(slot) == 0 :
 				tmp[nr] = "empty"
+#			else :
+#				print "pop_tmp_ref:", tmp[nr]
 			return nr
 	return None
 

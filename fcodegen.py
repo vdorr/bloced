@@ -11,19 +11,8 @@ from implement import dft_alt, get_terms_flattened, sethi_ullman, temp_init, get
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO TODO TODO revisit
-# convention: get_terms - last term in list is on top of stack
-# assumption : every block is evaluated exactly once per iteration
-#	- except constants
-#	- evaluation of stateless components can (should) be optimized
-
-# ------------------------------------------------------------------------------------------------------------
-
 def pre_visit(g, numbering, n, visited, terms_to_visit) :
 	number, indices = numbering[n]
-#	depth_limit = 32
-#	if number > depth_limit :
-#		pass # XXX now what?
 	ordering = dict(zip(terms_to_visit, indices))
 	terms_to_visit.sort(key=lambda t: ordering[t])
 
@@ -105,8 +94,7 @@ def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 			code.append("to tmp%i" % slot)
 			pass # leading to multiple inputs, store in temp
 		else :
-			code.append("drop")
-			pass # unconnected, drop
+			code.append("drop")# unconnected, drop
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -122,12 +110,7 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 def codegen_alt(g, expd_dels, meta) :
 
-#	pprint(expd_dels)
-
 	numbering = sethi_ullman(g)
-#	pprint(numbering)
-#	print "max d stack usage:", max([ v for v, indices in numbering.values() ])
-
 	tmp = temp_init()
 	d_stack = []
 	code = []
@@ -142,9 +125,6 @@ def codegen_alt(g, expd_dels, meta) :
 	assert(tmp_used_slots(tmp) == 0)
 
 	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
-#	print del_init
-#	print tmp
-#	print code
 	output = (": tsk" + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * len(tmp)) + linesep +
@@ -155,6 +135,7 @@ def codegen_alt(g, expd_dels, meta) :
 		"\tbegin" + linesep +
 		string.join([ "\t\t" + loc for loc in code ], linesep) + linesep +
 		"\tagain" + linesep + ";")
+
 	return output
 
 # ------------------------------------------------------------------------------------------------------------
