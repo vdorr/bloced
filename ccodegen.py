@@ -47,12 +47,12 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 	args = []
 	outs = []#TODO TODO TODO
 
-	print "__post_visit:", n, tmp, subtrees
+#	print "__post_visit:", n, tmp, subtrees
 
 	for out_term, out_t_nr, succs in outputs :
-		print "out_term, out_t_nr, succs =", n, out_term, out_t_nr, succs
+#		print "out_term, out_t_nr, succs =", n, out_term, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
-			print "adding temps:", succs
+#			print "adding temps:", succs
 			slot = add_tmp_ref(tmp, succs)
 			outs.append("&tmp%i"%slot)
 		else :
@@ -62,7 +62,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 	for in_term, in_t_nr, preds in inputs :
 		assert(len(preds)==1)
 		((m, m_t, m_t_nr), ) = preds
-		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
+#		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
 		if isinstance(m.prototype, core.ConstProto) :
 			assert(m.value != None)
 			args.append(str(m.value))
@@ -103,7 +103,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 #	expr = exe_name + "(" + string.join(args, ", ") + string.join(outs, ", ") + ")"
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
 
-	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
+#	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
 
 	if is_expr :
 		((out_term, out_t_nr, succs), ) = outputs
@@ -121,24 +121,18 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 # ------------------------------------------------------------------------------------------------------------
 
 def codegen_alt(g, expd_dels, meta) :
-
-
-	pprint(g)
-
+#	pprint(g)
 	tmp = temp_init()
 	subtrees = {}
 	code = []
 	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
-
-	print tmp
+#	print tmp
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
-
 	variables = ([ "del%i = %i" % (i, int(d.value))
 			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ] +
 		     [ "tmp%i" % i for i in range(len(tmp)) ] +
 		     [ "dummy" ])
-
 	output = ("void tsk()" + linesep + "{" + linesep +
 		# locals and delays
 		(("\tvm_word_t " + string.join(variables, ", ") + ";" + linesep)
