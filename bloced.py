@@ -257,18 +257,6 @@ class Block(Canvas, BlockBase) :
 
 class Joint(BlockBase) :
 
-	def __init__(self, editor, model) :
-		self.editor = editor
-		self.canvas = editor.canv
-		self.model = model
-		self.window = self.canvas.create_oval(self.model.left, self.model.top,
-			self.model.width+self.model.left, self.model.height+self.model.top,
-			fill="black")
-		self.editor.canv.tag_bind(self.window, "<B1-Motion>", self.onMouseMoveW)
-		self.editor.canv.tag_bind(self.window, "<ButtonPress-1>", self.onMouseDownW)
-		self.editor.canv.tag_bind(self.window, "<ButtonRelease-1>", self.onMouseUpW)
-		self.movingObject = None
-
 	def reshape(self) :
 		self.canvas.coords(self.window, self.model.left, self.model.top,
 			self.model.width+self.model.left, self.model.height+self.model.top)
@@ -284,8 +272,6 @@ class Joint(BlockBase) :
 		self.editor.manipulating = "joint"
 		self.start = e
 		self.affected_wires = self.get_wires()
-#		self.affected_wires = filter(lambda c: self.model in (c[0][0], c[0][2]), #sb, st, tb, tt
-#			self.editor.connection2line.items())
 		for k, v in self.affected_wires :
 			self.editor.update_connection(*(k + (False,)))
 
@@ -302,6 +288,18 @@ class Joint(BlockBase) :
 			self.editor.update_connection(*(k + (True,)))
 		self.affected_wires = None
 		self.editor.manipulating = None
+
+	def __init__(self, editor, model) :
+		self.editor = editor
+		self.canvas = editor.canv
+		self.model = model
+		self.window = self.canvas.create_oval(self.model.left, self.model.top,
+			self.model.width+self.model.left, self.model.height+self.model.top,
+			fill="black")
+		self.editor.canv.tag_bind(self.window, "<B1-Motion>", self.onMouseMoveW)
+		self.editor.canv.tag_bind(self.window, "<ButtonPress-1>", self.onMouseDownW)
+		self.editor.canv.tag_bind(self.window, "<ButtonRelease-1>", self.onMouseUpW)
+		self.movingObject = None
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -531,20 +529,23 @@ class BlockEditor(Frame, GraphModelListener) :
 	
 	def get_nearest(self, x, y, ssz = 4) :
 		o = self.canv.find_overlapping(x-ssz, y-ssz, x+ssz, y+ssz)
-
-
-		filtered = ((o, filter(lambda v: o[0] == v[1][0], self.connection2line.items()))
+		filtered_old = ((o, filter(lambda v: o[0] == v[1][0], self.connection2line.items()))
 			if o else (None, None))
-
+		filtered = ((o, [ v for v in self.connection2line.items() if o[0] == v[1][0] ])
+			if o else (None, None))
+		assert(filtered==filtered_old)
 #		print "get_nearest:", o, filtered
 		return filtered
 
 	def default_mousedown(self, ee) :
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
 
+		print "default_mousedown"
+
 		self.canv.focus_set()
 		self.clear_selection()
 		if self.manipulating or e.state & BIT_SHIFT:
+			print "default_mousedown(2)"
 			return None
 		self.move_start = e
 		self.manipulating = False
