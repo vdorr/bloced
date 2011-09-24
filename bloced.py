@@ -108,13 +108,9 @@ class BlockBase(object) :
 
 	def get_wires(self, sel_blocks=None) :
 		sel_blocks = sel_blocks if sel_blocks else (self, )
-#		return filter(lambda c:
-#			reduce(lambda x, blck: x or (blck.model in (c[0][0], c[0][2])), sel_blocks, False),
-#			self.editor.connection2line.items())
 		return [ ((b0, t0, b1, t1), data) for (b0, t0, b1, t1), data in self.editor.connection2line.items()
 			if all([ blck.model in (b0, b1) for blck in sel_blocks ]) ]
 
-	#TODO move to superclass?
 	def bind_as_term(self, o) :
 		self.tag_bind(o, "<B1-Motion>", self.term_onMouseMove)#TODO use partial(
 		self.tag_bind(o, "<ButtonPress-1>", self.term_onMouseDown)
@@ -189,21 +185,30 @@ class Block(Canvas, BlockBase) :
 		self.__term2txt = {}
 		self.term_hit = False
 
+		self.create_terms = True
 		self.reshape()
 
 	def reshape(self) :
+		self.window2term.clear()
+		self.__term2txt.clear()
+		self.regenerate_terms()
+		self.coords(self.border_rect, 0, 0, self.model.width-1, self.model.height-1)
+		self.canvas.coords(self.window, self.model.left, self.model.top)
+		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
+
+	def regenerate_terms(self) :
 
 		fnt = tkFont.nametofont("TkDefaultFont")
 		txt_height = fnt.metrics("linespace")
 
-		self.window2term.clear()
-		self.__term2txt.clear()
-
 		for t in self.model.terms :
 			self.delete(t.name)
 
+		if not self.create_terms :
+			return None
+
 		for t, nr in self.model.get_terms_flat() :
-#			print "reshape: t, nr=", t, nr
+
 			term_tag = t.name
 			term_label = self.model.get_term_presentation_text(t, nr)
 
@@ -217,10 +222,6 @@ class Block(Canvas, BlockBase) :
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
-
-		self.coords(self.border_rect, 0, 0, self.model.width-1, self.model.height-1)
-		self.canvas.coords(self.window, self.model.left, self.model.top)
-		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
 
 	def onMouseDownW(self, e) :
 		if self.term_hit :
@@ -255,51 +256,12 @@ class Block(Canvas, BlockBase) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class Joint(BlockBase) :
-
-	def reshape(self) :
-		self.canvas.coords(self.window, self.model.left, self.model.top,
-			self.model.width+self.model.left, self.model.height+self.model.top)
-
-	def move(self, e, start) :
-		diffX, diffY = (e.x - start.x), (e.y - start.y)
-		self.canvas.move(self.window, diffX, diffY)
-		self.model.left, self.model.top, r, b = tuple(self.canvas.bbox(self.window))
-
-	def onMouseDownW(self, e) :
-		if self.editor.manipulating :
-			return None
-		self.editor.manipulating = "joint"
-		self.start = e
-		self.affected_wires = self.get_wires()
-		for k, v in self.affected_wires :
-			self.editor.update_connection(*(k + (False,)))
-
-	def onMouseMoveW(self, e) :
-		if not self.movingObject and self.editor.manipulating == "joint" :
-			self.move(e, self.start)
-			self.start = e
-			for k, v in self.affected_wires :
-				self.editor.update_connection(*(k + (False,)))
-
-	def onMouseUpW(self, e) :
-		self.start = None
-		for k, v in self.affected_wires :
-			self.editor.update_connection(*(k + (True,)))
-		self.affected_wires = None
-		self.editor.manipulating = None
-
-	def __init__(self, editor, model) :
-		self.editor = editor
-		self.canvas = editor.canv
-		self.model = model
-		self.window = self.canvas.create_oval(self.model.left, self.model.top,
-			self.model.width+self.model.left, self.model.height+self.model.top,
-			fill="black")
-		self.editor.canv.tag_bind(self.window, "<B1-Motion>", self.onMouseMoveW)
-		self.editor.canv.tag_bind(self.window, "<ButtonPress-1>", self.onMouseDownW)
-		self.editor.canv.tag_bind(self.window, "<ButtonRelease-1>", self.onMouseUpW)
-		self.movingObject = None
+class Joint(Block) :
+	def __init__(self, *u, **v) :
+		super(Joint, self).__init__(*u, **v)
+		self.create_terms = False
+		self.reshape()
+		self.configure(bg="black")
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -540,12 +502,9 @@ class BlockEditor(Frame, GraphModelListener) :
 	def default_mousedown(self, ee) :
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
 
-		print "default_mousedown"
-
 		self.canv.focus_set()
 		self.clear_selection()
 		if self.manipulating or e.state & BIT_SHIFT:
-			print "default_mousedown(2)"
 			return None
 		self.move_start = e
 		self.manipulating = False
@@ -617,7 +576,6 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	def create_selection_from_list(self, blocks, lines) :
 		self.clear_selection()
-#		print blocks, "\n\n", lines
 		if blocks or lines :
 			x, y, r, b, = self.measure_objects(blocks, lines)
 			self.selection_rect = self.create_selection_rect(x, y, r, b)

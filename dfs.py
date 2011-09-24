@@ -353,6 +353,8 @@ class BlockModel(object) :
 			newtxt = self.value
 		elif self.prototype.__class__.__name__ == "DelayProto" :
 			newtxt = "Delay (%s)" % self.value if self.value != None else "None"
+		elif self.prototype.__class__.__name__ == "JointProto" :
+			newtxt = ""
 		else :
 			newtxt = self.caption
 		return newtxt
