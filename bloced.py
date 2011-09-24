@@ -541,7 +541,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	def default_mousedown(self, ee) :
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
-		
+
 		self.canv.focus_set()
 		self.clear_selection()
 		if self.manipulating or e.state & BIT_SHIFT:
@@ -556,17 +556,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 			dist = ([ ((i, 2), mathutils.pldist(*(route[i:i+4]+[e.x, e.y]))) for i in indices ] +
 				[ ((i, 1), mathutils.ppdist(*(route[i:i+2]+[e.x, e.y]))-kneebonus) for i in indices ])
-			#XXX test only
-#			dist_old = chain(
-#				imap(lambda i: ((i, 2),
-#					mathutils.pldist(route[i], route[i+1], route[i+2], route[i+3], e.x, e.y)),
-#						indices),
-#				imap(lambda i: ((i, 1),
-#					mathutils.ppdist(route[i], route[i+1], e.x, e.y) - kneebonus),
-#						indices))
 			segment, dist = reduce(lambda a,b: a if a[1] < b[1] else b, dist)
-
-#			assert((segment, dist) == reduce(lambda a,b: a if a[1] < b[1] else b, dist_old))
 
 			self.mdata2 = segment
 
@@ -946,7 +936,7 @@ class BlockEditorWindow :
 
 	def mnu_edit_copy(self, a=None) :
 		if self.bloced.selection :
-			pyperclip.setcb(self.bloced.serialize_selection())#XXX lambda?
+			pyperclip.setcb(self.bloced.serialize_selection())
 
 	def mnu_edit_paste(self, a=None) :
 		self.bloced.paste(pyperclip.getcb())#XXX lambda?
