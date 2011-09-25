@@ -9,6 +9,7 @@ from pprint import pprint
 
 #TODO elaborate docstring
 #TODO own exceptions
+#TODO top level dict container for sub-sheets and metadata and/or resources
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -108,7 +109,7 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 
 #	pprint(blocks)
 
-#	conn_list = []
+	conn_list = []
 	for (block_nr, term_name), conns in struct :
 		sb = blocks[block_nr]
 	
@@ -151,17 +152,17 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 #				st = (st, term_name[1])
 #			print "stt=", stt, "tt=", tt
 
-			m.add_connection(sb, st, tb, (tt, stt[1]) if isinstance(stt, tuple) else tt,#XXX check this if problem with varterm occurs!
-				meta=meta, deserializing=deserializing)
+			tt2 = (tt, stt[1]) if isinstance(stt, tuple) else tt #XXX check this if problem with varterm occurs!
+			m.add_connection(sb, st, tb, tt2, meta=meta, deserializing=deserializing)
 
-#			conn_list.append((sb, st, tb, tt))
+			conn_list.append((sb, st, tb, tt2))
 #			print "load_to_dfs_model:", (sb, st, tb, tt)
 #			m.add_connection(sb, st, tb, tt, meta=meta, deserializing=deserializing)
 
 #	print "load_to_dfs_model(5):", m.connections
 
 #	print "conn_list:", conn_list
-#	return blocks.values(), conn_list
+	return blocks.values(), conn_list
 
 # ------------------------------------------------------------------------------------------------------------
 

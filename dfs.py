@@ -515,6 +515,7 @@ class GraphModel(object) :
 
 			if not self.can_connect(b0, t0, b1, t1) :#TODO add multiplicity
 				raise Exception("can't connect")
+			print "add_connection:", b0, t0, b1, t1
 			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == OUTPUT_TERM else (b1, t1, b0, t0)
 
 			if not isinstance(t0, tuple) and t0.variadic :
