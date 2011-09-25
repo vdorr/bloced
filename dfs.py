@@ -200,6 +200,14 @@ class BlockModel(object) :
 
 	orientation = property(__get_orientation, __set_orientation)
 
+	default_size = property(lambda self: (self.__get_default_width(), self.__get_default_height()))
+
+	def __get_default_height(self) :
+		return self.__width if self.orientation[2] % 180 else self.__height
+
+	def __get_default_width(self) :
+		return self.__height if self.orientation[2] % 180 else self.__width
+
 	def __get_width(self) :
 		return self.__get_prop_height() if self.orientation[2] % 180 else self.__get_prop_width()
 
@@ -301,6 +309,9 @@ class BlockModel(object) :
 #		return retval
 
 	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
+
+#		dw, dh = self.__prototype.default_size
+
 		t_size = term_size
 		shift = t_size/2 if center else 0
 #XXX XXX XXX
@@ -309,22 +320,44 @@ class BlockModel(object) :
 		c = (index - 1) * term_size if t.variadic else 0
 #XXX XXX XXX
 		#TODO precompute
+##		sides = {
+##			N : lambda p, tw: ((self.width*p-t_size/2+c, 0), (0, t_size)),
+##			S : lambda p, tw: ((self.width*p-t_size/2+c, self.height-t_size-1), (0, -t_size)),
+##			W : lambda p, tw: ((0, self.height*p-t_size/2+c), (t_size, 0)),
+##			E : lambda p, tw: ((self.width-t_size-1, self.height*p-t_size/2+c), (-1-tw, 0)),
+##			C : lambda p, tw: ((0.5*self.width, 0.5*self.height), (0, 0)),
+##		}
 #		sides = {
-#			N : lambda p, tw: ((self.width*p-t_size/2+c, 0), (0, t_size)),
-#			S : lambda p, tw: ((self.width*p-t_size/2+c, self.height-t_size-1), (0, -t_size)),
-#			W : lambda p, tw: ((0, self.height*p-t_size/2+c), (t_size, 0)),
-#			E : lambda p, tw: ((self.width-t_size-1, self.height*p-t_size/2+c), (-1-tw, 0)),
-#			C : lambda p, tw: ((0.5*self.width, 0.5*self.height), (0, 0)),
+#			N : lambda p, tw: ((self.width*p-shift+c, 0), (0, t_size)),
+#			S : lambda p, tw: ((self.width*p-shift+c, self.height-t_size-1), (0, -t_size)),
+#			W : lambda p, tw: ((0, self.height*p-shift+c), (t_size, 0)),
+#			E : lambda p, tw: ((self.width-t_size-1, self.height*p-shift+c), (-1-tw, 0)),
+#			C : lambda p, tw: ((self.width/2, self.height/2), (0, 0)),
 #		}
-		sides = {
-			N : lambda p, tw: ((self.width*p-shift+c, 0), (0, t_size)),
-			S : lambda p, tw: ((self.width*p-shift+c, self.height-t_size-1), (0, -t_size)),
-			W : lambda p, tw: ((0, self.height*p-shift+c), (t_size, 0)),
-			E : lambda p, tw: ((self.width-t_size-1, self.height*p-shift+c), (-1-tw, 0)),
-			C : lambda p, tw: ((self.width/2, self.height/2), (0, 0)),
-		}
+		p = t.get_pos(self)
+		tw = text_width
+		side = t.get_side(self)
+
+		if t.variadic :
+			w, h = self.width, self.height
+		else :
+			w, h = self.default_size
+
+		if side == N :
+			pos = ((w*p-shift+c, 0),		(0, t_size))
+		elif side == S :
+			pos = ((w*p-shift+c, h-t_size-1),	(0, -t_size))
+		elif side == W :
+			pos = ((0, h*p-shift+c),		(t_size, 0))
+		elif side == E :
+			pos = ((w-t_size-1, h*p-shift+c),	(-1-tw, 0))
+		elif side == C :
+			pos = ((w/2, h/2),			(0, 0))
+		else :
+			raise Exception()
+
 		#XXX XXX (x, y), (txtx, txty) = 
-		(x, y), (txtx, txty) = sides[t.get_side(self)](t.get_pos(self), text_width)
+		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
 		return (x, y), (x+txtx, int(y-(0.2*txt_height)+txty))
 
 #	def __get__connections(self) :
@@ -515,7 +548,7 @@ class GraphModel(object) :
 
 			if not self.can_connect(b0, t0, b1, t1) :#TODO add multiplicity
 				raise Exception("can't connect")
-			print "add_connection:", b0, t0, b1, t1
+#			print "add_connection:", b0, t0, b1, t1
 			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == OUTPUT_TERM else (b1, t1, b0, t0)
 
 			if not isinstance(t0, tuple) and t0.variadic :
@@ -571,6 +604,8 @@ class GraphModel(object) :
 
 		self.__history_frame_append("connection_removed", ((b0, t0, b1, t1), meta))
 		self.__on_connection_removed(b0, t0, b1, t1)
+#		self.__on_block_changed(self, b0)
+#		self.__on_block_changed(self, b1)
 
 
 	# ---------------------------------------------------------------------------------

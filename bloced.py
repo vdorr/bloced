@@ -157,6 +157,9 @@ class Block(Canvas, BlockBase) :
 	def update_text(self) :
 		self.itemconfigure(self.caption_txt, text=self.model.presentation_text)
 
+	def select_next(self) :
+		self.editor.select_next()
+
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
@@ -174,6 +177,7 @@ class Block(Canvas, BlockBase) :
 		self.bind("<ButtonRelease-1>", self.onMouseUpW)
 #		self.bind("<Configure>", self.onConfigure)
 		self.bind("<Double-Button-1>", self.onDblClick)
+		self.bind("<Tab>", lambda a: self.select_next())
 
 		self.border_rect = self.create_rectangle(0, 0, self.model.width - 1, self.model.height - 1)
 		self.caption_txt = self.create_text(0, 0, anchor=NW)
@@ -195,6 +199,8 @@ class Block(Canvas, BlockBase) :
 		self.coords(self.border_rect, 0, 0, self.model.width-1, self.model.height-1)
 		self.canvas.coords(self.window, self.model.left, self.model.top)
 		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
+#		for k, v in self.get_wires() :
+#			self.editor.update_connection(*(k + (True,)))
 
 	def regenerate_terms(self) :
 
@@ -399,6 +405,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.window_index.pop(window)
 
 	def block_changed(self, block, event=None, reroute=False) :
+#		print "block_changed", block
 		if self.manipulating == None and block in self.block_index : # and not self.move_indication :
 #			traceback.print_stack()
 			b = self.block_index[block]
@@ -412,6 +419,11 @@ class BlockEditor(Frame, GraphModelListener) :
 					self.resize_selection()
 #			elif event and event["p"] == "term_meta" :
 #				print "term_meta changed", event
+
+#		if block in self.block_index :
+#			print "block_changed: rewiring"
+#			for k, v in self.block_index[block].get_wires() :
+#				self.update_connection(*(k + (True,)))
 
 	def connection_changed(self, sb, st, tb, tt) :
 		pass # TODO
@@ -430,7 +442,17 @@ class BlockEditor(Frame, GraphModelListener) :
 			else :
 				self.update_connection(sb, st, tb, tt, True)
 		else :
-			self.update_connection(sb, st, tb, tt, True)
+#			self.update_connection(sb, st, tb, tt, True)
+			for block in (sb, tb) :
+				if block in self.block_index :
+					for k, v in self.block_index[block].get_wires() :
+						self.update_connection(*(k + (True,)))
+
+#	def rewire_after_conn_changed(self, sb, st, tb, tt) :
+#		for b, t in ((sb, st), (tb, tt)) :
+#			if isinstance(t, tuple) :
+#				for k, v in self.block_index[b].get_wires() :
+#					self.update_connection(*(k + (True,)))
 
 	def connection_removed(self, sb, st, tb, tt) :
 		for block, term in ((sb, st), (tb, tt)) :
@@ -439,9 +461,19 @@ class BlockEditor(Frame, GraphModelListener) :
 #				if not block.terms and block in self.model.blocks :
 #					self.model.remove_block(block)
 #			else :
-			self.block_index[block].reshape()
+			bm = self.block_index[block]
+			bm.reshape()
+#			if isinstance(term, tuple) :
+#				for k, v in bm.get_wires() :
+#					self.update_connection(*(k + (True,)))
+#		self.rewire_after_conn_changed(sb, st, tb, tt)
 		self.canv.delete(self.connection2line[(sb, st, tb, tt)][0])
 		self.connection2line.pop((sb, st, tb, tt))
+		for block in (sb, tb) :
+			if block in self.block_index :
+#				print "connection_removed: rewiring"
+				for k, v in self.block_index[block].get_wires() :
+					self.update_connection(*(k + (True,)))
 
 	# ----------------------------------------------------------------------------------------------------
 	
