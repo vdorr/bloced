@@ -718,6 +718,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			types, struct, meta = pickle.loads(serialized)
 		except :
 			return None
+		print "paste:", types, struct, meta
 		bm, lm = load_to_dfs_model(self.model, types, struct, meta)
 		self.create_selection_from_list([ self.block_index[b] for b in bm ],
 			[ (l, self.connection2line[l]) for l in lm ] )

@@ -119,11 +119,13 @@ elif os.name == 'posix':
     if xclipExists:
         getcb = xclipGetClipboard
         setcb = xclipSetClipboard
+#        print("pyperclip: using xclip")
     else:
         try:
             import gtk
             getcb = gtkGetClipboard
             setcb = gtkSetClipboard
+#            print("pyperclip: using gtk")
         except:
             try:
                 import PyQt4.QtCore
@@ -132,5 +134,6 @@ elif os.name == 'posix':
                 cb = PyQt4.QtGui.QApplication.clipboard()
                 getcb = qtGetClipboard
                 setcb = qtSetClipboard
+#                print("pyperclip: using qt")
             except:
                 raise Exception('Pyperclip requires the gtk or PyQt4 module installed, or the xclip command.')
