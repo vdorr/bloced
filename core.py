@@ -34,14 +34,14 @@ class ProbeProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", W, 0.5) ],
 			default_size=(96,28), category="Special", exe_name="probe")
 
-class GotoProto(BlockPrototype):
+class TapProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Goto", [ Out(0, "x", E, 0.5) ],
+		BlockPrototype.__init__(self, "Tap", [ In(0, "y", W, 0.5) ],
 			default_size=(96,28), category="Special")
 
-class LabelProto(BlockPrototype):
+class TapEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Label", [ In(0, "y", W, 0.5) ],
+		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "x", E, 0.5) ],
 			default_size=(96,28), category="Special")
 
 class NoteProto(BlockPrototype):
@@ -163,8 +163,8 @@ class BasicBlocksFactory(BlockFactory) :
 			ConstProto(),
 			DelayProto(),
 			ProbeProto(),
-#			GotoProto(),
-#			LabelProto(),
+			TapProto(),
+			TapEndProto(),
 #			SignalProto(),
 #			NoteProto(),
 			SysRqProto(),

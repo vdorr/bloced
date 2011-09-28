@@ -184,15 +184,60 @@ def __cut_joint_alt(g, j) :
 def __expand_joints_new(g) :
 	for j in [ b for b in g if isinstance(b.prototype, JointProto) ] :
 		__cut_joint_alt(g, j)
-##	joints = [ b for b, _ in g.items() if isinstance(b.prototype, JointProto) ]
-#	joints = [ b for b in g if isinstance(b.prototype, JointProto) ]
-##	graph = dict(g)
-#	graph = g
-#	for j in joints :
-#		__cut_joint_alt(graph, j)
-##	printg(g)
-##	print "__dag_sanity_check=", __dag_sanity_check(g)
-##	sys.exit(0)
+
+# ------------------------------------------------------------------------------------------------------------
+
+#def __join_tap(g, tap_ends, tap) :
+##	p, s = g.pop(tap)
+#	p, s = g[tap]
+#	tap_ends_lst = tap_ends.pop(tap.value)
+#	succs = []
+#	for tap_end in tap_ends_lst :
+#		_, tap_end_s = g.pop(tap_end)#i need this popped value, right?
+#		succs += tap_end_s
+#	print "__join_tap:", tap.value, tap_ends_lst
+##	tap_name = tap.value
+
+##	succs = s
+#	((it, it_nr, ((pb, pt, pt_nr),)),) = p
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+#	pprint(map_in)
+#	pprint(map_out)
+
+#	__replace_block_with_subgraph(g, tap, {}, map_in, map_out)
+
+def __join_tap(g, tap_ends, tap) :
+	p, s = g[tap]
+	tap_ends_lst = tap_ends.pop(tap.value)
+
+	((it, it_nr, ((pb, pt, pt_nr),)),) = p
+	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+	succs = []
+	for tap_end in tap_ends_lst :
+		succs += tap_end_s
+		map_in, map_out = None, None #XXX XXX XXX
+		#replace each tapend with what preceeds tapstart
+		__replace_block_with_subgraph(g, tap_end, {}, map_in, map_out)
+
+	map_in, map_out = None, None #XXX XXX XXX
+	__replace_block_with_subgraph(g, tap, {}, map_in, map_out)
+
+
+def __join_taps(g) :
+	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, TapProto) ]
+	taps = { b.value : b for b in tap_list }
+	assert(len(tap_list)==len(taps))
+#	tap_ends = { b.value : b for b, (p, s) in g.items() if isinstance(b.prototype, TapEndProto) }
+	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, TapEndProto) }
+	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
+#	assert(len(tap_list)==len(taps))
+	for tap_name, tap in taps.items() :
+		__join_tap(g, tap_ends, tap)
+	pprint(g)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -313,6 +358,7 @@ def make_dag(model, meta) :
 		raise Exception("make_dag: produced graph is insane")
 
 	__expand_joints_new(graph)
+	__join_taps(graph)
 
 	return graph, delays
 

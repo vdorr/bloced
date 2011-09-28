@@ -136,7 +136,7 @@ class Block(Canvas, BlockBase) :
 
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
-		if type(self.model.prototype) in (core.ConstProto, core.DelayProto) :
+		if type(self.model.prototype) in (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto) :
 			entry = Entry(self)
 			entry.insert(0, str(self.model.value))
 			w = self.create_window(0, 0, window=entry, anchor=NW)
