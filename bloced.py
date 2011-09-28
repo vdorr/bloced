@@ -489,6 +489,8 @@ class BlockEditor(Frame, GraphModelListener) :
 		s0 = sb.get_term_location(st, sn)
 		tA = tb.get_term_location(tt, tn)
 
+		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
+
 		bump = cfg.BLOCK_WIRE_STUB
 		bumps = { N: (0, -bump), S: (0, bump), W: (-bump, 0), E: (bump, 0), C: (0, 0) }
 
