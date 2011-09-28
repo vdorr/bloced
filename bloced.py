@@ -220,8 +220,11 @@ class Block(Canvas, BlockBase) :
 			term_label = self.model.get_term_presentation_text(t, nr)
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, fnt.measure(term_label), txt_height)
-
-			poly = get_term_poly(x, y, term_size, t.get_side(self.model), t.direction)
+			t_side = t.get_side(self.model)
+			poly = get_term_poly(
+				x-(term_size if t_side == E else 0),
+				y-(term_size if t_side == S else 0),
+				term_size, t.get_side(self.model), t.direction)
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
@@ -489,7 +492,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		s0 = sb.get_term_location(st, sn)
 		tA = tb.get_term_location(tt, tn)
 
-		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
+#		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
 
 		bump = cfg.BLOCK_WIRE_STUB
 		bumps = { N: (0, -bump), S: (0, bump), W: (-bump, 0), E: (bump, 0), C: (0, 0) }

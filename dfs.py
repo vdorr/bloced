@@ -352,7 +352,8 @@ class BlockModel(object) :
 			pos = ((0, h*p-shift+c),		(t_size, 0))
 		elif side == E :
 #			pos = ((w-t_size-1, h*p-shift+c),	(-1-tw, 0))
-			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
+			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
+#			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
 		elif side == C :
 			pos = ((w/2, h/2),			(0, 0))
 		else :
