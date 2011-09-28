@@ -4,6 +4,7 @@ from Tkinter import * #TODO this is not good
 import tkFont
 import tkMessageBox
 from tkFileDialog import askopenfilename, asksaveasfilename
+import ttk
 
 from pprint import pprint
 from collections import namedtuple
@@ -1058,15 +1059,26 @@ class BlockEditorWindow :
 		self.root.columnconfigure(0, weight=1)
 		self.root.rowconfigure(0, weight=1)
 
-		mainframe = Frame(self.root)
-		mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
-		mainframe.columnconfigure(0, weight=1)
-		mainframe.rowconfigure(1, weight=1)
+#		mainframe = Frame(self.root)
+#		mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
+#		mainframe.columnconfigure(0, weight=1)
+#		mainframe.rowconfigure(1, weight=1)
 
-		self.bloced = BlockEditor(mainframe)
+		self.tabs = ttk.Notebook(self.root)
+		self.tabs .grid(column=0, row=0, sticky=(N, W, E, S))
+		self.tabs .columnconfigure(0, weight=1)
+		self.tabs .rowconfigure(1, weight=1)
+
+#ttk.Notebook
+
+		self.bloced = BlockEditor(self.tabs)
 		self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		self.bloced.columnconfigure(0, weight=1)
 		self.bloced.rowconfigure(0, weight=1)
+
+		f1 = ttk.Frame(self.tabs)
+
+		self.tabs.add(self.bloced, text="Sheet#1")
 
 #		self.cons = Text(mainframe,height=10,background='white')
 #		self.cons.grid(column=0, row=3, sticky=(W, E, S))
