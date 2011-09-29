@@ -198,7 +198,7 @@ def __join_tap(g, tap_ends, tap) :
 		tap_end_preds, tap_end_succs = g[tap_end]
 		succs += tap_end_succs
 		map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr)
-			for out_term, out_term_nr, _ in tap_end_succs } #replace each tapend with what preceeds tapstart
+			for out_term, out_term_nr, _ in tap_end_succs }
 		__replace_block_with_subgraph(g, tap_end, {}, {}, map_out)
 		assert(not tap_end in g)
 	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
@@ -208,13 +208,9 @@ def __join_taps(g) :
 	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, TapProto) ]
 	taps = { b.value : b for b in tap_list }
 	assert(len(tap_list)==len(taps))
-#	tap_ends = { b.value : b for b, (p, s) in g.items() if isinstance(b.prototype, TapEndProto) }
 	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, TapEndProto) }
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
-#	print "tap_ends=", tap_ends
-#	assert(len(tap_list)==len(taps))
 	for tap_name, tap in taps.items() :
-#		print "joining tap", tap
 		__join_tap(g, tap_ends, tap)
 	assert(len(tap_ends)==0)
 
