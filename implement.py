@@ -129,8 +129,10 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_pair, new_pai
 #XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
-	map_in = { (old_term, old_term_nr) : [ (new_block, new_term, new_term_nr), ... ], ... }
-	map_out = { (old_term, old_term_nr) : (new_block, new_term, new_term_nr), ... }
+	replace single block from g with subgraph, subgraph may be empty dict and function might be used
+	to map block terminal to other blocks in g
+	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
 #	print "map_in=", map_in
 #	print "map_out=", map_out
@@ -176,8 +178,7 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 def __cut_joint_alt(g, j) :
 #	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
-	succs = g[j].s
-	((it, it_nr, ((pb, pt, pt_nr),)),) = g[j].p
+	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
@@ -213,6 +214,35 @@ def __join_taps(g) :
 	for tap_name, tap in taps.items() :
 		__join_tap(g, tap_ends, tap)
 	assert(len(tap_ends)==0)
+
+# ------------------------------------------------------------------------------------------------------------
+
+macro_t = namedtuple("macro_t", ("snippet", "mappings"))
+
+def __instantiate_macro(g, library, mac) :
+	assert(mac.value != None)
+	snippet, mappings = library[mac.value]
+	for b, (p, s) in snippet :
+		pass
+	return {}
+
+def __expand_macro(g, library, mac) :
+	assert(mac.value != None)
+	mac_name = str(mac.value)
+	mg = library[mac_name]
+
+	subgraph, mapping = __instantiate_macro(g, library, mac)
+
+#	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
+	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
+		for it, it_nr in get_terms_flattened(mac) }
+	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+	__replace_block_with_subgraph(g, mac, subgraph, map_in, map_out)
+
+def __expand_macroes(g, library) :
+	for mac in [ b for b in g if isinstance(b.prototype, MacroProto) ] :
+		__expand_macro(g, library, mac)
 
 # ------------------------------------------------------------------------------------------------------------
 
