@@ -36,12 +36,12 @@ class ProbeProto(BlockPrototype):
 
 class TapProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Tap", [ In(0, "y", W, 0.5) ],
+		BlockPrototype.__init__(self, "Tap", [ In(0, "x", W, 0.5) ],
 			default_size=(96,28), category="Special")
 
 class TapEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "x", E, 0.5) ],
+		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "y", E, 0.5) ],
 			default_size=(96,28), category="Special")
 
 class NoteProto(BlockPrototype):
