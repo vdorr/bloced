@@ -618,6 +618,12 @@ def implement_dfs(model, meta, codegen, out_fobj) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def try_mkmac(model) :
+	graph, delays = make_dag(model, {})
+	pprint(graph)
+
+# ------------------------------------------------------------------------------------------------------------
+
 if __name__ == "__main__" :
 #	import argparse
 #	parser = argparse.ArgumentParser(description="bloced")

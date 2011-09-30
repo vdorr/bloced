@@ -23,7 +23,7 @@ import autoroute
 from dfs import *
 import core
 from serializer import *
-from implement import implement_dfs
+from implement import implement_dfs, try_mkmac
 import mathutils
 
 # ------------------------------------------------------------------------------------------------------------
@@ -134,9 +134,12 @@ class Block(Canvas, BlockBase) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
 
+	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
+		core.InputProto, core.OutputProto)
+
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
-		if type(self.model.prototype) in (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto) :
+		if type(self.model.prototype) in Block.editables :
 			entry = Entry(self)
 			entry.insert(0, str(self.model.value))
 			w = self.create_window(0, 0, window=entry, anchor=NW)
@@ -1049,6 +1052,9 @@ class BlockEditorWindow :
 		pickle.dump(self.__settings, f)
 		f.close()
 
+	def mkmac(self) :
+		try_mkmac(self.bloced.model)
+
 	def __init__(self) :
 
 		self.__fname = None
@@ -1149,6 +1155,7 @@ class BlockEditorWindow :
 
 		self.__add_top_menu("_Debu&g", [
 			("Implement", None, self.implement),
+			("mkmac", None, self.mkmac),
 			("geo", None, lambda: self.root.geometry("800x600+2+0")),
 			("connections", None, lambda: pprint(self.bloced.get_model().get_connections())) ])
 #		menu_debug.add_command(label="zoom",

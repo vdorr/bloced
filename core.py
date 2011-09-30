@@ -87,12 +87,12 @@ class SysRqProto(BlockPrototype):
 class InputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Input", [ Out(0, "x", E, 0.5) ],
-			default_size=(48,48), category="Special")
+			default_size=(96,28), category="Special")
 
 class OutputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Output", [ In(0, "y", W, 0.5) ],
-			default_size=(48,48), category="Special")
+			default_size=(96,28), category="Special")
 
 # ------------------------------------------------------------------------------------------------------------
 
