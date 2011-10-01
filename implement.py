@@ -618,9 +618,81 @@ def implement_dfs(model, meta, codegen, out_fobj) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def __mc_term_info(model, tb) :
+	(x, y), _ = tb.get_term_and_lbl_pos(tb.terms[0], 0, 0, 0)
+	return (tb, (tb.left+x, tb.top+y))
+
+#def __mc_assign_side(tb, k, w, u, x, y) :
+#	sides = {
+#		(True, True) : N,
+#		(False, False) : S,
+#		(True, False) : W,
+#		(False, True) : E
+#	}
+#	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
+#	return sides[y>(k * x), y>((-k * (x-w))+u)]
+
+def __mc_assign_side(tb, center_x, center_y, x, y) :
+	sides = {
+		(True, True) : S,
+		(True, False) : N,
+		(False, True) : E,
+		(False, False) : W
+	}
+	side = tb.terms[0].get_side(tb)
+	vertical = side in (N, S)
+#	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
+	return sides[vertical, y > center_y if vertical else x > center_x ]
+
 def try_mkmac(model) :
-	graph, delays = make_dag(model, {})
-	pprint(graph)
+#	inputs = [ b for b in model.blocks if isinstance(b.prototype, InputProto) ]
+#	outputs = [ b for b in model.blocks if isinstance(b.prototype, OutputProto) ]
+
+	terms = [ __mc_term_info(model, b)
+		for b in model.blocks if b.prototype.__class__ in (InputProto, OutputProto) ]
+	print "try_mkmac:", terms
+
+	if terms :
+		(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
+				l1 if l1 < l0 else l0,
+				t1 if t1 < t0 else t0,
+				r1 if r1 > r0 else r0,
+				b1 if b1 > b0 else b0),
+			[ (x, y, x, y) for _, (x, y) in terms ])
+	else :
+		(l, t, r, b) = (0, 0, 48, 48)
+#	(l, t, r, b) = (l-1, t-1, r+1, b+1)
+
+#	k = float(b) / float(r)# (l,t) (r,b)
+##	k = float(b-t) / float(r-l)# (l,t) (r,b)
+##	kb = float(t-b) / float(r-l) # (l,b) (r,t)
+	print "try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t
+
+	term_sides = [ (tb, __mc_assign_side(tb, l+((r-l)/2), t+((b-t)/2), x, y), (x, y)) for tb, (x, y) in terms]
+#	xxx = [ (tb, __mc_assign_side(tb, k, (r-l)/2, (b-t), x, y)) for tb, (x, y) in terms]
+	print "try_mkmac: sides=", term_sides
+
+#	term_WE = [ (tb, side) for tb, side in term_sides if side in (W, E) ]
+#	term_NS = [ (tb, side) for tb, side in term_sides if side in (N, S) ]
+
+#	term_W = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == W ]
+#	term_E = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == E ]
+#	term_S = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == S ]
+#	term_N = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == N ]
+
+	term_W = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == W ]
+	term_W = sorted(term_W, key=lambda (tb, side, y): y)
+	step = 1.0 / (len(term_W) + 1)
+	term_positions = [ (tb, side, (i + 1) * step) for (tb, side, p), i in zip(term_W, count()) ]
+	print "step=", step, "term_positions=", term_positions
+
+	term_E = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == E ]
+	term_S = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == S ]
+	term_N = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == N ]
+
+
+#	graph, delays = make_dag(model, {})
+#	pprint(graph)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -632,7 +704,7 @@ if __name__ == "__main__" :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	from serializer import unpickle_dfs_model
-	cgen = sys.argv[1]
+	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
@@ -652,12 +724,17 @@ if __name__ == "__main__" :
 		"c" : ccodegen.codegen_alt,
 		"f" : fcodegen.codegen_alt,
 	}
-	class DummyFile(object):
-		def write(self, s) :
-			print(s)
-	out_fobj = DummyFile()
-	implement_dfs(model, None, cgens[cgen], out_fobj)
-	exit(0)
+	if action in cgens :
+		class DummyFile(object):
+			def write(self, s) :
+				print(s)
+		out_fobj = DummyFile()
+		implement_dfs(model, None, cgens[cgens], out_fobj)
+		exit(0)
+	elif action == "mkmac" :
+		try_mkmac(model)
+		exit(0)
+	exit(666)
 
 # ------------------------------------------------------------------------------------------------------------
 

@@ -361,7 +361,7 @@ class BlockModel(object) :
 
 		#XXX XXX (x, y), (txtx, txty) = 
 		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
-		return (x, y), (x+txtx, int(y-(0.2*txt_height)+txty))
+		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 
 #	def __get__connections(self) :
 ##		print self.__graph.connections

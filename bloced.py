@@ -671,6 +671,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.coords(self.selection_rect, b[0]-m, b[1]-m, b[2]+m, b[3]+m)
 
 	def create_selection_rect(self, x0, y0, x1, y1) :
+		print  x1, y1
 		a = 4
 		c = 4
 		b = 0
