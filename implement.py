@@ -651,7 +651,7 @@ if __name__ == "__main__" :
 			def write(self, s) :
 				print(s)
 		out_fobj = DummyFile()
-		implement_dfs(model, None, cgens[cgens], out_fobj)
+		implement_dfs(model, None, cgens[action], out_fobj)
 		exit(0)
 	elif action == "mkmac" :
 #		try_mkmac(model)

@@ -1,5 +1,6 @@
 
 from itertools import dropwhile, islice, count
+from multiprocessing import Process, Queue, Lock
 #import traceback
 
 """
@@ -890,6 +891,30 @@ def try_mkmac(model) :
 
 #	graph, delays = make_dag(model, {})
 #	pprint(graph)
+
+# ------------------------------------------------------------------------------------------------------------
+
+class Model(object) :
+
+	def __worker_thread(self, nr) :
+		pass
+
+	def __spawn_worker(self, nr) :
+#		return threading.start_new(self.__worker_thread, (nr,))
+		pass
+
+	def add_job(self) :
+		pass
+
+	sheets = property(lambda self: self.__sheets)
+
+	meta = property(lambda self: self.__meta)
+
+	def __init__(self) :
+		self.__sheets = []
+		self.__meta = {}
+		self.__messages = Queue()
+		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
 
 # ------------------------------------------------------------------------------------------------------------
 
