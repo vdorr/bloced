@@ -644,6 +644,15 @@ def __mc_assign_side(tb, center_x, center_y, x, y) :
 #	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
 	return sides[vertical, y > center_y if vertical else x > center_x ]
 
+def __mc_assign_positions(term_sides, side) :
+	assert(side in (N, S, W, E))
+	terms = [ (tb, sd, y if side in (N, S) else x) for tb, sd, (x, y) in term_sides if sd == side ]
+	terms.sort(key=lambda (tb, sd, y): y)
+	step = 1.0 / (len(terms) + 1)
+	term_positions = [ (tb, sd, (i + 1) * step) for (tb, sd, p), i in zip(terms, count()) ]
+#	print "step=", step, "term_positions=", term_positions
+	return term_positions
+
 def try_mkmac(model) :
 #	inputs = [ b for b in model.blocks if isinstance(b.prototype, InputProto) ]
 #	outputs = [ b for b in model.blocks if isinstance(b.prototype, OutputProto) ]
@@ -680,16 +689,22 @@ def try_mkmac(model) :
 #	term_S = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == S ]
 #	term_N = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == N ]
 
-	term_W = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == W ]
-	term_W = sorted(term_W, key=lambda (tb, side, y): y)
-	step = 1.0 / (len(term_W) + 1)
-	term_positions = [ (tb, side, (i + 1) * step) for (tb, side, p), i in zip(term_W, count()) ]
-	print "step=", step, "term_positions=", term_positions
+#	term_W = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == W ]
+#	term_W = sorted(term_W, key=lambda (tb, side, y): y)
+#	step = 1.0 / (len(term_W) + 1)
+#	term_positions = [ (tb, side, (i + 1) * step) for (tb, side, p), i in zip(term_W, count()) ]
+#	print "step=", step, "term_positions=", term_positions
 
-	term_E = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == E ]
-	term_S = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == S ]
-	term_N = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == N ]
+#	term_E = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == E ]
+#	term_S = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == S ]
+#	term_N = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == N ]
 
+	term_positions = ( __mc_assign_positions(term_sides, N) +
+		__mc_assign_positions(term_sides, S) +
+		__mc_assign_positions(term_sides, W) +
+		__mc_assign_positions(term_sides, E) )
+
+	print "term_positions=", term_positions
 
 #	graph, delays = make_dag(model, {})
 #	pprint(graph)
