@@ -1101,6 +1101,7 @@ class BlockEditorWindow :
 		self.bloced.changed_event = self.__changed_event
 
 		self.blockfactory = core.create_block_factory()
+		self.blockfactory.load_library(os.path.join(os.getcwd(), "library"))
 
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar

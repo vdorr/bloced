@@ -1,5 +1,6 @@
 
 from dfs import *
+import os
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -138,16 +139,69 @@ class StatefulBP(BlockPrototype) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO
+def load_macro(filename) :
+	print "load_macro:", filename
+	return None
 
-def __load_macro(fname) :
-	return (fname, proto, graph_snippet)
+# ------------------------------------------------------------------------------------------------------------
 
-#TODO
+def is_c_module(basedir) :
+	return False
+
+def load_c_module(input_files) :
+	print "load_c_module:", input_files
+	return None
 
 # ------------------------------------------------------------------------------------------------------------
 
 class BasicBlocksFactory(BlockFactory) :
+
+	def load_library(self, basedir) :
+#		print basedir
+		try :
+			dirname, dirnames, filenames = os.walk(basedir).next()
+		except :
+			print "load_library: failed to scan ", basedir
+			return (False, )
+
+		lib_name = os.path.split(dirname)[-1]
+
+		print lib_name, dirname, dirnames, filenames
+
+		MY_FILE_EXTENSION = "bloc"#XXX
+
+		for f in filenames :
+#			fname_split = f.split(os.path.extsep)
+#			ext = fname_split[-1]
+#			fname = fname_split[:-1]
+			ext = f.split(os.path.extsep)[-1]
+			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
+			if ext == MY_FILE_EXTENSION :
+				try :
+					block = load_macro(f)
+				except :
+					print "failed to load " + f
+				else :
+					if block == None :
+						continue #XXX
+					self._BlockFactory__blocks.append(block)
+			elif ext == "c" and (fname + os.path.extsep + "h") in filenames :
+				try :
+					block = load_c_module([os.path.join(dirname, f),
+						os.path.join(dirname, fname + os.path.extsep + "h")])
+				except :
+					print "failed to load " + f
+				else :
+					if block == None :
+						continue #XXX
+					self._BlockFactory__blocks.append(block)
+
+
+		for d in dirnames :
+			self.load_library(os.path.join(dirname, d))
+
+		self._BlockFactory__blocks += []
+		return (True, )
 
 	def get_block_by_name(self, type_name) :
 		p = list(islice(dropwhile(lambda proto: proto.type_name != type_name,

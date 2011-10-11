@@ -889,6 +889,10 @@ def try_mkmac(model) :
 
 	print "term_positions=", mc_width, mc_height, term_positions
 
+	mc_name = None # TODO
+	terminals = None
+
+	return mc_width, mc_height, mc_name, terminals
 #	graph, delays = make_dag(model, {})
 #	pprint(graph)
 
