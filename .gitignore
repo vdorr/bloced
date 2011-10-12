@@ -1,2 +1,4 @@
 *.pyc
-*tar.gz
+*.tar.gz
+*.out
+*.hex
