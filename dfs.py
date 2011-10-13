@@ -21,6 +21,10 @@ OUTPUT_TERM = 2
 
 term_size = 8
 
+TERM_SIZE = 8
+MIN_BLOCK_WIDTH = 48
+MIN_BLOCK_HEIGHT = 32
+
 # ------------------------------------------------------------------------------------------------------------
 
 class TermModel(object) :
@@ -791,6 +795,13 @@ class BlockPrototype(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def guess_block_size(terms_N, terms_S, terms_W, terms_E) :
+	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * TERM_SIZE
+	mc_width = mc_width if mc_width >= MIN_BLOCK_WIDTH else MIN_BLOCK_WIDTH
+	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * TERM_SIZE
+	mc_height = mc_height if mc_height >= MIN_BLOCK_HEIGHT else MIN_BLOCK_HEIGHT
+	return mc_width, mc_height
+
 def __mc_term_info(model, tb) :
 	(x, y), _ = tb.get_term_and_lbl_pos(tb.terms[0], 0, 0, 0)
 	return (tb, (tb.left+x, tb.top+y))
@@ -877,13 +888,12 @@ def try_mkmac(model) :
 	terms_S = __mc_assign_positions(term_sides, S)
 	terms_N = __mc_assign_positions(term_sides, N)
 
-	#XXX XXX XXX
-	TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT = 8, 28, 28
-	#XXX XXX XXX
 	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * TERM_SIZE
 	mc_width = mc_width if mc_width >= MIN_BLOCK_WIDTH else MIN_BLOCK_WIDTH
 	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * TERM_SIZE
 	mc_height = mc_height if mc_height >= MIN_BLOCK_HEIGHT else MIN_BLOCK_HEIGHT
+
+	mc_width, mc_height = guess_block_size(terms_N, terms_S, terms_W, terms_E)
 
 	term_positions = terms_N + terms_S + terms_W + terms_E
 
