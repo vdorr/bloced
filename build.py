@@ -26,14 +26,17 @@ def build() :
 #	a_hex = a_hex_f.name
 
 	a_out, a_hex = "a.out", "a.hex"
+	i_dirs = []#[ "/usr/lib/avr", "/usr/lib/avr/include", "/usr/lib/avr/util", "/usr/lib/avr/compat" ]
+	l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
 
 	optimization = "-Os"
 	mcu = "atmega328"
 	f_cpu = 16000000
 	
 	prog_mcu = "m328p"
+	prog_port = "/dev/ttyACM0"
 
-	gcc_args = [ optimization, "-mmcu=" + mcu, "-DF_CPU=%i" % f_cpu, "-o", a_out ]
+	gcc_args = i_dirs + l_libs + [ optimization, "-mmcu=" + mcu, "-DF_CPU=%i" % f_cpu, "-o", a_out ]
 
 	try :
 		p = subprocess.Popen(["avr-gcc"] + gcc_args,
@@ -82,16 +85,16 @@ def build() :
 
 	try :
 		p = subprocess.Popen(
-			["avrdude", "-q", "-n", "-c arduino", "-m " + prog_mcu, "-U flash:w:" + a_hex + ":i"],
+			["avrdude", "-q", "-n", "-c arduino", "-P " + prog_port, "-m " + prog_mcu, "-U flash:w:" + a_hex + ":i"],
 			cwd=workdir)
 	except :
-		print("failed to avrdude")
+		print("failed to run avrdude")
 	else :
 		p.communicate()
 		if p.returncode == 0 :
 			pass
 		else :
-			print("failed to avrdude")
+			print("failed to run avrdude")
 
 	exit(666)
 

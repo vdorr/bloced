@@ -50,7 +50,8 @@ def bounding_rect(points) :
 		t1 if t1 < t0 else t0,
 		r1 if r1 > r0 else r0,
 		b1 if b1 > b0 else b0),
-			[ (x, y, x, y) for x, y in points ])
+			[ (x, y, x, y) for x, y in points ], 
+		(1000000, 1000000, -1000000, -1000000))
 	return l, t, r - l, b - t
 
 def max_rect(a, b) :

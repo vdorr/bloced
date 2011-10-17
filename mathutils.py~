@@ -19,7 +19,7 @@ rotate4_trig_tab = {
 
 def rotate4(orgx, orgy, x, y, angle) :
 	sin_angle, cos_angle = rotate4_trig_tab[angle]
-	nx = orgx + (((x - orgx) * cos_angle) - ((y - orgy) * sin_angle))
+	nx = orgx + (((x - orgx) * cos_angle) + ((y - orgy) * sin_angle))
 	ny = orgy + (((x - orgx) * sin_angle) + ((y - orgy) * cos_angle))
 #	print "rotate4:", orgx, orgy, x, y, angle, (sin_angle, cos_angle), (nx, ny)
 #	print "rotate4(2):",orgy, ((x - orgx) * sin_angle), ((y - orgy) * cos_angle)

@@ -194,11 +194,29 @@ class Block(Canvas, BlockBase) :
 		flipv, fliph, rot = self.model.orientation
 		from mathutils import rotate4, make_rect, bounding_rect
 
-		points = [ rotate4(self.model.width/2, self.model.height/2, x, y, rot) for x, y in
+#		points = [ rotate4(self.model.width/2, self.model.height/2, x, y, rot) for x, y in
+#			make_rect(0, 0, size[0], size[1]) ]
+		cx = self.model.width/2
+		cy = self.model.height/2
+#		cx, cy = (cy, cx) if self.model.orientation[2] % 180 else (cx, cy)
+		points = [ rotate4(cx, cy, x, y, rot) for x, y in
 			make_rect(0, 0, size[0], size[1]) ]
-		bounding_rect(points)
+		sx = self.model.height/2
+		sy = self.model.width/2
+		sx, sy = (sy, sx) if self.model.orientation[2] % 180 else (0, 0)
+		points2 = [ (x-sx, y-sy) for x, y in points ]
+		brct_x, brct_y, brct_w, brct_h = bounding_rect(points2)
 		
-		print self.model.orientation, rotate4(self.model.width/2, self.model.height/2, 0, 0, rot)
+#		print self.model.prototype.type_name, self.model.orientation, (brct_x, brct_y, brct_w, brct_h)
+
+#		sd = [W, N, E, S][self.model.orientation[2]/90]
+#		print self.model.prototype.type_name, self.model.get_term_and_lbl_pos_alt(
+#			False, 0.0, sd, 1,
+#			0, size[0], size[1], center=True)
+		lbl_x, lbl_y = self.model.get_label_pos(*size)
+		print self.model.prototype.type_name, 
+
+#rotate4(self.model.width/2, self.model.height/2, 0, 0, rot)
 
 #		ors = {
 #			W: 2 if fliph else 0,
@@ -220,7 +238,7 @@ class Block(Canvas, BlockBase) :
 			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
 		self.__images[name] = img
 
-		i = self.create_image(pos, image=img, anchor=NW)
+		i = self.create_image((brct_x, brct_y), image=img, anchor=NW)
 		return i
 
 	def __init__(self, editor, model) :
@@ -250,7 +268,7 @@ class Block(Canvas, BlockBase) :
 		self.__caption_lbl_pos = (2, 1)
 		self.__caption_lbl = self.__update_label("caption_lbl", self.__caption_lbl_pos, "")
 
-		self.update_text()
+#		self.update_text()
 		
 		self.movingObject = None
 		self.affected_wires = None
@@ -270,6 +288,7 @@ class Block(Canvas, BlockBase) :
 		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
 #		for k, v in self.get_wires() :
 #			self.editor.update_connection(*(k + (True,)))
+		self.update_text()
 
 	def regenerate_terms(self) :
 
