@@ -196,10 +196,9 @@ class Block(Canvas, BlockBase) :
 
 		points = [ rotate4(self.model.width/2, self.model.height/2, x, y, rot) for x, y in
 			make_rect(0, 0, size[0], size[1]) ]
-		brct = bounding_rect(points)
+		bounding_rect(points)
 		
-		print self.model.orientation, brct
-#rotate4(self.model.width/2, self.model.height/2, 0, 0, rot)
+		print self.model.orientation, rotate4(self.model.width/2, self.model.height/2, 0, 0, rot)
 
 #		ors = {
 #			W: 2 if fliph else 0,

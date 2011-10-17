@@ -30,6 +30,8 @@ def build() :
 	optimization = "-Os"
 	mcu = "atmega328"
 	f_cpu = 16000000
+	
+	prog_mcu = "m328p"
 
 	gcc_args = [ optimization, "-mmcu=" + mcu, "-DF_CPU=%i" % f_cpu, "-o", a_out ]
 
@@ -76,6 +78,20 @@ def build() :
 			pass
 		else :
 			print("failed to execute avr-objcopy")
+
+
+	try :
+		p = subprocess.Popen(
+			["avrdude", "-q", "-n", "-c arduino", "-m " + prog_mcu, "-U flash:w:" + a_hex + ":i"],
+			cwd=workdir)
+	except :
+		print("failed to avrdude")
+	else :
+		p.communicate()
+		if p.returncode == 0 :
+			pass
+		else :
+			print("failed to avrdude")
 
 	exit(666)
 

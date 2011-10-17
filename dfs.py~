@@ -860,7 +860,7 @@ def try_mkmac(model) :
 	print "try_mkmac:", terms
 
 	if terms :
-		#TODO use mathutils.bounding_rect
+		#TODO use mathutils.bbox
 		(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
 				l1 if l1 < l0 else l0,
 				t1 if t1 < t0 else t0,
