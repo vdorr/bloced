@@ -418,7 +418,6 @@ class BlockModel(object) :
 
 
 	def get_label_pos(self, txt_width, txt_height) :
-		tw = text_width
 		side =  [W, N, E, S][self.orientation[2]/90]
 		if side == W :
 			pos = (0, 0)
@@ -457,13 +456,13 @@ class BlockModel(object) :
 		if self.prototype.__class__.__name__ == "ConstProto" :
 			newtxt = self.value
 		elif self.prototype.__class__.__name__ == "DelayProto" :
-			newtxt = "Delay (%s)" % self.value if self.value != None else "None"
+			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
 		elif self.prototype.__class__.__name__ in ("TapProto", "TapEndProto") :
 			newtxt = str(self.value) if self.value != None else "None"
 		elif self.prototype.__class__.__name__ == "InputProto" :
-			newtxt = "In(%s)" % str(self.value) if self.value != None else "None"
+			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "OutputProto" :
-			newtxt = "Out(%s)" % str(self.value) if self.value != None else "None"
+			newtxt = "Out(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "JointProto" :
 			newtxt = ""
 		else :
