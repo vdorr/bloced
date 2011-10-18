@@ -20,6 +20,8 @@ import pickle
 
 import pyperclip
 
+import webbrowser
+
 import autoroute
 from dfs import *
 import core
@@ -56,6 +58,8 @@ class Configuration(object):
 	APP_NAME = "bloced"
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
+	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	HELP_URL = "http://www.tinfoilhat.cz"
 
 cfg = Configuration()
 
@@ -1244,15 +1248,15 @@ class BlockEditorWindow :
 			])
 
 		self.__add_top_menu("&Help", [
-			("&Content...", "F1", None),
+			("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
 			"-",
-			("&About...", None, None) ])
+			("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
 			("Implement", None, self.implement),
 			("mkmac", None, self.mkmac),
-			("geo", None, lambda: self.root.geometry("800x600+2+0")),
-			("connections", None, lambda: pprint(self.bloced.get_model().get_connections())) ])
+			("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+			("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
 #		menu_debug.add_command(label="zoom",
 #			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 

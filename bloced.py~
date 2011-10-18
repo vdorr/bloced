@@ -20,6 +20,8 @@ import pickle
 
 import pyperclip
 
+import webbrowser
+
 import autoroute
 from dfs import *
 import core
@@ -56,6 +58,8 @@ class Configuration(object):
 	APP_NAME = "bloced"
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
+	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	HELP_URL = "http://www.tinfoilhat.cz"
 
 cfg = Configuration()
 
@@ -214,7 +218,7 @@ class Block(Canvas, BlockBase) :
 #			False, 0.0, sd, 1,
 #			0, size[0], size[1], center=True)
 		lbl_x, lbl_y = self.model.get_label_pos(*size)
-		print self.model.prototype.type_name, 
+		print self.model.prototype.type_name, (lbl_x, lbl_y)
 
 #rotate4(self.model.width/2, self.model.height/2, 0, 0, rot)
 
@@ -238,7 +242,7 @@ class Block(Canvas, BlockBase) :
 			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
 		self.__images[name] = img
 
-		i = self.create_image((brct_x, brct_y), image=img, anchor=NW)
+		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
 		return i
 
 	def __init__(self, editor, model) :
@@ -1244,9 +1248,9 @@ class BlockEditorWindow :
 			])
 
 		self.__add_top_menu("&Help", [
-			("&Content...", "F1", None),
+			("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
 			"-",
-			("&About...", None, None) ])
+			("&About...", None, lambda : tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
 			("Implement", None, self.implement),
