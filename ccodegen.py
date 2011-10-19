@@ -122,7 +122,35 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def generate(g, expd_dels) :
+	tmp = temp_init()
+	subtrees = {}
+	code = []
+	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
+	assert(tmp_used_slots(tmp) == 0)
+	assert(len(subtrees) == 0)
+
+	state_var_prefix = ""
+	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
+			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
+
+	temp_var_prefix = ""
+	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(len(tmp)) ] + [ "dummy" ]
+
+	return (state_vars, temp_vars, code)
+
+# ------------------------------------------------------------------------------------------------------------
+
 def codegen_alt(g, expd_dels, meta) :
+#		function_name="tsk",
+#		separate_state_vars=False,
+#		separate_temp_vars=False,
+##		shared_temp_vars=False,
+#		wrap_in_function=True,
+#		wrap_in_loop=True,
+#		infer_signature=True,
+#		input_blocks=None,
+#		output_blocks=None) :
 #	pprint(g)
 	tmp = temp_init()
 	subtrees = {}
@@ -131,10 +159,19 @@ def codegen_alt(g, expd_dels, meta) :
 #	print tmp
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
-	variables = ([ "del%i = %i" % (i, int(d.value))
-			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ] +
-		     [ "tmp%i" % i for i in range(len(tmp)) ] +
-		     [ "dummy" ])
+
+#TODO get name of task from from meta
+#TODO return state variables separately from task code
+#TODO mangle state vars names so that state vars from different task can share the same namespace
+#TODO infer function prototype from Input/Output blocks
+
+	state_var_prefix = ""
+	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
+			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
+
+	temp_var_prefix = ""
+	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(len(tmp)) ] + [ "dummy" ]
+
 	output = ("void tsk()" + linesep + "{" + linesep +
 		# locals and delays
 		(("\tvm_word_t " + string.join(variables, ", ") + ";" + linesep)
