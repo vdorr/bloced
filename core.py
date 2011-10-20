@@ -400,10 +400,10 @@ class BasicBlocksFactory(BlockFactory) :
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33), In(-1, "d", W, .66),
 				Out(-1, "q", E, .33), Out(-2, "r", E, .66)  ], pure=True),
 
-			SBP("load", "Memory", [ ]),
-			SBP("store", "Memory", [ ]),
-			SBP("load_nv", "Memory", [ ]),
-			SBP("store_nv", "Memory", [ ]),
+#			SBP("load", "Memory", [ ]),
+#			SBP("store", "Memory", [ ]),
+#			SBP("load_nv", "Memory", [ ]),
+#			SBP("store_nv", "Memory", [ ]),
 
 			SBP("di", "Process IO", [ In(0, "nr", W, .5), Out(0, "y", E, .5) ], exe_name="io_di"),
 			SBP("do", "Process IO", [ In(-1, "nr", W, .33), In(-2, "x", W, .66) ], exe_name="io_do"),
