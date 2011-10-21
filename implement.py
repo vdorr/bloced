@@ -565,19 +565,76 @@ KNOWN_TYPES = {
 }
 
 #XXX XXX XXX
+# ------------------------------------------------------------------------------------------------------------
+
+#TODO testing
+#TODO it may be better to use dictionary
+
+
+
+## TODO may have limit parameter and generate spill code
+#def temp_init() :
+#	return []
+
+## ------------------------------------------------------------------------------------------------------------
+
+#def get_tmp_slot(tmp) :
+#	if "empty" in tmp :
+#		slot = tmp.index("empty")
+#	else :
+#		slot = len(tmp)
+#		tmp.append("empty")
+#	return slot
+
+## ------------------------------------------------------------------------------------------------------------
+
+#def add_tmp_ref(tmp, refs) :
+#	assert(len(refs)>0)
+#	slot = get_tmp_slot(tmp)
+#	tmp[slot] = list(refs)
+#	return slot
+
+## ------------------------------------------------------------------------------------------------------------
+
+#def pop_tmp_ref(tmp, b, t, t_nr) :
+##	print "tmp=", tmp, "searching:", b, t
+#	for slot, nr in zip(tmp, count()) :
+#		if slot != "empty" and (b, t, t_nr) in slot :
+#			slot.remove((b, t, t_nr))
+#			if len(slot) == 0 :
+#				tmp[nr] = "empty"
+##			else :
+##				print "pop_tmp_ref:", tmp[nr]
+#			return nr
+#	return None
+
+## ------------------------------------------------------------------------------------------------------------
+
+#def tmp_used_slots(tmp) :
+#	assert( sum([ 1 for slot in tmp if slot != "empty"])== reduce(lambda cnt, slot: cnt + (0 if slot == "empty" else 1), tmp, 0))
+#	return sum([ 1 for slot in tmp if slot != "empty" ])
+
+# ------------------------------------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO testing
 #TODO it may be better to use dictionary
 
+__DBG = 0
+
 # TODO may have limit parameter and generate spill code
 def temp_init() :
-	return { tp_name : [] for tp_name in KNOWN_TYPES }
+	tmp = { tp_name : [] for tp_name in KNOWN_TYPES }
+#	if __DBG :
+#		print "temp_init: id=", id(tmp)
+	return tmp
 
 # ------------------------------------------------------------------------------------------------------------
 
 def get_tmp_slot(tmp, slot_type="vm_word_t") :
+#	if __DBG :
+#		print "get_tmp_slot: id=", id(tmp)
 	if "empty" in tmp[slot_type] :
 		slot = tmp[slot_type].index("empty")
 	else :
@@ -588,9 +645,12 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 # ------------------------------------------------------------------------------------------------------------
 
 def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
-	print "add_tmp_ref:", refs
+#	print "add_tmp_ref:", refs
+#	if __DBG :
+#		print "get_tmp_ref: id=", id(tmp)
 	assert(len(refs)>0)
 	slot = get_tmp_slot(tmp)
+	print "add_tmp_ref: ", "slot=", slot
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
@@ -598,7 +658,9 @@ def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 
 def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
 	t_tmp = tmp[slot_type]
-	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
+#	if __DBG :
+#		print "pop_tmp_ref: id=", id(tmp)
+#	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
 	for slot, nr in zip(t_tmp, count()) :
 		if slot != "empty" and (b, t, t_nr) in slot :
 			slot.remove((b, t, t_nr))
@@ -612,7 +674,17 @@ def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
 # ------------------------------------------------------------------------------------------------------------
 
 def tmp_used_slots(tmp) :
+#	if __DBG :
+#		print "tmp_used_slots: id=", id(tmp)
 	return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
+		for tp, t_tmp in tmp.items() ])
+
+# ------------------------------------------------------------------------------------------------------------
+
+def tmp_max_slots_used(tmp) :
+#	if __DBG :
+#		print "tmp_used_slots: id=", id(tmp)
+	return sum([ sum([ 1 for slot in t_tmp ])
 		for tp, t_tmp in tmp.items() ])
 
 # ------------------------------------------------------------------------------------------------------------
