@@ -559,6 +559,7 @@ def sethi_ullman(g) :
 #XXX XXX XXX
 
 KNOWN_TYPES = {
+	"vm_char_t" : (None, ), #XXX XXX XXX
 	"vm_word_t" : (1, ),
 	"vm_dword_t" : (2, ),
 	"vm_float_t" : (2, ),

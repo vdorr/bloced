@@ -172,6 +172,7 @@ def load_macro(filename) :
 VMEX_SIG = "_VM_EXPORT_"
 
 known_types = {
+	"vm_char_t" : (None, ), #XXX XXX XXX
 	"vm_word_t" : (1, ),
 	"vm_dword_t" : (2, ),
 	"vm_float_t" : (2, ),
