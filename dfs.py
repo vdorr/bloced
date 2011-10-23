@@ -116,6 +116,9 @@ class BlockModel(object) :
 	def __lt__(self, other):
 		return id(other) < id(self)
 
+	def to_string(self) :
+		return "%s(%s)" % (self.prototype.type_name, str(self.value))
+
 	class edit(object) :
 	
 		def __init__(self, prop_name) :

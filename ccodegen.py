@@ -37,7 +37,7 @@ def __implement(n, args, outs) :
 # execution
 def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 
-	print "__post_visit:", n
+	print "__post_visit:", n.to_string()
 
 
 #TODO can i get rid off som cycles by use of other callbacks?

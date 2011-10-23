@@ -6,6 +6,7 @@ from functools import partial
 from itertools import groupby, chain, count
 from pprint import pprint
 import sys
+import hashlib
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -482,6 +483,9 @@ def dft_alt(g,
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
 	print "dft_alt: s=", s
+#TODO TODO TODO
+	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
+#TODO TODO TODO
 	visited = {}
 	for v in s :
 		pre_tree(v, visited)
@@ -553,6 +557,23 @@ def sethi_ullman(g) :
 	numbering = {}
 	dft_alt(g, post_visit = partial(__su_post_visit, g, numbering))
 	return numbering
+
+# ------------------------------------------------------------------------------------------------------------
+
+def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+#	print edge
+	hsh.update("".join(edge))
+
+def sortable_sinks(g, sinks) :
+	sortable = {}	
+	for s in sinks :
+		hsh = hashlib.md5()
+		dft(g, s, post_dive = partial(__sort_sinks_post_dive, hsh))
+		sortable[s] = hsh.hexdigest()
+#	hsh.copy()
+	return sortable
 
 # ------------------------------------------------------------------------------------------------------------
 
