@@ -5,6 +5,7 @@ import tkFont
 import tkMessageBox
 from tkFileDialog import askopenfilename, asksaveasfilename
 import ttk
+from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 from pprint import pprint
 from collections import namedtuple
@@ -93,15 +94,28 @@ class textbox(Frame):
 
 # ------------------------------------------------------------------------------------------------------------
 
-def get_term_poly(tx, ty, tsz, side, direction) :
-	orgx, orgy = tx+0.5*tsz, ty+0.5*tsz
+def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
+#	print "txt_width=", txt_width
+	txt_height = tsz #XXX XXX XXX
+	orgx, orgy = tx+0.5*(txt_width+tsz), ty+0.5*tsz
+#	orgx, orgy = tx+0.5*tsz, ty+0.5*tsz
 	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
-	a = (ang[side] + (0 if direction == INPUT_TERM else 180)) % 360
+#	a = (ang[side] + (0 if direction == INPUT_TERM else 180)) % 360
+	a = (ang[side]) % 360
 	sin_angle, cos_angle = mathutils.rotate4_trig_tab[a]
 	r = lambda xx, yy: (
 		orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
 		orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
-	return r(tx, ty) + r(tx+tsz, ty+tsz/2) + r(tx, ty+tsz)
+#	return r(tx, ty) + r(tx+tsz, ty+tsz/2) + r(tx, ty+tsz)
+
+#	return ( r(tx, ty) + r(tx+tsz+txt_width, ty) +
+#		r(tx+tsz+txt_width, ty+txt_height) + r(tx, ty+tsz) + r(tx+tsz, ty+tsz/2) )
+
+	return ( r(tx, ty) +
+		r(tx+tsz+txt_width, ty) +
+		r(tx+txt_width+tsz+tsz/2, ty+tsz/2) +
+		r(tx+tsz+txt_width, ty+txt_height) +
+		r(tx, ty+tsz) )
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -164,10 +178,31 @@ class Block(Canvas, BlockBase) :
 	def select_next(self) :
 		self.editor.select_next()
 
+	def create_label(self, name, pos, text) :
+		if name in self.images :
+			pass
+		else :
+			pass
+#		font = ImageFont.truetype('path/to/font.ttf', size)
+		fnt = ImageFont.load_default()#self.editor.font_h
+		size = fnt.getsize(text) # Returns the width and height of the given text, as a 2-tuple.
+		im = Image.new('RGBA', size, (0, 0, 0, 0)) # Create a blank image with the given size
+		draw = ImageDraw.Draw(im)
+
+		draw.text((0, 0), text, font=fnt, fill=(82, 124, 178)) #Draw text
+
+		img = ImageTk.PhotoImage(im)
+#		ImageDraw
+		self.images[name] = img
+		i = self.create_image(pos, image=img)
+#im.rotate(angle, expand=True)
+		return i
+
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
 		self.model = model
+		self.images = {}
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -184,7 +219,10 @@ class Block(Canvas, BlockBase) :
 		self.bind("<Tab>", lambda a: self.select_next())
 
 		self.border_rect = self.create_rectangle(0, 0, self.model.width - 1, self.model.height - 1)
+
 		self.caption_txt = self.create_text(0, 0, anchor=NW)
+		self.create_label("xxx", (0, 0), "XXXXXXXXXX")
+
 		self.update_text()
 		
 		self.movingObject = None
@@ -208,8 +246,7 @@ class Block(Canvas, BlockBase) :
 
 	def regenerate_terms(self) :
 
-		fnt = tkFont.nametofont("TkDefaultFont")
-		txt_height = fnt.metrics("linespace")
+		txt_height = self.editor.txt_height
 
 		for t in self.model.terms :
 			self.delete(t.name)
@@ -222,16 +259,23 @@ class Block(Canvas, BlockBase) :
 			term_tag = t.name
 			term_label = self.model.get_term_presentation_text(t, nr)
 
-			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, fnt.measure(term_label), txt_height)
 			t_side = t.get_side(self.model)
+
+			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
+			txt_width = fnt.measure(term_label)
+
+			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
 			poly = get_term_poly(
 				x-(term_size if t_side == E else 0),
 				y-(term_size if t_side == S else 0),
-				term_size, t.get_side(self.model), t.direction)
+				term_size, t.get_side(self.model), t.direction, txt_width)
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
 			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
+#		self.bloced.i = ImageTk.PhotoImage(Image.open('test.png'))
+#		self.bloced.canv.create_image((10, 10), image=self.bloced.i)
+
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
@@ -841,6 +885,10 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		Frame.__init__(self, parent)
 
+		self.font_h = tkFont.nametofont("TkDefaultFont")
+		self.font_v = tkFont.nametofont("TkDefaultFont")
+		self.txt_height = self.font_h.metrics("linespace")
+
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
@@ -1082,7 +1130,6 @@ class BlockEditorWindow :
 		self.tabs .rowconfigure(1, weight=1)
 
 #ttk.Notebook
-
 		self.bloced = BlockEditor(self.tabs)
 		self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		self.bloced.columnconfigure(0, weight=1)
