@@ -25,7 +25,7 @@ def pre_dive(code, tmp, n, nt, nt_nr, m, mt, mt_nr, visited) :
 
 # single input preparation
 def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
-#	print "post_dive:", n, nt, "<-", m, mt
+	print "post_dive:", n, nt, "<-", m, mt
 #	assert(n in visited)
 #	assert(m in visited)
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
@@ -51,12 +51,16 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 # execution
 def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 
+	print "post_visit", n, n.prototype
+
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
+		print 1
 		if not del_out in visited :
+			print 2
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("del%i to tmp%i" % (n.nr, slot))
 		code.append("to del%i" % n.nr)
@@ -127,9 +131,9 @@ def codegen_alt(g, expd_dels, meta) :
 	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
 	output = (": tsk" + linesep +
 		# locals and delays
-		("\t" + "".join(del_init) + ("0 " * len(tmp)) + linesep +
+		("\t" + "".join(del_init) + ("0 " * tmp_max_slots_used(tmp)) + linesep +
 		("\tlocals| " + ("del%i " * len(del_init)) % tuple(range(len(del_init))) +
-		("tmp%i " * len(tmp)) % tuple(range(len(tmp))) + "|" + linesep)
+		("tmp%i " * tmp_max_slots_used(tmp)) % tuple(range(tmp_max_slots_used(tmp))) + "|" + linesep)
 		if ( len(tmp) or len(del_init) ) else "")+
 		# main loop
 		"\tbegin" + linesep +

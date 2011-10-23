@@ -1,4 +1,4 @@
-#! /usr/bin/python2.7
+#! /usr/bin/python
 
 from Tkinter import * #TODO this is not good
 import tkFont
@@ -19,6 +19,8 @@ import string
 import pickle
 
 import pyperclip
+
+import webbrowser
 
 import autoroute
 from dfs import *
@@ -56,6 +58,8 @@ class Configuration(object):
 	APP_NAME = "bloced"
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
+	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	HELP_URL = "http://www.tinfoilhat.cz"
 
 cfg = Configuration()
 
@@ -173,36 +177,42 @@ class Block(Canvas, BlockBase) :
 			borderwidth=0, highlightthickness=0)
 
 	def update_text(self) :
-		self.itemconfigure(self.caption_txt, text=self.model.presentation_text)
+		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
 
 	def select_next(self) :
 		self.editor.select_next()
 
-	def create_label(self, name, pos, text) :
-		if name in self.images :
-			pass
-		else :
-			pass
-#		font = ImageFont.truetype('path/to/font.ttf', size)
-		fnt = ImageFont.load_default()#self.editor.font_h
-		size = fnt.getsize(text) # Returns the width and height of the given text, as a 2-tuple.
-		im = Image.new('RGBA', size, (0, 0, 0, 0)) # Create a blank image with the given size
+	def __update_label(self, name, pos, text) :
+
+		if name in self.__images :
+			bmp, txt, obj = self.__images[name]
+			if txt == text :
+				return obj
+			else :
+				self.__images.pop(name)
+				self.delete(obj)
+
+		fnt = self.editor.font
+		size = fnt.getsize(text)
+		im = Image.new("RGBA", size, (0, 0, 0, 0))
 		draw = ImageDraw.Draw(im)
 
-		draw.text((0, 0), text, font=fnt, fill=(82, 124, 178)) #Draw text
-
-		img = ImageTk.PhotoImage(im)
-#		ImageDraw
-		self.images[name] = img
-		i = self.create_image(pos, image=img)
-#im.rotate(angle, expand=True)
+		flipv, fliph, rot = self.model.orientation
+		lbl_x, lbl_y = self.model.get_label_pos(*size)
+#		print self.model.prototype.type_name, (lbl_x, lbl_y)
+#		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
+		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+		img = ImageTk.PhotoImage(
+			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
+		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+		self.__images[name] = (img, text, i)
 		return i
 
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
 		self.model = model
-		self.images = {}
+		self.__images = {}
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -220,10 +230,13 @@ class Block(Canvas, BlockBase) :
 
 		self.border_rect = self.create_rectangle(0, 0, self.model.width - 1, self.model.height - 1)
 
-		self.caption_txt = self.create_text(0, 0, anchor=NW)
-		self.create_label("xxx", (0, 0), "XXXXXXXXXX")
+#		self.caption_txt = self.create_text(0, 0, anchor=NW)
+#		self.__caption_lbl_pos = property(lambda self: )
+		self.__caption_lbl_pos = (2, 1)
+#		print "self.model.presentation_text=", self.model.presentation_text
+		self.__caption_lbl = self.__update_label("caption_lbl", self.__caption_lbl_pos, "")
 
-		self.update_text()
+#		self.update_text()
 		
 		self.movingObject = None
 		self.affected_wires = None
@@ -243,6 +256,7 @@ class Block(Canvas, BlockBase) :
 		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
 #		for k, v in self.get_wires() :
 #			self.editor.update_connection(*(k + (True,)))
+		self.update_text()
 
 	def regenerate_terms(self) :
 
@@ -261,8 +275,11 @@ class Block(Canvas, BlockBase) :
 
 			t_side = t.get_side(self.model)
 
-			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
-			txt_width = fnt.measure(term_label)
+#XXX XXX XXX
+#			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
+#			txt_width = fnt.measure(term_label)
+			txt_width, _ = self.editor.font.getsize(term_label)
+#XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
 			poly = get_term_poly(
@@ -885,9 +902,12 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		Frame.__init__(self, parent)
 
-		self.font_h = tkFont.nametofont("TkDefaultFont")
-		self.font_v = tkFont.nametofont("TkDefaultFont")
-		self.txt_height = self.font_h.metrics("linespace")
+#		font = ImageFont.truetype('path/to/font.ttf', size)
+		self.font = ImageFont.load_default()
+#		self.font_h = tkFont.nametofont("TkDefaultFont")
+#		self.font_v = tkFont.nametofont("TkDefaultFont")
+#		self.txt_height = self.font_h.metrics("linespace")
+		_, self.txt_height = self.font.getsize("jJ")
 
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
@@ -1198,15 +1218,15 @@ class BlockEditorWindow :
 			])
 
 		self.__add_top_menu("&Help", [
-			("&Content...", "F1", None),
+			("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
 			"-",
-			("&About...", None, None) ])
+			("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
 			("Implement", None, self.implement),
 			("mkmac", None, self.mkmac),
-			("geo", None, lambda: self.root.geometry("800x600+2+0")),
-			("connections", None, lambda: pprint(self.bloced.get_model().get_connections())) ])
+			("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+			("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
 #		menu_debug.add_command(label="zoom",
 #			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 

@@ -147,6 +147,20 @@ class BlockModel(object) :
 
 	value = property(lambda self: self.__value, __set_value)
 
+#	def get_lbl_pos(self) :
+#		flipv, fliph, rot = self.orientation
+#		ors = {
+#			W: 2 if fliph else 0,
+#			N: 3 if flipv else 1,
+#			E: 0 if fliph else 2,
+#			S: 1 if flipv else 3
+#		}
+#		if self.__side != C :
+#			old_or = ors[self.__side]
+#			side = [ W, N, E, S ][ (ors[self.__side] + rot / 90) % 4 ]
+#			return side
+#		return self.__side
+
 	@edit("caption")
 	def __set_caption(self, v) :
 		self.__set_caption = v
@@ -368,6 +382,55 @@ class BlockModel(object) :
 		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
 		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 
+	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,
+			t_nr, text_width, txt_height, center=True) :
+
+		t_size = term_size
+		shift = t_size/2 if center else 0
+#XXX XXX XXX
+		index = term_index if is_variadic else 1
+		c = (index - 1) * term_size if is_variadic else 0
+#XXX XXX XXX
+		p = term_pos
+		tw = text_width
+		side = term_side
+
+		if is_variadic :
+			w, h = self.width, self.height
+		else :
+			w, h = self.default_size
+
+		if side == N :
+			pos = ((w*p-shift+c, 0),		(0, t_size))
+		elif side == S :
+			pos = ((w*p-shift+c, h-1),	(0, -t_size))
+		elif side == W :
+			pos = ((0, h*p-shift+c),		(t_size, 0))
+		elif side == E :
+			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
+		elif side == C :
+			pos = ((w/2, h/2),			(0, 0))
+		else :
+			raise Exception()
+
+		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
+		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
+
+
+	def get_label_pos(self, txt_width, txt_height) :
+		side =  [W, N, E, S][self.orientation[2]/90]
+		if side == W :
+			pos = (0, 0)
+		elif side == N :
+			pos = (self.width-txt_height, 0)
+		elif side == E :
+			pos = (self.width-txt_width, self.height-txt_height)
+		elif side == S :
+			pos = (0, self.height-txt_height)
+		else :
+			raise Exception()
+		return pos
+
 #	def __get__connections(self) :
 ##		print self.__graph.connections
 #		return None#self.__graph.connections.iteritems()
@@ -391,15 +454,15 @@ class BlockModel(object) :
 
 	def get_presentation_text(self) :
 		if self.prototype.__class__.__name__ == "ConstProto" :
-			newtxt = self.value
+			newtxt = str(self.value)
 		elif self.prototype.__class__.__name__ == "DelayProto" :
-			newtxt = "Delay (%s)" % self.value if self.value != None else "None"
+			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
 		elif self.prototype.__class__.__name__ in ("TapProto", "TapEndProto") :
 			newtxt = str(self.value) if self.value != None else "None"
 		elif self.prototype.__class__.__name__ == "InputProto" :
-			newtxt = "In(%s)" % str(self.value) if self.value != None else "None"
+			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "OutputProto" :
-			newtxt = "Out(%s)" % str(self.value) if self.value != None else "None"
+			newtxt = "Out(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "JointProto" :
 			newtxt = ""
 		else :
@@ -846,6 +909,7 @@ def try_mkmac(model) :
 	print "try_mkmac:", terms
 
 	if terms :
+		#TODO use mathutils.bounding_rect
 		(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
 				l1 if l1 < l0 else l0,
 				t1 if t1 < t0 else t0,
