@@ -374,7 +374,9 @@ def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp, number in zip(graph_components(g), count()) :
 		comps.update({ n : number for n in comp})
-	return sorted(roots, key=lambda n: comps[n])
+	sortable = sortable_sinks(g, roots)
+#	print "dft_alt: TODO TODO TODO sortable=", sortable
+	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 #	return leafs
 
 def __dft_alt_term_sorter(preds) :
@@ -484,7 +486,7 @@ def dft_alt(g,
 	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
 	print "dft_alt: s=", s
 #TODO TODO TODO
-	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
+#	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
 #TODO TODO TODO
 	visited = {}
 	for v in s :
@@ -570,7 +572,7 @@ def sortable_sinks(g, sinks) :
 	sortable = {}	
 	for s in sinks :
 		hsh = hashlib.md5()
-		dft(g, s, post_dive = partial(__sort_sinks_post_dive, hsh))
+		dft(g, s, undirected=True, post_dive = partial(__sort_sinks_post_dive, hsh))
 		sortable[s] = hsh.hexdigest()
 #	hsh.copy()
 	return sortable
