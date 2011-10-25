@@ -375,18 +375,20 @@ def __dft_alt_roots_sorter(g, roots) :
 	for comp, number in zip(graph_components(g), count()) :
 		comps.update({ n : number for n in comp})
 	sortable = sortable_sinks(g, roots)
-#	print "dft_alt: TODO TODO TODO sortable=", sortable
+	print "__dft_alt_roots_sorter: sortable=", sortable
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 #	return leafs
 
 def __dft_alt_term_sorter(preds) :
 	for t, t_nr, neighbours in preds :
-		for b, mt, nr in neighbours :
+		if len(neighbours) > 1 :
+#TODO TODO TODO
+			print "__dft_alt_term_sorter:", len(neighbours), "sort needed"
+			neighbours_list = neighbours
+		else :
+			neighbours_list = neighbours
+		for b, mt, nr in neighbours_list :
 			yield t, t_nr, b, mt, nr
-
-#def __dft_alt_is_root(n, neighbours) :
-#	return 
-
 
 def dft_alt_succs_count(s):
 	return sum([ len(succ_blocks) for t, nr, succ_blocks in s ])
@@ -401,32 +403,6 @@ def __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def __dft_alt_dive(g, n, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree) :
-#	if not n in visited :
-#		visited.append(n)
-#		visited_per_tree[n] = True
-#		pre_visit(n, visited)
-#		for nt, m, mt in __dft_alt_p_sorter(g[n].p) : #g[n].p :
-#			pre_dive(n, nt, m, mt, visited)
-#			__dft_alt_dive(g, m, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree)
-#			assert(n in visited)
-#			assert(m in visited)
-#			post_dive(n, nt, m, mt, visited)
-#		post_visit(n, visited)
-
-#def __dft_alt_recursive(g, pre_visit, pre_dive, post_dive, post_visit, pre_tree, post_tree,
-#		roots_sorter=__dft_alt_roots_sorter, sinks_to_sources=True) :
-##	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
-#	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
-#	visited = [] #XXX what about dictionary? should be faster
-#	for v in s :
-#		pre_tree(v, visited)
-#		visited_per_tree = {}
-#		__dft_alt_dive(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree)
-#		post_tree(v, visited)
-
-# ------------------------------------------------------------------------------------------------------------
-
 def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 	if undirected :
 		return neighbourhood.p + neighbourhood.s
@@ -435,8 +411,12 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 	else :
 		return neighbourhood.s
 
-def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit, visited, sinks_to_sources, undir) :
-	terms = list(__dft_alt_term_sorter(__where_to_go(g[root], sinks_to_sources, undir)))
+def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
+		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
+	if term_list == None :
+		terms = list(__dft_alt_term_sorter(__where_to_go(g[root], sinks_to_sources, undir)))
+	else :
+		terms = term_list
 	pre_visit(root, visited, terms)
 	stack = [ (root, None, terms.__iter__()) ]
 	while stack :
@@ -464,12 +444,28 @@ def dft(g, v,
 		pre_dive = lambda *a, **b: None,
 		post_dive = lambda *a, **b: None,
 		post_visit = lambda *a, **b: None,
+		sort_successors = lambda *a, **b: None,
 		sinks_to_sources=True,
 		undirected=False,
-		visited={}) :
+		visited={},
+		term=None) :
 	visited[v] = True
-	__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited,
-		sinks_to_sources, undirected)
+	term_list = None
+
+#	print "dft: ", term
+
+	if term != None :
+		t, t_nr = term
+		(term_list, ) = [ (t, t_nr, nbh) for t, t_nr, nbh in
+			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
+
+#__where_to_go(g[v], sinks_to_sources, undirected))
+
+#terms = list(__dft_alt_term_sorter()
+
+
+	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
+		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -562,20 +558,49 @@ def sethi_ullman(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
-	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
-		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
-#	print edge
-	hsh.update("".join(edge))
+#def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+#	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+#		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+#	print "".join(edge)
+#	hsh.update("".join(edge))
+
+def __sort_successors(g, block, t, t_nr, succs) :
+	assert(t.direction==OUTPUT_TERM)
+	print "__sort_successors: ", succs
+#	sortable = { location_id(g, block, term=None) for sb, st, stnr, lst  in succs }
+#	print "__sort_successors:" block, t, t_nr, sortable
+#	return sorted(succs, key=lambda
+	return list(succs)
 
 def sortable_sinks(g, sinks) :
 	sortable = {}	
 	for s in sinks :
-		hsh = hashlib.md5()
-		dft(g, s, undirected=True, post_dive = partial(__sort_sinks_post_dive, hsh))
-		sortable[s] = hsh.hexdigest()
+		digest = location_id(g, s, term=None)
+#		hsh = hashlib.md5()
+#		dft(g, s, undirected=True, post_dive=partial(__sort_sinks_post_dive, hsh))
+#		digest = hsh.hexdigest()
+		sortable[s] = digest
+#		print "sortable_sinks:", s, ", ", digest
 #	hsh.copy()
+	pprint(sortable)
 	return sortable
+
+# ------------------------------------------------------------------------------------------------------------
+
+def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+	print "".join(edge)
+	hsh.update("".join(edge))
+
+def location_id(g, block, term=None) :
+	assert(term==None or (term!=None and len(term) == 2))
+#	assert(not (term==None^term_nr==None))
+	hsh = hashlib.md5()
+	dft(g, block, undirected=True,
+		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
+	digest = hsh.hexdigest()
+	return digest
 
 # ------------------------------------------------------------------------------------------------------------
 
