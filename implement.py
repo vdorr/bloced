@@ -379,16 +379,38 @@ def __dft_alt_roots_sorter(g, roots) :
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 #	return leafs
 
-def __dft_alt_term_sorter(preds) :
+def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
 		if len(neighbours) > 1 :
 #TODO TODO TODO
-			print "__dft_alt_term_sorter:", len(neighbours), "sort needed"
-			neighbours_list = neighbours
+			print "__dft_alt_term_sorter:", neighbours, "sort needed"
+			lid = location_id(g, block, term=(t, t_nr))
+			keys = { (b, mt, nr) : location_id(g, b, term=(mt, nr)) for b, mt, nr in neighbours }
+			neighbours_list = sorted(neighbours, key=lambda i: keys[i])
 		else :
 			neighbours_list = neighbours
+		print "__dft_alt_term_sorter: neighbours_list=", neighbours_list
 		for b, mt, nr in neighbours_list :
 			yield t, t_nr, b, mt, nr
+
+# ------------------------------------------------------------------------------------------------------------
+
+def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+	print "".join(edge)
+	hsh.update("".join(edge))
+
+def location_id(g, block, term=None) :
+	assert(term==None or (term!=None and len(term) == 2))
+#	assert(not (term==None^term_nr==None))
+	hsh = hashlib.md5()
+	dft(g, block, undirected=True,
+		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
+	digest = hsh.hexdigest()
+	return digest
+
+# ------------------------------------------------------------------------------------------------------------
 
 def dft_alt_succs_count(s):
 	return sum([ len(succ_blocks) for t, nr, succ_blocks in s ])
@@ -414,9 +436,11 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
 	if term_list == None :
-		terms = list(__dft_alt_term_sorter(__where_to_go(g[root], sinks_to_sources, undir)))
+		terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
 	else :
-		terms = term_list
+		terms = list(__dft_alt_term_sorter(g, root,
+			[ (term_list[0], term_list[1], []) ]))
+#		terms = [ term_list ]
 	pre_visit(root, visited, terms)
 	stack = [ (root, None, terms.__iter__()) ]
 	while stack :
@@ -432,7 +456,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 			if not m in visited :
 				visited[m] = True
-				terms = list(__dft_alt_term_sorter(__where_to_go(g[m], sinks_to_sources, undir)))
+				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
 				pre_visit(m, visited, terms)
 				stack.append((m, None, terms.__iter__()))
 		except StopIteration :
@@ -585,23 +609,6 @@ def sortable_sinks(g, sinks) :
 #	hsh.copy()
 	pprint(sortable)
 	return sortable
-
-# ------------------------------------------------------------------------------------------------------------
-
-def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
-	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
-		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
-	print "".join(edge)
-	hsh.update("".join(edge))
-
-def location_id(g, block, term=None) :
-	assert(term==None or (term!=None and len(term) == 2))
-#	assert(not (term==None^term_nr==None))
-	hsh = hashlib.md5()
-	dft(g, block, undirected=True,
-		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
-	digest = hsh.hexdigest()
-	return digest
 
 # ------------------------------------------------------------------------------------------------------------
 
