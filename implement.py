@@ -375,7 +375,7 @@ def __dft_alt_roots_sorter(g, roots) :
 	for comp, number in zip(graph_components(g), count()) :
 		comps.update({ n : number for n in comp})
 	sortable = sortable_sinks(g, roots)
-	print "__dft_alt_roots_sorter: sortable=", sortable
+#	print "__dft_alt_roots_sorter: sortable=", sortable
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 #	return leafs
 
@@ -383,13 +383,13 @@ def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
 		if len(neighbours) > 1 :
 #TODO TODO TODO
-			print "__dft_alt_term_sorter:", neighbours, "sort needed"
+#			print "__dft_alt_term_sorter:", neighbours, "sort needed"
 			lid = location_id(g, block, term=(t, t_nr))
 			keys = { (b, mt, nr) : location_id(g, b, term=(mt, nr)) for b, mt, nr in neighbours }
 			neighbours_list = sorted(neighbours, key=lambda i: keys[i])
 		else :
 			neighbours_list = neighbours
-		print "__dft_alt_term_sorter: neighbours_list=", neighbours_list
+#		print "__dft_alt_term_sorter: neighbours_list=", neighbours_list
 		for b, mt, nr in neighbours_list :
 			yield t, t_nr, b, mt, nr
 
@@ -398,7 +398,7 @@ def __dft_alt_term_sorter(g, block, preds) :
 def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
 		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
-	print "".join(edge)
+#	print "".join(edge)
 	hsh.update("".join(edge))
 
 def location_id(g, block, term=None) :
