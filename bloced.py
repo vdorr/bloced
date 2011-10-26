@@ -184,9 +184,11 @@ class Block(Canvas, BlockBase) :
 
 	def __update_label(self, name, pos, text) :
 
+#		print "__update_label:", name, pos, text
+
 		if name in self.__images :
-			bmp, txt, obj = self.__images[name]
-			if txt == text :
+			bmp, txt, lbl_pos, obj = self.__images[name]
+			if txt == text and lbl_pos == pos :
 				return obj
 			else :
 				self.__images.pop(name)
@@ -198,14 +200,18 @@ class Block(Canvas, BlockBase) :
 		draw = ImageDraw.Draw(im)
 
 		flipv, fliph, rot = self.model.orientation
-		lbl_x, lbl_y = self.model.get_label_pos(*size)
+		if name == "caption_lbl" :
+			lbl_x, lbl_y = self.model.get_label_pos(*size)
+			pos = lbl_x, lbl_y
+		else :
+			lbl_x, lbl_y = pos
 #		print self.model.prototype.type_name, (lbl_x, lbl_y)
 #		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
 		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
 		img = ImageTk.PhotoImage(
 			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
 		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-		self.__images[name] = (img, text, i)
+		self.__images[name] = (img, text, pos, i)
 		return i
 
 	def __init__(self, editor, model) :
@@ -286,13 +292,17 @@ class Block(Canvas, BlockBase) :
 				x-(term_size if t_side == E else 0),
 				y-(term_size if t_side == S else 0),
 				term_size, t.get_side(self.model), t.direction, txt_width)
+
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
-			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
-#		self.bloced.i = ImageTk.PhotoImage(Image.open('test.png'))
-#		self.bloced.canv.create_image((10, 10), image=self.bloced.i)
+#			w = self.create_line(*poly, tags=term_tag)
 
+
+			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
+#			txt = self.__update_label(term_tag, (txtx, txty), term_label)
+#			self.bind_as_term(txt)#TODO
+#			self.window2term[txt] = t
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt

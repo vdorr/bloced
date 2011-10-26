@@ -565,12 +565,13 @@ def sethi_ullman(g) :
 #	hsh.update("".join(edge))
 
 def __sort_successors(g, block, t, t_nr, succs) :
-	assert(t.direction==OUTPUT_TERM)
-	print "__sort_successors: ", succs
-#	sortable = { location_id(g, block, term=None) for sb, st, stnr, lst  in succs }
-#	print "__sort_successors:" block, t, t_nr, sortable
-#	return sorted(succs, key=lambda
-	return list(succs)
+	pass
+#	assert(t.direction==OUTPUT_TERM)
+#	print "__sort_successors: ", succs
+##	sortable = { location_id(g, block, term=None) for sb, st, stnr, lst  in succs }
+##	print "__sort_successors:" block, t, t_nr, sortable
+##	return sorted(succs, key=lambda
+#	return list(succs)
 
 def sortable_sinks(g, sinks) :
 	sortable = {}	
