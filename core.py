@@ -164,7 +164,7 @@ class FunctionProto(BlockPrototype):
 # ----------------------------------------------------------------------------
 
 def load_macro(filename) :
-	print "load_macro:", filename
+#	print "load_macro:", filename
 	return None
 
 # ----------------------------------------------------------------------------
@@ -189,7 +189,7 @@ def is_vmex_line(s) :
 def parse_vmex_line(s) :
 	hparser.__hparser_linesep = "\n" #XXX XXX XXX XXX XXX
 	tokens = hparser.tokenize(s)
-	print "parse_vmex_line:", tokens
+#	print "parse_vmex_line:", tokens
 	if not tokens :
 		return None
 	ret_type, name, args_list = hparser.parse_decl(tokens)
@@ -216,7 +216,7 @@ def vmex_arg(a) :
 
 def extract_exports(src_str) :
 	src_lines = src_str.split("\n")
-	pprint(src_lines)
+#	pprint(src_lines)
 	exports = [ parse_vmex_line(ln) for ln in
 		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
 
@@ -306,7 +306,7 @@ def load_c_module(lib_name, input_files) :
 #	exports = [ (fn, extract_vmex(fn)) for fn in input_files ]
 	header = [ fn for fn in input_files if __is_header(fn) ][-1]
 	exports = extract_vmex(header)
-	print("library '%s' exports %i functions" % (lib_name, len(exports)))
+#	print("library '%s' exports %i functions" % (lib_name, len(exports)))
 #	pprint(exports)
 #TODO now produce prototypes
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
