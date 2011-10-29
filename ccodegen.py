@@ -37,7 +37,7 @@ def __implement(n, args, outs) :
 # execution
 def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 
-	print "__post_visit:", n.to_string()
+#	print "__post_visit:", n.to_string()
 
 
 #TODO can i get rid off som cycles by use of other callbacks?
@@ -55,11 +55,11 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 	for out_term, out_t_nr, succs in outputs :
 #		print "out_term, out_t_nr, succs =", n, out_term, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
-			print "adding temps:", succs
+#			print "adding temps:", succs
 			slot = add_tmp_ref(tmp, succs)
 			outs.append("&tmp%i"%slot)
 		elif len(succs) == 1 and len(outputs) == 1 :
-			print "passing by"
+#			print "passing by"
 			pass
 		else :
 			outs.append("&dummy")
@@ -85,7 +85,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
-		print 666
+#		print 666
 		if not del_out in visited :
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("tmp%i = del%i" % (slot, n.nr))
@@ -94,7 +94,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 	elif isinstance(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_out)
-		print "\tdel_in=", del_in, n.delay
+#		print "\tdel_in=", del_in, n.delay
 		if del_in in visited :
 			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 			expr = "tmp%i" % slot
@@ -163,6 +163,10 @@ def codegen_alt(g, expd_dels, meta) :
 	tmp = temp_init()
 	subtrees = {}
 	code = []
+
+#	print here(2)
+#	pprint(g)
+
 	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
 #	print tmp
 	assert(tmp_used_slots(tmp) == 0)
