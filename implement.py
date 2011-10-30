@@ -498,6 +498,18 @@ def dft(g, v,
 		undirected=False,
 		visited={},
 		term=None) :
+	"""
+	graph structure:
+	{
+		blockA :
+			(p=[ (blockA->term, blockA->term->term_number,
+				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+			 s=[ ]), ...
+	}
+	"""
+
+	pprint(g)
+
 	visited[v] = True
 	term_list = None
 
