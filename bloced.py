@@ -922,7 +922,8 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
-		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion, bg="white", highlightthickness=0)
+		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion,
+			bg="white", highlightthickness=0)
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
 		self.canv.columnconfigure(0, weight=1)
 		self.canv.rowconfigure(0, weight=1)
@@ -964,7 +965,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockEditorWindow :
+class BlockEditorWindow(object) :
 
 	filetypes = ( ("bloced files", "*.bloc"), ("all files", "*") )
 
