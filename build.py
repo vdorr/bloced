@@ -1,5 +1,5 @@
 
-import sys
+####import sys
 from sys import exit
 import subprocess
 import os
@@ -28,13 +28,35 @@ def __run_external(args, workdir=None) :
 			return (False, p.returncode, (stdoutdata, stderrdata))
 
 
-def __read_ignores(workdir) :
-#TODO
+def __list_files(workdir, recurse) :
+	file_list = []
+	tree = os.walk(workdir)
+	for root, dirs, files in tree if recurse else [ tree.next() ] :
+		file_list += [ os.path.join(workdir, root, fn) for fn in files]
+	return file_list
+
+
+def __read_ignore(fname) :
+	try :
+		f = open(fname, "r")
+		lines = f.readlines()
+		f.close()
+		return lines
+	except :
+		return None
 #fnmatch.filter(names, pattern)
-	return []
+
+
+def __parse_boards() :
+#TODO
+#/usr/share/arduino/hardware/arduino/boards.txt
 
 def build() :
 	workdir = os.getcwd()
+
+	print __list_files(workdir, False)
+	print __read_ignore(os.path.join(workdir, ".amkignore"))
+	exit(0)
 
 	run = partial(__run_external, workdir=workdir)
 
@@ -54,7 +76,6 @@ def build() :
 	
 	prog_mcu = "m328p"
 	prog_port = "/dev/ttyACM0"
-#	prog_port = "USB0"
 
 	gcc_args = i_dirs + l_libs + [ optimization, "-mmcu=" + mcu, "-DF_CPU=%i" % f_cpu, "-o", a_out ]
 	gcc_args += ["tst.c"]
