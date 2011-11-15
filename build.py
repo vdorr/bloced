@@ -6,6 +6,8 @@ import os
 import tempfile
 from functools import partial
 import fnmatch
+import re
+import string
 
 # ----------------------------------------------------------------------------
 
@@ -41,21 +43,50 @@ def __read_ignore(fname) :
 		f = open(fname, "r")
 		lines = f.readlines()
 		f.close()
-		return lines
+		return [ ln.strip() for ln in lines if ln.strip() ]
 	except :
 		return None
 #fnmatch.filter(names, pattern)
 
 
+def __parse_boards_line() :
+	pass
+
+
 def __parse_boards() :
-#TODO
-#/usr/share/arduino/hardware/arduino/boards.txt
+	fname = "/usr/share/arduino/hardware/arduino/boards.txt"
+	try :
+		f = open(fname, "r")
+		lines = f.readlines()
+		f.close()
+	except :
+		return None
+	items = [ __parse_boards_line(ln) for ln in lines ] #if regex(ln)?
+
+__source_file_exts = [
+	"*.c",
+	"*.h",
+	"*.cpp",
+	"*.hpp",
+]
 
 def build() :
 	workdir = os.getcwd()
 
-	print __list_files(workdir, False)
-	print __read_ignore(os.path.join(workdir, ".amkignore"))
+	ignores = __read_ignore(os.path.join(workdir, ".amkignore"))
+	ign_res = [ fnmatch.translate(ln) for ln in ignores ]
+#	print "("+string.join(ign_res, ")|(")+")"
+	re_ignore = re.compile("("+string.join(ign_res, ")|(")+")")
+
+	src_res = [ fnmatch.translate(ln) for ln in __source_file_exts ]
+	re_source = re.compile("("+string.join(src_res, ")|(")+")")
+#	print "("+string.join(src_res, ")|(")+")"
+
+	files = __list_files(workdir, True)
+	print files
+	sources = [ fn for fn in files
+		if re_source.match(fn) and not re_ignore.match(fn) ]
+	print sources
 	exit(0)
 
 	run = partial(__run_external, workdir=workdir)
