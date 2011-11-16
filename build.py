@@ -8,6 +8,7 @@ from functools import partial
 import fnmatch
 import re
 import string
+from pprint import pprint
 
 # ----------------------------------------------------------------------------
 
@@ -49,19 +50,34 @@ def __read_ignore(fname) :
 #fnmatch.filter(names, pattern)
 
 
-def __parse_boards_line() :
-	pass
+def __parse_boards_line(line) :
+	key, value = line.split("=")
+	return line
 
 
-def __parse_boards() :
-	fname = "/usr/share/arduino/hardware/arduino/boards.txt"
+def __parse_boards(board_txt) :
 	try :
-		f = open(fname, "r")
+		f = open(board_txt, "r")
 		lines = f.readlines()
 		f.close()
 	except :
 		return None
-	items = [ __parse_boards_line(ln) for ln in lines ] #if regex(ln)?
+
+	valid = re.compile("\s*\w+\.\S+\s*=\s*\S+")
+
+#	items = [ __parse_boards_line(ln) for ln in lines if valid.match(ln) ]
+
+	board_info = {}
+	for line in [ ln for ln in lines if valid.match(ln) ] :
+		key, value = line.split("=")
+		dot = key.index(".")
+		board_name = key[0:dot]
+		if not board_name in board_info :
+			board_info[board_name] = {}
+		board_info[board_name][key[dot+1:]] = value.strip()
+
+	return board_info
+
 
 __source_file_exts = [
 	"*.c",
@@ -83,10 +99,15 @@ def build() :
 #	print "("+string.join(src_res, ")|(")+")"
 
 	files = __list_files(workdir, True)
-	print files
+#	print files
 	sources = [ fn for fn in files
 		if re_source.match(fn) and not re_ignore.match(fn) ]
 	print sources
+
+	board_txt = "/usr/share/arduino/hardware/arduino/boards.txt"
+	board_info = __parse_boards(board_txt)
+	pprint(board_info)
+
 	exit(0)
 
 	run = partial(__run_external, workdir=workdir)
