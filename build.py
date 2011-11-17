@@ -131,10 +131,12 @@ def build() :
 	success, _, streams = run(["avr-gcc"] + gcc_args)
 	if success :
 		stdoutdata, stderrdata = streams
-		print("compiled" + " " + stdoutdata.decode() + stderrdata.decode())
+		print("compiled" + " " +
+			stdoutdata.decode() + stderrdata.decode())
 	else :
 		stdoutdata, stderrdata = streams
-		print("failed to execute avr-gcc" + " " + stdoutdata.decode() + stderrdata.decode())
+		print("failed to execute avr-gcc" + " " +
+			stdoutdata.decode() + stderrdata.decode())
 		sys.exit(10)
 
 	success, rc, streams = run(["avr-size", a_out])
