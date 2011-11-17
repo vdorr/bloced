@@ -1,5 +1,4 @@
 
-####import sys
 import sys
 import subprocess
 import os
@@ -7,10 +6,7 @@ import tempfile
 from functools import partial
 import fnmatch
 import re
-import string
 from pprint import pprint
-
-# ----------------------------------------------------------------------------
 
 #TODO use as gedit plugin
 
@@ -30,28 +26,20 @@ def __run_external(args, workdir=None) :
 			return (False, p.returncode, (stdoutdata, stderrdata))
 
 
-#def __list_files(workdir, recurse) :
-#	file_list = []
-#	tree = os.walk(workdir)
-#	for root, dirs, files in tree if recurse else [ tree.next() ] :
-#		file_list += [ os.path.join(workdir, root, fn) for fn in files ]
-#	return file_list
-
-
 __src_exts = ( "*.c", "*.cpp" )
 __hdr_exts = ( "*.h", "*.hpp" )
 
-__re_src = re.compile("("+string.join([ fnmatch.translate(ln) for ln in __src_exts ], ")|(")+")")
-__re_hdr = re.compile("("+string.join([ fnmatch.translate(ln) for ln in __hdr_exts ], ")|(")+")")
+__re_src = re.compile("("+")|(".join([ fnmatch.translate(ln) for ln in __src_exts ])+")")
+__re_hdr = re.compile("("+")|(".join([ fnmatch.translate(ln) for ln in __hdr_exts ])+")")
 
 
-def __list_files(workdir, recurse) :
+def __list_files(workdir, recurse, ignore=lambda fn: False) :
 	sources = []
 	inlude_dirs = []
 	tree = os.walk(workdir)
 	for root, dirs, files in tree if recurse else [ tree.next() ] :
-		sources += [ os.path.join(workdir, root, fn)
-			for fn in files if __re_src.match(fn) ]
+		sources += [ os.path.join(workdir, root, fn) for fn in files
+			if __re_src.match(fn) and not ignore(fn) ]
 		if any([ __re_hdr.match(fn) for fn in files ]) :
 			inlude_dirs.append(os.path.join(workdir, root))
 	return sources, inlude_dirs
@@ -100,27 +88,20 @@ def build() :
 
 	ignores = __read_ignore(os.path.join(workdir, ignore_file))
 	ign_res = [ fnmatch.translate(ln) for ln in ignores ]
-#	print "("+string.join(ign_res, ")|(")+")"
-	re_ignore = re.compile("("+string.join(ign_res, ")|(")+")")
+	re_ignore = re.compile("("+")|(".join(ign_res)+")")
 
-#	src_res = [ fnmatch.translate(ln) for ln in __src_exts ]
-#	re_source = re.compile("("+string.join(src_res, ")|(")+")")
-#	print "("+string.join(src_res, ")|(")+")"
+#	ard_sources, ard_idirs = [], []
+	ard_sources, ard_idirs = __list_files(arduino_src_dir, False,
+		ignore=lambda fn: re_ignore.match(fn))
+	pprint(ard_sources)
 
-#	files = __list_files(workdir, True)
-#	print files
-#	sources = [ fn for fn in files
-#		if re_source.match(fn) and not re_ignore.match(fn) ]
-
-	ard_sources, ard_idirs = [], []#__list_files(arduino_src_dir, False)#TODO
-
-	sources, loc_idirs = __list_files(workdir, wdir_recurse)
+	sources, loc_idirs = __list_files(workdir, wdir_recurse,
+		ignore=lambda fn: re_ignore.match(fn))
+#	print(sources)
 
 	board_info = __parse_boards(boards_txt)
-#	pprint(board_info)
 
-
-	print board_info[board]["name"]
+	print(board_info[board]["name"])
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
@@ -150,16 +131,16 @@ def build() :
 	success, _, streams = run(["avr-gcc"] + gcc_args)
 	if success :
 		stdoutdata, stderrdata = streams
-		print("compiled" + " " + stdoutdata + stderrdata)
+		print("compiled" + " " + stdoutdata.decode() + stderrdata.decode())
 	else :
 		stdoutdata, stderrdata = streams
-		print("failed to execute avr-gcc" + " " + stdoutdata + stderrdata)
+		print("failed to execute avr-gcc" + " " + stdoutdata.decode() + stderrdata.decode())
 		sys.exit(10)
 
 	success, rc, streams = run(["avr-size", a_out])
 	if success :
 		stdoutdata, _ = streams
-		head, val = stdoutdata.split(os.linesep)[0:2]
+		head, val = stdoutdata.decode().split(os.linesep)[0:2]
 		sizes = dict(zip(head.split(), val.split()))
 #TODO check against boards.txt
 		print("memory usage: flash %iB, ram %iB" %
@@ -177,16 +158,11 @@ def build() :
 		print("failed to execute avr-objcopy")
 		sys.exit(30)
 
+#	sys.exit(0)
 
-
-
-	sys.exit(0)
-
-
-
-
-
-	success, _, streams = run(["avrdude", "-q", "-n", "-c"+"arduino",
+	success, _, streams = run(["avrdude", "-q",
+		"-n", #XXX XXX XXX XXX XXX
+		"-c"+"arduino",
 		"-P" + prog_port,
 		"-p" + prog_mcu,
 		"-Uflash:w:" + a_hex + ":i"])
@@ -194,7 +170,7 @@ def build() :
 		print("succesfully uploaded")
 	else :
 		stdoutdata, stderrdata = streams
-		print("failed to run avrdude '%s'" % stderrdata)
+		print("failed to run avrdude '%s'" % stderrdata.decode())
 		sys.exit(40)
 
 # ----------------------------------------------------------------------------
