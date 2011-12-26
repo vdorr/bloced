@@ -109,8 +109,15 @@ def get_ports(do_test_read=True) :
 		return ports
 
 
+#TODO TODO TODO
+BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
+
+
+def get_board_types() :
+	return __parse_boards(BOARDS_TXT)
+
 def build() :
-	boards_txt = "/usr/share/arduino/hardware/arduino/boards.txt"
+	boards_txt = BOARDS_TXT
 	arduino_src_dir = "/usr/share/arduino/hardware/arduino/cores/arduino"
 	board = "uno"
 	ignore_file = ".amkignore"

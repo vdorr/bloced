@@ -28,6 +28,7 @@ import core
 from serializer import *
 from implement import implement_dfs, try_mkmac
 import mathutils
+import build
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -967,7 +968,9 @@ class BlockEditor(Frame, GraphModelListener) :
 
 class BlockEditorWindow(object) :
 
+
 	filetypes = ( ("bloced files", "*.bloc"), ("all files", "*") )
+
 
 	def new_file(self, a=None) :
 		self.bloced.set_model(None)
@@ -976,10 +979,12 @@ class BlockEditorWindow(object) :
 		self.__changed = False
 		self.__set_current_file_name(None)
 
+
 	def open_file(self, a=None) :
 		fname = askopenfilename(filetypes=BlockEditorWindow.filetypes)
 		if fname :
 			self.open_this_file_new(fname)
+
 
 	def open_this_file_new(self, fname) :
 		try :
@@ -991,6 +996,7 @@ class BlockEditorWindow(object) :
 			self.bloced.changed = False
 		except IOError :
 			print("IOError")
+
 
 	def save_file(self, fname) :
 		if fname :
@@ -1005,60 +1011,76 @@ class BlockEditorWindow(object) :
 				print("IOError")
 		return False
 
+
 	def save_file_as(self) :
 		return self.save_file(asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
 
+
 	def save_current_file(self, a=None) :
 		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
+
 
 	def mnu_edit_cut(self, a=None) :
 		if self.bloced.selection :
 			pyperclip.setcb(self.bloced.serialize_selection())
 			self.bloced.delete_selection()
 
+
 	def mnu_edit_copy(self, a=None) :
 		if self.bloced.selection :
 			pyperclip.setcb(self.bloced.serialize_selection())
 
+
 	def mnu_edit_paste(self, a=None) :
 		self.bloced.paste(pyperclip.getcb())#XXX lambda?
 
+
 	def mnu_edit_delete(self, a=None) :
 		self.bloced.delete_selection()#XXX lambda?
+
 
 	def mnu_edit_undo(self, a=None) :
 		self.bloced.do_undo()#XXX lambda?
 #		if self.bloced.undo :
 #			self.bloced.undo.undo()
 
+
 	def mnu_edit_redo(self, a=None) :
 		self.bloced.do_redo()#XXX lambda?
 #		if self.bloced.undo :
 #			self.bloced.undo.redo()
 
+
 	def mnu_edit_preferences(self, a=None) :
 		pass
+
 
 	def mnu_edit_select_all(self, a=None) :
 		self.bloced.select_all()
 
+
 	def mnu_edit_comment(self, a=None) :
 		pass
 
+
 	def mnu_edit_uncomment(self, a=None) :
 		pass
+
 
 	def begin_paste_block(self, prototype) :
 		self.bloced.begin_paste_block(prototype)
 		self.last_block_inserted = prototype
 
+
 	def mnu_blocks_insert_last(self, a=None) :
 		if self.last_block_inserted :
 			self.begin_paste_block(self.last_block_inserted)
 
+
 	def implement(self) :
 		out = implement_dfs(self.bloced.get_model(), None)
 		print "out:", out
+
 
 	def close_window(self, a=None) :
 		if self.__changed :
@@ -1072,36 +1094,52 @@ class BlockEditorWindow(object) :
 		self.__save_user_settings()
 		self.root.destroy()
 
+
 	def __on_closing(self) :
 		self.close_window()
+
 
 	def __convert_mnu_text(self, text) :
 		under = text.find("&")
 		return ( text[0:under]+text[under+1:] if under != -1 else text,
 			 under if under != -1 else None )
 
+
 	def __convert_accel(self, accel) :
 		parts = accel.replace("Ctrl", "Control").split("+")
 		parts[-1] = parts[-1].lower() if len(parts[-1]) == 1 else parts[-1]
 		return "<" + string.join(parts, "-") + ">"
-		
-	def __add_submenu_item(self, parent, text, accel, handler, items=[]) :
+
+
+	def __add_menu_item(self, mnu, item) :
+		if item == "-" :
+			mnu.add_separator()
+		else :
+			self.__add_submenu_item(*((mnu, )+item))
+
+
+	def __add_submenu_item(self, parent, text, accel, handler, item_type="command", items=[]) :
 		txt, under = self.__convert_mnu_text(text)
 		if accel :
 			self.root.bind(self.__convert_accel(accel), handler)
-		return parent.add_command(label=txt, underline=under,
-			command=handler, accelerator=accel)
+		if item_type == "cascade" :
+			mnu = Menu(parent)
+			parent.add_cascade(label=text, menu=mnu)
+			for item in items :
+				self.__add_menu_item(mnu, item)
+		else :
+			parent.add(item_type, label=txt, underline=under,
+				command=handler, accelerator=accel)
+
 
 	def __add_top_menu(self, text, items=[]) :
 		mnu = Menu(self.__menubar)
 		txt, under = self.__convert_mnu_text(text)
 		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
 		for item in items :
-			if item == "-" :
-				mnu.add_separator()
-			else :
-				self.__add_submenu_item(*((mnu, )+item))
+			self.__add_menu_item(mnu, item)
 		return mnu
+
 
 	def __set_current_file_name(self, fname) :
 		self.__fname = fname
@@ -1111,19 +1149,24 @@ class BlockEditorWindow(object) :
 			title = cfg.NONE_FILE
 		self.root.title(("*" if self.__changed else "") + title + " - " + cfg.APP_NAME)
 
+
 #	file_changed = property(lambda self: self.bloced.changed, lambda self, v: self.bloced.set_changed(v))
 	have_file = property(lambda self: self.__fname != None)
 	current_filename = property(lambda self: self.__fname)
+
 
 	def __changed_event(self) :
 		self.__changed = True
 		self.__set_current_file_name(self.__fname)
 
+
 	def mnu_mode_build(self) :
 		pass
 
+
 	def mnu_mode_run(self) :
 		pass
+
 
 	def __save_user_settings(self) :
 		self.__settings.main_width, self.__settings.main_height = self.root.winfo_width(), self.root.winfo_height()
@@ -1132,8 +1175,10 @@ class BlockEditorWindow(object) :
 		pickle.dump(self.__settings, f)
 		f.close()
 
+
 	def mkmac(self) :
 		try_mkmac(self.bloced.model)
+
 
 	def __init__(self) :
 
@@ -1226,6 +1271,11 @@ class BlockEditorWindow(object) :
 			("&Build", "F6", self.mnu_mode_build),
 			("&Run", "F5", self.mnu_mode_run),
 #			("&Stop", "Ctrl+F5", None)
+			"-",
+			("Board", None, None, "cascade",
+				[(b, None, None, "radiobutton") for b in build.get_board_types()]),
+			("Serial Port", None, None, "cascade",
+				[(p, None, None, "radiobutton") for p, desc, nfo in build.get_ports()]),
 			])
 
 		self.__add_top_menu("&Help", [
