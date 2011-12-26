@@ -8,6 +8,15 @@ import fnmatch
 import re
 from pprint import pprint
 
+try :
+	from serial import Serial
+	from serial.serialutil import SerialException
+	from serial.tools.list_ports import comports
+except e :
+	print("can not find appropriate version pySerial")
+	def comports() :
+		return []
+
 #TODO use as gedit plugin
 
 def __run_external(args, workdir=None) :
@@ -75,6 +84,29 @@ def __parse_boards(boards_txt) :
 			board_info[board_name] = {}
 		board_info[board_name][key[dot+1:].strip()] = value.strip()
 	return board_info
+
+
+def __port_test_read(port) :
+#	print "__port_test_read:", port
+	s = None
+	try :
+		s = Serial(port=port, timeout=0)
+		s.read()
+		s.close()
+		s = None
+	except SerialException :
+		if s :
+			s.close()
+		return False
+	return True
+
+
+def get_ports(do_test_read=True) :
+	ports = comports()
+	if do_test_read :
+		return [ p for p in ports if __port_test_read(p[0]) ]
+	else :
+		return ports
 
 
 def build() :
