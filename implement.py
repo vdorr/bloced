@@ -6,6 +6,17 @@ from functools import partial
 from itertools import groupby, chain, count
 from pprint import pprint
 import sys
+import hashlib
+import traceback
+import string
+
+# ------------------------------------------------------------------------------------------------------------
+
+def here(depth=1) :
+	stack = traceback.extract_stack()[:-1]
+	take = len(stack) if depth > len(stack)  else depth
+	trace = stack[(len(stack)-take):]
+	return string.join([ ("%s:%i" % (f[2], f[1])) for f in trace ], ">")
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -373,17 +384,51 @@ def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp, number in zip(graph_components(g), count()) :
 		comps.update({ n : number for n in comp})
-	return sorted(roots, key=lambda n: comps[n])
-#	return leafs
+	sortable = sortable_sinks(g, roots)
+	print here(), "sortable=", sortable
+	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 
-def __dft_alt_term_sorter(preds) :
+def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
-		for b, mt, nr in neighbours :
+		if len(neighbours) > 1 :
+#TODO TODO TODO
+			print "__dft_alt_term_sorter:", neighbours, "sort needed"
+			lid = location_id(g, block, term=(t, t_nr))
+			keys = { (b, mt, nr) : location_id(g, b, term=(mt, nr)) for b, mt, nr in neighbours }
+			neighbours_list = sorted(neighbours, key=lambda i: keys[i])
+		else :
+			neighbours_list = neighbours
+
+#		neighbours_list = neighbours
+
+#		print "__dft_alt_term_sorter: neighbours_list=", neighbours_list
+		for b, mt, nr in neighbours : #XXX
 			yield t, t_nr, b, mt, nr
 
-#def __dft_alt_is_root(n, neighbours) :
-#	return 
+#def __dft_alt_term_sorter(g, block, preds) :
+#	for t, t_nr, neighbours in preds :
+#		for b, mt, nr in neighbours :
+#			yield t, t_nr, b, mt, nr
 
+# ------------------------------------------------------------------------------------------------------------
+
+def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+	print "\t", "".join(edge)
+	hsh.update("".join(edge))
+
+def location_id(g, block, term=None) :
+	assert(term==None or (term!=None and len(term) == 2))
+#	assert(not (term==None^term_nr==None))
+	hsh = hashlib.md5()
+	dft(g, block, undirected=True,
+		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
+	digest = hsh.hexdigest()
+	print here(), block, term, digest
+	return digest
+
+# ------------------------------------------------------------------------------------------------------------
 
 def dft_alt_succs_count(s):
 	return sum([ len(succ_blocks) for t, nr, succ_blocks in s ])
@@ -398,32 +443,6 @@ def __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def __dft_alt_dive(g, n, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree) :
-#	if not n in visited :
-#		visited.append(n)
-#		visited_per_tree[n] = True
-#		pre_visit(n, visited)
-#		for nt, m, mt in __dft_alt_p_sorter(g[n].p) : #g[n].p :
-#			pre_dive(n, nt, m, mt, visited)
-#			__dft_alt_dive(g, m, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree)
-#			assert(n in visited)
-#			assert(m in visited)
-#			post_dive(n, nt, m, mt, visited)
-#		post_visit(n, visited)
-
-#def __dft_alt_recursive(g, pre_visit, pre_dive, post_dive, post_visit, pre_tree, post_tree,
-#		roots_sorter=__dft_alt_roots_sorter, sinks_to_sources=True) :
-##	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
-#	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
-#	visited = [] #XXX what about dictionary? should be faster
-#	for v in s :
-#		pre_tree(v, visited)
-#		visited_per_tree = {}
-#		__dft_alt_dive(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree)
-#		post_tree(v, visited)
-
-# ------------------------------------------------------------------------------------------------------------
-
 def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 	if undirected :
 		return neighbourhood.p + neighbourhood.s
@@ -432,10 +451,22 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 	else :
 		return neighbourhood.s
 
-def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit, visited, sinks_to_sources, undir) :
-	terms = list(__dft_alt_term_sorter(__where_to_go(g[root], sinks_to_sources, undir)))
+def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
+		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
+
+#	terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
+#	pre_visit(root, visited, terms)
+#	stack = [ (root, None, terms.__iter__()) ]
+
+	if term_list == None :
+		terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
+	else :
+		terms = list(__dft_alt_term_sorter(g, root,
+			[ (term_list[0], term_list[1], []) ]))
+#		terms = [ term_list ]
 	pre_visit(root, visited, terms)
 	stack = [ (root, None, terms.__iter__()) ]
+
 	while stack :
 		n, prev, it = stack[-1]
 		if prev != None :
@@ -449,7 +480,8 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit, visit
 			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 			if not m in visited :
 				visited[m] = True
-				terms = list(__dft_alt_term_sorter(__where_to_go(g[m], sinks_to_sources, undir)))
+				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
+#				print "\t", here(), m
 				pre_visit(m, visited, terms)
 				stack.append((m, None, terms.__iter__()))
 		except StopIteration :
@@ -461,12 +493,42 @@ def dft(g, v,
 		pre_dive = lambda *a, **b: None,
 		post_dive = lambda *a, **b: None,
 		post_visit = lambda *a, **b: None,
+		sort_successors = lambda *a, **b: None,
 		sinks_to_sources=True,
 		undirected=False,
-		visited={}) :
+		visited={},
+		term=None) :
+	"""
+	graph structure:
+	{
+		blockA :
+			(p=[ (blockA->term, blockA->term->term_number,
+				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+			 s=[ ]), ...
+	}
+	"""
+
+	pprint(g)
+
 	visited[v] = True
-	__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited,
-		sinks_to_sources, undirected)
+	term_list = None
+
+#	print here(3), v, term
+
+	if term != None :
+		t, t_nr = term
+		(term_list, ) = [ (t, t_nr, nbh) for t, t_nr, nbh in
+			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
+
+#	term_list = None
+
+#__where_to_go(g[v], sinks_to_sources, undirected))
+
+#terms = list(__dft_alt_term_sorter()
+
+
+	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
+		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -477,27 +539,35 @@ def dft_alt(g,
 		post_visit = lambda *a, **b: None,
 		pre_tree = lambda *a, **b: None,
 		post_tree = lambda *a, **b: None,
-		roots_sorter=__dft_alt_roots_sorter,
+#		roots_sorter=__dft_alt_roots_sorter,
 		sinks_to_sources=True) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
-	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
+
+#	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
+	s = __dft_alt_roots_selector(g, sinks_to_sources, __dft_alt_roots_sorter)
+
+	print "dft_alt: s=", s
+#TODO TODO TODO
+#	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
+#TODO TODO TODO
 	visited = {}
 	for v in s :
 		pre_tree(v, visited)
 		assert(not v in visited)
-		visited[v] = True
+#		visited[v] = True
 #		visited_per_tree = {}
 #		__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree,
 #			sinks_to_sources, False)
-		dft(g, v, pre_visit, pre_dive, post_dive, post_visit, sinks_to_sources, False, visited)
-#		dft(g, v,
-#			pre_visit = pre_visit,
-#			pre_dive = pre_dive,
-#			post_dive = post_dive,
-#			post_visit = post_visit,
-#			sinks_to_sources=sinks_to_sources,
-#			undirected=False,
-#			visited=visited) 
+#		print "dft_alt: v=", v
+#		dft(g, v, pre_visit, pre_dive, post_dive, post_visit, sinks_to_sources, False, visited)
+		dft(g, v,
+			pre_visit = pre_visit,
+			pre_dive = pre_dive,
+			post_dive = post_dive,
+			post_visit = post_visit,
+			sinks_to_sources=sinks_to_sources,
+			undirected=False,
+			visited=visited) 
 		post_tree(v, visited)
 
 # ------------------------------------------------------------------------------------------------------------
@@ -522,6 +592,9 @@ def __su_post_visit(g, numbering, n, visited) :
 	commutativity comes in two flavours, it may be commutative block,
 	or numbered instances of variadic terminal
 	"""
+
+#	print here(), n, visited
+
 	p, s = g[n] # XXX s might be used to analyze spill space usage
 	src_blocks1 = [ (t, nr, src_b, i) for ((t, nr, ((src_b, src_t, src_t_nt),)), i) in zip(p, count()) ]
 	if n.prototype.commutative :
@@ -537,6 +610,7 @@ def __su_post_visit(g, numbering, n, visited) :
 			src_blocks = sorted(src_blocks, key=lambda (t, nr, src_b, i) : -numbering[src_b][0])
 		for term, nr, src_b, i in src_blocks :
 			if not src_b in evaluated_blocks :
+#				print here(), numbering, src_b
 				usages.append(numbering[src_b][0] + index)
 				index += 1
 			else :
@@ -555,50 +629,177 @@ def sethi_ullman(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+#def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
+#	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
+#		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
+#	print "".join(edge)
+#	hsh.update("".join(edge))
+
+def __sort_successors(g, block, t, t_nr, succs) :
+	pass
+#	assert(t.direction==OUTPUT_TERM)
+#	print "__sort_successors: ", succs
+##	sortable = { location_id(g, block, term=None) for sb, st, stnr, lst  in succs }
+##	print "__sort_successors:" block, t, t_nr, sortable
+##	return sorted(succs, key=lambda
+#	return list(succs)
+
+def sortable_sinks(g, sinks) :
+	sortable = {}	
+	for s in sinks :
+		digest = location_id(g, s, term=None)
+		sortable[s] = digest
+	return sortable
+
+# ------------------------------------------------------------------------------------------------------------
+
+#XXX XXX XXX
+
+KNOWN_TYPES = {
+	"vm_char_t" : (None, ), #XXX XXX XXX
+	"vm_word_t" : (1, ),
+	"vm_dword_t" : (2, ),
+	"vm_float_t" : (2, ),
+}
+
+#XXX XXX XXX
+# ------------------------------------------------------------------------------------------------------------
+
 #TODO testing
 #TODO it may be better to use dictionary
 
+if 1 :
+
+## TODO may have limit parameter and generate spill code
+	def temp_init() :
+		return []
+
+## ------------------------------------------------------------------------------------------------------------
+
+	def get_tmp_slot(tmp) :
+		if "empty" in tmp :
+			slot = tmp.index("empty")
+		else :
+			slot = len(tmp)
+			tmp.append("empty")
+		return slot
+
+## ------------------------------------------------------------------------------------------------------------
+
+	def add_tmp_ref(tmp, refs) :
+		assert(len(refs)>0)
+		slot = get_tmp_slot(tmp)
+		tmp[slot] = list(refs)
+		return slot
+
+## ------------------------------------------------------------------------------------------------------------
+
+	def pop_tmp_ref(tmp, b, t, t_nr) :
+	#	print "tmp=", tmp, "searching:", b, t
+		for slot, nr in zip(tmp, count()) :
+			if slot != "empty" and (b, t, t_nr) in slot :
+				slot.remove((b, t, t_nr))
+				if len(slot) == 0 :
+					tmp[nr] = "empty"
+	#			else :
+	#				print "pop_tmp_ref:", tmp[nr]
+				return nr
+		return None
+
+## ------------------------------------------------------------------------------------------------------------
+
+	def tmp_used_slots(tmp) :
+#		assert( sum([ 1 for slot in tmp if slot != "empty"])== reduce(lambda cnt, slot: cnt + (0 if slot == "empty" else 1), tmp, 0))
+		return sum([ 1 for slot in tmp if slot != "empty" ])
+
+# ------------------------------------------------------------------------------------------------------------
+
+	def tmp_max_slots_used(tmp) :
+		"""
+		returns peak number of slots in use to this time
+		"""
+		return len(tmp)
+
+# ------------------------------------------------------------------------------------------------------------
+
+else :
+
+# ------------------------------------------------------------------------------------------------------------
+
+#TODO testing
+#TODO it may be better to use dictionary
+
+	__DBG = 0
+
 # TODO may have limit parameter and generate spill code
-def temp_init() :
-	return []
+	def temp_init() :
+		tmp = { tp_name : [] for tp_name in KNOWN_TYPES }
+	#	if __DBG :
+	#		print "temp_init: id=", id(tmp)
+		return tmp
 
 # ------------------------------------------------------------------------------------------------------------
 
-def get_tmp_slot(tmp) :
-	if "empty" in tmp :
-		slot = tmp.index("empty")
-	else :
-		slot = len(tmp)
-		tmp.append("empty")
-	return slot
+	def get_tmp_slot(tmp, slot_type="vm_word_t") :
+	#	if __DBG :
+	#		print "get_tmp_slot: id=", id(tmp)
+		if "empty" in tmp[slot_type] :
+			slot = tmp[slot_type].index("empty")
+		else :
+			slot = len(tmp[slot_type])
+			tmp[slot_type].append("empty")
+		return slot
 
 # ------------------------------------------------------------------------------------------------------------
 
-def add_tmp_ref(tmp, refs) :
-	assert(len(refs)>0)
-	slot = get_tmp_slot(tmp)
-	tmp[slot] = list(refs)
-	return slot
+	def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
+	#	print "add_tmp_ref:", refs
+	#	if __DBG :
+	#		print "get_tmp_ref: id=", id(tmp)
+		assert(len(refs)>0)
+		slot = get_tmp_slot(tmp)
+		print "add_tmp_ref: ", "slot=", slot
+		tmp[slot_type][slot] = list(refs)
+		return slot
 
 # ------------------------------------------------------------------------------------------------------------
 
-def pop_tmp_ref(tmp, b, t, t_nr) :
-#	print "tmp=", tmp, "searching:", b, t
-	for slot, nr in zip(tmp, count()) :
-		if slot != "empty" and (b, t, t_nr) in slot :
-			slot.remove((b, t, t_nr))
-			if len(slot) == 0 :
-				tmp[nr] = "empty"
-#			else :
-#				print "pop_tmp_ref:", tmp[nr]
-			return nr
-	return None
+	def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+		t_tmp = tmp[slot_type]
+	#	if __DBG :
+	#		print "pop_tmp_ref: id=", id(tmp)
+	#	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
+		for slot, nr in zip(t_tmp, count()) :
+			if slot != "empty" and (b, t, t_nr) in slot :
+				slot.remove((b, t, t_nr))
+				if len(slot) == 0 :
+					t_tmp[nr] = "empty"
+				else :
+					print "pop_tmp_ref:", t_tmp[nr]
+				return nr
+		return None
 
 # ------------------------------------------------------------------------------------------------------------
 
-def tmp_used_slots(tmp) :
-	assert( sum([ 1 for slot in tmp if slot != "empty"])== reduce(lambda cnt, slot: cnt + (0 if slot == "empty" else 1), tmp, 0))
-	return sum([ 1 for slot in tmp if slot != "empty" ])
+	def tmp_used_slots(tmp) :
+		"""
+		returns current number of non-empty slots of all types
+		"""
+	#	if __DBG :
+	#		print "tmp_used_slots: id=", id(tmp)
+		return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
+			for tp, t_tmp in tmp.items() ])
+
+# ------------------------------------------------------------------------------------------------------------
+
+	def tmp_max_slots_used(tmp) :
+		"""
+		returns peak number of slots in use to this time
+		"""
+	#	if __DBG :
+	#		print "tmp_used_slots: id=", id(tmp)
+		return sum([ sum([ 1 for slot in t_tmp ])
+			for tp, t_tmp in tmp.items() ])
 
 # ------------------------------------------------------------------------------------------------------------
 

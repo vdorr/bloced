@@ -19,8 +19,10 @@ rotate4_trig_tab = {
 
 def rotate4(orgx, orgy, x, y, angle) :
 	sin_angle, cos_angle = rotate4_trig_tab[angle]
-	nx = orgx + ((x - orgx) * cos_angle + (y - orgy) * sin_angle)
-	ny = orgy + ((x - orgx) * sin_angle - (y - orgy) * cos_angle)
+	nx = orgx + (((x - orgx) * cos_angle) + ((y - orgy) * sin_angle))
+	ny = orgy + (((x - orgx) * sin_angle) + ((y - orgy) * cos_angle))
+#	print "rotate4:", orgx, orgy, x, y, angle, (sin_angle, cos_angle), (nx, ny)
+#	print "rotate4(2):",orgy, ((x - orgx) * sin_angle), ((y - orgy) * cos_angle)
 	return nx, ny
 
 def pldist(x1, y1, x2, y2, x, y) :
@@ -38,6 +40,19 @@ def pldistex(x1, y1, x2, y2, x, y) :
 
 def ppdist(x1, y1, x2, y2) :
 	return sqrt((x1-x2)**2+(y1-y2)**2)
+
+def make_rect(x, y, w, h) :
+	return [ (x, y), (x+w, y), (x+w, y+h), (x, y+h) ]
+
+def bounding_rect(points) :
+	(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
+		l1 if l1 < l0 else l0,
+		t1 if t1 < t0 else t0,
+		r1 if r1 > r0 else r0,
+		b1 if b1 > b0 else b0),
+			[ (x, y, x, y) for x, y in points ], 
+		(1000000, 1000000, -1000000, -1000000))
+	return l, t, r - l, b - t
 
 def max_rect(a, b) :
 	return ( b[0] if b[0] < a[0] else a[0],

@@ -1,6 +1,11 @@
 
 from dfs import *
 import os
+import sys
+import hparser
+from collections import namedtuple
+from itertools import groupby, count
+from pprint import pprint
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -137,20 +142,175 @@ class StatefulBP(BlockPrototype) :
 			exe_name=type_name if not exe_name else exe_name)
 #TODO TODO TODO
 
-# ------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+class CFunctionProto(BlockPrototype):
+	pass
+#	def __init__(self) :
+#		BlockPrototype.__init__(self, "CFunction", [], category="External")
+
+# ----------------------------------------------------------------------------
+
+class MacroProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "Macro", [], category="External")
+
+# ----------------------------------------------------------------------------
+
+class FunctionProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "FunctionBlock", [], category="External")
+
+# ----------------------------------------------------------------------------
 
 def load_macro(filename) :
-	print "load_macro:", filename
+#	print "load_macro:", filename
 	return None
 
-# ------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
-def is_c_module(basedir) :
-	return False
+VMEX_SIG = "_VM_EXPORT_"
 
-def load_c_module(input_files) :
-	print "load_c_module:", input_files
-	return None
+known_types = {
+	"vm_char_t" : (None, ), #XXX XXX XXX
+	"vm_word_t" : (1, ),
+	"vm_dword_t" : (2, ),
+	"vm_float_t" : (2, ),
+	"void" : (0, ),
+}
+
+def is_vmex_line(s) :
+	ln = s.strip()
+#	print(s.__class__)
+	if not ln.startswith(VMEX_SIG) :
+		return None
+	return ln
+
+def parse_vmex_line(s) :
+	hparser.__hparser_linesep = "\n" #XXX XXX XXX XXX XXX
+	tokens = hparser.tokenize(s)
+#	print "parse_vmex_line:", tokens
+	if not tokens :
+		return None
+	ret_type, name, args_list = hparser.parse_decl(tokens)
+	return ret_type, name, args_list
+
+term_type = namedtuple("term", (
+#	"arg_index",
+	"name",
+#	"side", "pos",
+	"direction", "variadic", "commutative", "type_name"))
+
+def vmex_arg(a) :
+	sig, name = a
+#	print "vmex_arg", a
+
+#	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
+#	name,
+	direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
+	variadic = False
+	commutative = False
+	
+	(type_name, ) = [ tp for tp in sig if tp in known_types ]
+	return term_type(name, direction, variadic, commutative, type_name)
+
+def extract_exports(src_str) :
+	src_lines = src_str.split("\n")
+#	pprint(src_lines)
+	exports = [ parse_vmex_line(ln) for ln in
+		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
+
+#	print("extract_exports: ", len(exports))
+	vmex_funcs = []
+
+	for ret_type, name, args_list in exports :
+
+#		print ret_type, name, args_list
+
+		if ret_type[0] != VMEX_SIG :
+			continue # should not happen
+		vmex_ret_type = None
+		for tp in ret_type :
+			if tp in known_types :
+				vmex_ret_type = tp
+		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
+		if outputs :
+			assert(vmex_ret_type == "void")
+		inputs = [ a for a in args_list if not a in outputs ]
+		assert(set(outputs+inputs)==set(args_list))
+
+		terms_in = [ vmex_arg(a) for a in inputs ]
+		terms_out = [ vmex_arg(a) for a in outputs ] if outputs else [ vmex_arg((ret_type, "out")) ]
+#		print terms_in, terms_out
+
+		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
+		vmex_funcs.append((name, (terms_in, terms_out)))
+
+	return vmex_funcs
+
+def extract_vmex(fname) :
+	srcf = open(fname, "r")
+	src_str = srcf.read()
+	srcf.close()
+	return extract_exports(src_str)
+
+from dfs import TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT, guess_block_size
+
+def __layout_terms(all_terms_count, term_count) : #TODO move to dfs
+	step = 1.0 / (all_terms_count + 1)
+	term_positions = [ (i + 1) * step for i in range(term_count) ]
+	return term_positions
+
+def block_layout(in_term_count, out_term_count) :
+	all_terms_count = max(in_term_count, out_term_count)
+	inputs = __layout_terms(all_terms_count, in_term_count)
+	outputs = __layout_terms(all_terms_count, out_term_count)
+	width, height = guess_block_size([], [], inputs, outputs)
+	return width, height, inputs, outputs
+
+def __cmod_create_proto(lib_name, export) :
+
+	block_name, (terms_in, terms_out) = export
+
+	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
+#	print "__cmod_create_proto: block_layout=", xxxx
+
+	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
+	inputs = [ In(-i, name, W, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative)
+		for (name, direction, variadic, commutative, type_name), pos, i
+			in zip(terms_in, in_terms_pos, count()) ]
+	outputs = [ Out(-i, name, E, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative)
+		for (name, direction, variadic, commutative, type_name), pos, i
+			in zip(terms_out, out_terms_pos, count()) ]
+
+	proto = CFunctionProto(block_name,
+			inputs + outputs,
+			exe_name=block_name,
+			default_size=(width, height),
+			category=lib_name)
+	return proto
+
+#def __cmod_name_from_fname(fname) :
+#	return None
+
+HEADER_EXTS = ("h", "hpp")
+
+def __is_header(fname) :
+	ext = fname.split(os.path.extsep)[-1]
+	return ext.lower() in HEADER_EXTS
+
+def load_c_module(lib_name, input_files) :
+#	print "load_c_module:", input_files
+#	exports = [ (fn, extract_vmex(fn)) for fn in input_files ]
+	header = [ fn for fn in input_files if __is_header(fn) ][-1]
+	exports = extract_vmex(header)
+#	print("library '%s' exports %i functions" % (lib_name, len(exports)))
+#	pprint(exports)
+#TODO now produce prototypes
+	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
+	return protos
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -166,7 +326,7 @@ class BasicBlocksFactory(BlockFactory) :
 
 		lib_name = os.path.split(dirname)[-1]
 
-		print lib_name, dirname, dirnames, filenames
+#		print lib_name, dirname, dirnames, filenames
 
 		MY_FILE_EXTENSION = "bloc"#XXX
 
@@ -178,23 +338,24 @@ class BasicBlocksFactory(BlockFactory) :
 			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
 			if ext == MY_FILE_EXTENSION :
 				try :
-					block = load_macro(f)
+					blocks = load_macro(f)
 				except :
 					print "failed to load " + f
 				else :
-					if block == None :
+					if blocks == None :
 						continue #XXX
-					self._BlockFactory__blocks.append(block)
-			elif ext == "c" and (fname + os.path.extsep + "h") in filenames :
+					self._BlockFactory__blocks += blocks
+			elif ext == "c" and (fname + os.path.extsep + "h") in filenames : #XXX too naive!
 				try :
-					block = load_c_module([os.path.join(dirname, f),
+					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
 						os.path.join(dirname, fname + os.path.extsep + "h")])
 				except :
 					print "failed to load " + f
+					raise
 				else :
-					if block == None :
+					if blocks == None :
 						continue #XXX
-					self._BlockFactory__blocks.append(block)
+					self._BlockFactory__blocks += blocks
 
 
 		for d in dirnames :
@@ -240,10 +401,10 @@ class BasicBlocksFactory(BlockFactory) :
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33), In(-1, "d", W, .66),
 				Out(-1, "q", E, .33), Out(-2, "r", E, .66)  ], pure=True),
 
-			SBP("load", "Memory", [ ]),
-			SBP("store", "Memory", [ ]),
-			SBP("load_nv", "Memory", [ ]),
-			SBP("store_nv", "Memory", [ ]),
+#			SBP("load", "Memory", [ ]),
+#			SBP("store", "Memory", [ ]),
+#			SBP("load_nv", "Memory", [ ]),
+#			SBP("store_nv", "Memory", [ ]),
 
 			SBP("di", "Process IO", [ In(0, "nr", W, .5), Out(0, "y", E, .5) ], exe_name="io_di"),
 			SBP("do", "Process IO", [ In(-1, "nr", W, .33), In(-2, "x", W, .66) ], exe_name="io_do"),
@@ -254,5 +415,33 @@ class BasicBlocksFactory(BlockFactory) :
 def create_block_factory() :
 	return BasicBlocksFactory()
 
-# ------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+if __name__ == "__main__" :
+#	OUTPUT_TERM, INPUT_TERM = 666, 667
+	if len(sys.argv) > 1 :
+		if sys.argv[1] == "librariantest" :
+			if len(sys.argv) == 2 :
+				source = "iowrap.h"
+			else :
+				source = sys.argv[2]
+			srcf = open(source, "r")
+			srcs = srcf.readlines()
+			srcf.close()
+			exports = extract_exports(srcs)
+		elif sys.argv[1] == "libscantest" :
+# python core.py libscantest
+			if len(sys.argv) == 2 :
+				lib_dir = "library"
+			else :
+				lib_dir = sys.argv[2]
+			librarian = BasicBlocksFactory()
+			librarian.load_library(os.path.join(os.getcwd(), lib_dir))
+
+			for cat, b_iter in groupby(librarian.block_list, lambda b: b.category) :
+				print(cat)
+				for proto in b_iter :
+					print("\t" + proto.type_name)
+
+# ----------------------------------------------------------------------------
 

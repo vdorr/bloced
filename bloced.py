@@ -1,10 +1,11 @@
-#! /usr/bin/python2.7
+#! /usr/bin/python
 
 from Tkinter import * #TODO this is not good
 import tkFont
 import tkMessageBox
 from tkFileDialog import askopenfilename, asksaveasfilename
 import ttk
+from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 from pprint import pprint
 from collections import namedtuple
@@ -19,12 +20,15 @@ import pickle
 
 import pyperclip
 
+import webbrowser
+
 import autoroute
 from dfs import *
 import core
 from serializer import *
 from implement import implement_dfs, try_mkmac
 import mathutils
+import build
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -55,6 +59,8 @@ class Configuration(object):
 	APP_NAME = "bloced"
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
+	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	HELP_URL = "http://www.tinfoilhat.cz"
 
 cfg = Configuration()
 
@@ -93,15 +99,28 @@ class textbox(Frame):
 
 # ------------------------------------------------------------------------------------------------------------
 
-def get_term_poly(tx, ty, tsz, side, direction) :
-	orgx, orgy = tx+0.5*tsz, ty+0.5*tsz
+def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
+#	print "txt_width=", txt_width
+	txt_height = tsz #XXX XXX XXX
+	orgx, orgy = tx+0.5*(txt_width+tsz), ty+0.5*tsz
+#	orgx, orgy = tx+0.5*tsz, ty+0.5*tsz
 	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
-	a = (ang[side] + (0 if direction == INPUT_TERM else 180)) % 360
+#	a = (ang[side] + (0 if direction == INPUT_TERM else 180)) % 360
+	a = (ang[side]) % 360
 	sin_angle, cos_angle = mathutils.rotate4_trig_tab[a]
 	r = lambda xx, yy: (
 		orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
 		orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
-	return r(tx, ty) + r(tx+tsz, ty+tsz/2) + r(tx, ty+tsz)
+#	return r(tx, ty) + r(tx+tsz, ty+tsz/2) + r(tx, ty+tsz)
+
+#	return ( r(tx, ty) + r(tx+tsz+txt_width, ty) +
+#		r(tx+tsz+txt_width, ty+txt_height) + r(tx, ty+tsz) + r(tx+tsz, ty+tsz/2) )
+
+	return ( r(tx, ty) +
+		r(tx+tsz+txt_width, ty) +
+		r(tx+txt_width+tsz+tsz/2, ty+tsz/2) +
+		r(tx+tsz+txt_width, ty+txt_height) +
+		r(tx, ty+tsz) )
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -159,15 +178,48 @@ class Block(Canvas, BlockBase) :
 			borderwidth=0, highlightthickness=0)
 
 	def update_text(self) :
-		self.itemconfigure(self.caption_txt, text=self.model.presentation_text)
+		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
 
 	def select_next(self) :
 		self.editor.select_next()
+
+	def __update_label(self, name, pos, text) :
+
+#		print "__update_label:", name, pos, text
+
+		if name in self.__images :
+			bmp, txt, lbl_pos, obj = self.__images[name]
+			if txt == text and lbl_pos == pos :
+				return obj
+			else :
+				self.__images.pop(name)
+				self.delete(obj)
+
+		fnt = self.editor.font
+		size = fnt.getsize(text)
+		im = Image.new("RGBA", size, (0, 0, 0, 0))
+		draw = ImageDraw.Draw(im)
+
+		flipv, fliph, rot = self.model.orientation
+		if name == "caption_lbl" :
+			lbl_x, lbl_y = self.model.get_label_pos(*size)
+			pos = lbl_x, lbl_y
+		else :
+			lbl_x, lbl_y = pos
+#		print self.model.prototype.type_name, (lbl_x, lbl_y)
+#		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
+		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+		img = ImageTk.PhotoImage(
+			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
+		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+		self.__images[name] = (img, text, pos, i)
+		return i
 
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
 		self.model = model
+		self.__images = {}
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -184,8 +236,14 @@ class Block(Canvas, BlockBase) :
 		self.bind("<Tab>", lambda a: self.select_next())
 
 		self.border_rect = self.create_rectangle(0, 0, self.model.width - 1, self.model.height - 1)
-		self.caption_txt = self.create_text(0, 0, anchor=NW)
-		self.update_text()
+
+#		self.caption_txt = self.create_text(0, 0, anchor=NW)
+#		self.__caption_lbl_pos = property(lambda self: )
+		self.__caption_lbl_pos = (2, 1)
+#		print "self.model.presentation_text=", self.model.presentation_text
+		self.__caption_lbl = self.__update_label("caption_lbl", self.__caption_lbl_pos, "")
+
+#		self.update_text()
 		
 		self.movingObject = None
 		self.affected_wires = None
@@ -205,11 +263,11 @@ class Block(Canvas, BlockBase) :
 		self.canvas.itemconfig(self.window, width=self.model.width, height=self.model.height)
 #		for k, v in self.get_wires() :
 #			self.editor.update_connection(*(k + (True,)))
+		self.update_text()
 
 	def regenerate_terms(self) :
 
-		fnt = tkFont.nametofont("TkDefaultFont")
-		txt_height = fnt.metrics("linespace")
+		txt_height = self.editor.txt_height
 
 		for t in self.model.terms :
 			self.delete(t.name)
@@ -222,16 +280,30 @@ class Block(Canvas, BlockBase) :
 			term_tag = t.name
 			term_label = self.model.get_term_presentation_text(t, nr)
 
-			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, fnt.measure(term_label), txt_height)
 			t_side = t.get_side(self.model)
+
+#XXX XXX XXX
+#			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
+#			txt_width = fnt.measure(term_label)
+			txt_width, _ = self.editor.font.getsize(term_label)
+#XXX XXX XXX
+
+			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
 			poly = get_term_poly(
 				x-(term_size if t_side == E else 0),
 				y-(term_size if t_side == S else 0),
-				term_size, t.get_side(self.model), t.direction)
+				term_size, t.get_side(self.model), t.direction, txt_width)
+
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
+#			w = self.create_line(*poly, tags=term_tag)
+
+
 			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
+#			txt = self.__update_label(term_tag, (txtx, txty), term_label)
+#			self.bind_as_term(txt)#TODO
+#			self.window2term[txt] = t
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
@@ -841,10 +913,18 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		Frame.__init__(self, parent)
 
+#		font = ImageFont.truetype('path/to/font.ttf', size)
+		self.font = ImageFont.load_default()
+#		self.font_h = tkFont.nametofont("TkDefaultFont")
+#		self.font_v = tkFont.nametofont("TkDefaultFont")
+#		self.txt_height = self.font_h.metrics("linespace")
+		_, self.txt_height = self.font.getsize("jJ")
+
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
-		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion, bg="white", highlightthickness=0)
+		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion,
+			bg="white", highlightthickness=0)
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
 		self.canv.columnconfigure(0, weight=1)
 		self.canv.rowconfigure(0, weight=1)
@@ -886,9 +966,11 @@ class BlockEditor(Frame, GraphModelListener) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockEditorWindow :
+class BlockEditorWindow(object) :
+
 
 	filetypes = ( ("bloced files", "*.bloc"), ("all files", "*") )
+
 
 	def new_file(self, a=None) :
 		self.bloced.set_model(None)
@@ -897,10 +979,12 @@ class BlockEditorWindow :
 		self.__changed = False
 		self.__set_current_file_name(None)
 
+
 	def open_file(self, a=None) :
 		fname = askopenfilename(filetypes=BlockEditorWindow.filetypes)
 		if fname :
 			self.open_this_file_new(fname)
+
 
 	def open_this_file_new(self, fname) :
 		try :
@@ -912,6 +996,7 @@ class BlockEditorWindow :
 			self.bloced.changed = False
 		except IOError :
 			print("IOError")
+
 
 	def save_file(self, fname) :
 		if fname :
@@ -926,60 +1011,76 @@ class BlockEditorWindow :
 				print("IOError")
 		return False
 
+
 	def save_file_as(self) :
 		return self.save_file(asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
 
+
 	def save_current_file(self, a=None) :
 		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
+
 
 	def mnu_edit_cut(self, a=None) :
 		if self.bloced.selection :
 			pyperclip.setcb(self.bloced.serialize_selection())
 			self.bloced.delete_selection()
 
+
 	def mnu_edit_copy(self, a=None) :
 		if self.bloced.selection :
 			pyperclip.setcb(self.bloced.serialize_selection())
 
+
 	def mnu_edit_paste(self, a=None) :
 		self.bloced.paste(pyperclip.getcb())#XXX lambda?
 
+
 	def mnu_edit_delete(self, a=None) :
 		self.bloced.delete_selection()#XXX lambda?
+
 
 	def mnu_edit_undo(self, a=None) :
 		self.bloced.do_undo()#XXX lambda?
 #		if self.bloced.undo :
 #			self.bloced.undo.undo()
 
+
 	def mnu_edit_redo(self, a=None) :
 		self.bloced.do_redo()#XXX lambda?
 #		if self.bloced.undo :
 #			self.bloced.undo.redo()
 
+
 	def mnu_edit_preferences(self, a=None) :
 		pass
+
 
 	def mnu_edit_select_all(self, a=None) :
 		self.bloced.select_all()
 
+
 	def mnu_edit_comment(self, a=None) :
 		pass
 
+
 	def mnu_edit_uncomment(self, a=None) :
 		pass
+
 
 	def begin_paste_block(self, prototype) :
 		self.bloced.begin_paste_block(prototype)
 		self.last_block_inserted = prototype
 
+
 	def mnu_blocks_insert_last(self, a=None) :
 		if self.last_block_inserted :
 			self.begin_paste_block(self.last_block_inserted)
 
+
 	def implement(self) :
 		out = implement_dfs(self.bloced.get_model(), None)
 		print "out:", out
+
 
 	def close_window(self, a=None) :
 		if self.__changed :
@@ -993,36 +1094,52 @@ class BlockEditorWindow :
 		self.__save_user_settings()
 		self.root.destroy()
 
+
 	def __on_closing(self) :
 		self.close_window()
+
 
 	def __convert_mnu_text(self, text) :
 		under = text.find("&")
 		return ( text[0:under]+text[under+1:] if under != -1 else text,
 			 under if under != -1 else None )
 
+
 	def __convert_accel(self, accel) :
 		parts = accel.replace("Ctrl", "Control").split("+")
 		parts[-1] = parts[-1].lower() if len(parts[-1]) == 1 else parts[-1]
 		return "<" + string.join(parts, "-") + ">"
-		
-	def __add_submenu_item(self, parent, text, accel, handler, items=[]) :
+
+
+	def __add_menu_item(self, mnu, item) :
+		if item == "-" :
+			mnu.add_separator()
+		else :
+			self.__add_submenu_item(*((mnu, )+item))
+
+
+	def __add_submenu_item(self, parent, text, accel, handler, item_type="command", items=[]) :
 		txt, under = self.__convert_mnu_text(text)
 		if accel :
 			self.root.bind(self.__convert_accel(accel), handler)
-		return parent.add_command(label=txt, underline=under,
-			command=handler, accelerator=accel)
+		if item_type == "cascade" :
+			mnu = Menu(parent)
+			parent.add_cascade(label=text, menu=mnu)
+			for item in items :
+				self.__add_menu_item(mnu, item)
+		else :
+			parent.add(item_type, label=txt, underline=under,
+				command=handler, accelerator=accel)
+
 
 	def __add_top_menu(self, text, items=[]) :
 		mnu = Menu(self.__menubar)
 		txt, under = self.__convert_mnu_text(text)
 		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
 		for item in items :
-			if item == "-" :
-				mnu.add_separator()
-			else :
-				self.__add_submenu_item(*((mnu, )+item))
+			self.__add_menu_item(mnu, item)
 		return mnu
+
 
 	def __set_current_file_name(self, fname) :
 		self.__fname = fname
@@ -1032,19 +1149,24 @@ class BlockEditorWindow :
 			title = cfg.NONE_FILE
 		self.root.title(("*" if self.__changed else "") + title + " - " + cfg.APP_NAME)
 
+
 #	file_changed = property(lambda self: self.bloced.changed, lambda self, v: self.bloced.set_changed(v))
 	have_file = property(lambda self: self.__fname != None)
 	current_filename = property(lambda self: self.__fname)
+
 
 	def __changed_event(self) :
 		self.__changed = True
 		self.__set_current_file_name(self.__fname)
 
+
 	def mnu_mode_build(self) :
 		pass
 
+
 	def mnu_mode_run(self) :
 		pass
+
 
 	def __save_user_settings(self) :
 		self.__settings.main_width, self.__settings.main_height = self.root.winfo_width(), self.root.winfo_height()
@@ -1053,8 +1175,10 @@ class BlockEditorWindow :
 		pickle.dump(self.__settings, f)
 		f.close()
 
+
 	def mkmac(self) :
 		try_mkmac(self.bloced.model)
+
 
 	def __init__(self) :
 
@@ -1082,7 +1206,6 @@ class BlockEditorWindow :
 		self.tabs .rowconfigure(1, weight=1)
 
 #ttk.Notebook
-
 		self.bloced = BlockEditor(self.tabs)
 		self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		self.bloced.columnconfigure(0, weight=1)
@@ -1133,33 +1256,35 @@ class BlockEditorWindow :
 #			("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
+		#TODO should be explicitly sorted
+		blocks = ([ (cat, None, None, "cascade",
+			[ (proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+				for cat, b_iter in groupby(self.blockfactory.block_list, lambda b: b.category) ])
 		menu_blocks = self.__add_top_menu("&Insert", [
 			("&Insert last", "Ctrl+I", self.mnu_blocks_insert_last),
-			"-" ])
-		#TODO should be explicitly sorted
-		for cat, b_iter in groupby(self.blockfactory.block_list, lambda b: b.category) :
-			submenu = Menu(menu_blocks)
-			menu_blocks.add_cascade(label=cat, menu=submenu)
-			for proto in b_iter :
-				submenu.add_command(label=proto.type_name,
-				command=partial(self.begin_paste_block, proto))
+			"-" ] + blocks)
 
 		self.__add_top_menu("&Model", [
 			("&Build", "F6", self.mnu_mode_build),
 			("&Run", "F5", self.mnu_mode_run),
 #			("&Stop", "Ctrl+F5", None)
+			"-",
+			("Board", None, None, "cascade",
+				[(b, None, None, "radiobutton") for b in build.get_board_types()]),
+			("Serial Port", None, None, "cascade",
+				[(p, None, None, "radiobutton") for p, desc, nfo in build.get_ports()]),
 			])
 
 		self.__add_top_menu("&Help", [
-			("&Content...", "F1", None),
+			("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
 			"-",
-			("&About...", None, None) ])
+			("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
 			("Implement", None, self.implement),
 			("mkmac", None, self.mkmac),
-			("geo", None, lambda: self.root.geometry("800x600+2+0")),
-			("connections", None, lambda: pprint(self.bloced.get_model().get_connections())) ])
+			("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+			("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
 #		menu_debug.add_command(label="zoom",
 #			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
