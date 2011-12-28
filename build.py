@@ -9,13 +9,15 @@ import re
 from pprint import pprint
 
 try :
-	from serial import Serial
-	from serial.serialutil import SerialException
 	from serial.tools.list_ports import comports
 except e :
-	print("can not find appropriate version pySerial")
+	print("can not find appropriate version of pySerial")
 	def comports() :
 		return []
+else :
+	from serial import Serial
+	from serial.serialutil import SerialException
+
 
 #TODO use as gedit plugin
 
