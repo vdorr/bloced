@@ -1256,16 +1256,13 @@ class BlockEditorWindow(object) :
 #			("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
+		#TODO should be explicitly sorted
+		blocks = ([ (cat, None, None, "cascade",
+			[ (proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+				for cat, b_iter in groupby(self.blockfactory.block_list, lambda b: b.category) ])
 		menu_blocks = self.__add_top_menu("&Insert", [
 			("&Insert last", "Ctrl+I", self.mnu_blocks_insert_last),
-			"-" ])
-		#TODO should be explicitly sorted
-		for cat, b_iter in groupby(self.blockfactory.block_list, lambda b: b.category) :
-			submenu = Menu(menu_blocks)
-			menu_blocks.add_cascade(label=cat, menu=submenu)
-			for proto in b_iter :
-				submenu.add_command(label=proto.type_name,
-				command=partial(self.begin_paste_block, proto))
+			"-" ] + blocks)
 
 		self.__add_top_menu("&Model", [
 			("&Build", "F6", self.mnu_mode_build),
