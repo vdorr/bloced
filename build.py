@@ -1,4 +1,7 @@
 
+
+#TODO use as gedit plugin
+
 import sys
 import subprocess
 import os
@@ -7,6 +10,7 @@ from functools import partial
 import fnmatch
 import re
 from pprint import pprint
+from collections import namedtuple
 
 try :
 	from serial.tools.list_ports import comports
@@ -19,13 +23,12 @@ else :
 	from serial.serialutil import SerialException
 
 
-#TODO use as gedit plugin
-
-def __run_external(args, workdir=None) :
+def __run_external(args, workdir=None, redir=False) :
+	redir_method = subprocess.PIPE if redir else None
 	try :
 		p = subprocess.Popen(args,
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
+			stdout=redir_method,
+			stderr=redir_method,
 			cwd=os.getcwd() if workdir is None else workdir )
 	except :
 		return (False, None, tuple())
@@ -49,8 +52,9 @@ def __list_files(workdir, recurse, ignore=lambda fn: False) :
 	inlude_dirs = []
 	tree = os.walk(workdir)
 	for root, dirs, files in tree if recurse else [ tree.next() ] :
-		sources += [ os.path.join(workdir, root, fn) for fn in files
-			if __re_src.match(fn) and not ignore(fn) ]
+		src_files = [ os.path.join(workdir, root, fn) for fn in files ]
+		sources += [ fn for fn in src_files
+			if __re_src.match(fn.lower()) and not ignore(fn) ]
 		if any([ __re_hdr.match(fn) for fn in files ]) :
 			inlude_dirs.append(os.path.join(workdir, root))
 	return sources, inlude_dirs
@@ -70,6 +74,11 @@ def __read_ignore(fname) :
 	lines = __read_lines(fname)
 	if lines != None :
 		return [ ln.strip() for ln in lines if ln.strip() ]
+
+
+def __ignore_to_re(line) :
+	ln = line.strip()
+	return fnmatch.translate(ln) if ln and not ln[0] == "#" else None
 
 
 def __parse_boards(boards_txt) :
@@ -118,38 +127,66 @@ BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
 def get_board_types() :
 	return __parse_boards(BOARDS_TXT)
 
+
+def __print_streams(*v) :
+	print("".join([ f.decode() for f in v if f ]))
+
+
+src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
+
 def build() :
 	boards_txt = BOARDS_TXT
-	arduino_src_dir = "/usr/share/arduino/hardware/arduino/cores/arduino"
+	ARDUINO_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
 	board = "uno"
-	ignore_file = ".amkignore"
+	ignore_file = "amkignore"
 	prog_port = "/dev/ttyACM0"
 	workdir = os.getcwd()
 	wdir_recurse = True
+	dry_run = True #XXX XXX XXX XXX XXX 
+
+	src_dirs = [
+		src_dir_t(workdir, True),
+		src_dir_t(ARDUINO_SRC_DIR, False)
+	]
+
 
 	ignores = __read_ignore(os.path.join(workdir, ignore_file))
-	ign_res = [ fnmatch.translate(ln) for ln in ignores ]
+#	pprint(ignores)
+	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
 	re_ignore = re.compile("("+")|(".join(ign_res)+")")
+	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 
-#	ard_sources, ard_idirs = [], []
-	ard_sources, ard_idirs = __list_files(arduino_src_dir, False,
-		ignore=lambda fn: re_ignore.match(fn))
-	pprint(ard_sources)
+	sources, idirs = [], []
+	for directory, recurse in src_dirs:
+		src, loc_idirs = __list_files(directory, recurse,
+			ignore=do_ignore)
+		sources += src
+		idirs += loc_idirs
 
-	sources, loc_idirs = __list_files(workdir, wdir_recurse,
-		ignore=lambda fn: re_ignore.match(fn))
-#	print(sources)
+##	ard_sources, ard_idirs = [], []
+#	ard_sources, ard_idirs = __list_files(arduino_src_dir, False,
+#		ignore=do_ignore)
+#	pprint(ard_sources)
+
+#	sources, loc_idirs = __list_files(workdir, wdir_recurse,
+#		ignore=do_ignore)
+
+
+#	pprint(sources)
+
 
 	board_info = __parse_boards(boards_txt)
-
-	print(board_info[board]["name"])
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
 	flash_size = int(board_info[board]["upload.maximum_size"])
 	prog_mcu = mcu.capitalize() #"m328p"
 
-	run = partial(__run_external, workdir=workdir)
+	print("%s (%s @ %iMHz), %i source file(s)" %
+		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000, len(sources)))
+
+	run_gcc = partial(__run_external, workdir=workdir, redir=False)
+	run = partial(__run_external, workdir=workdir, redir=True)
 
 #	a_out_f = tempfile.NamedTemporaryFile()
 #	a_hex_f = tempfile.NamedTemporaryFile()
@@ -159,25 +196,24 @@ def build() :
 	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
 	a_out, a_hex = "a.out", "a.hex"
-	i_dirs = [ "-I" + d for d in ( loc_idirs + board_idirs + ard_idirs ) ]
+	i_dirs = [ "-I" + d for d in ( idirs + board_idirs ) ]
 #""
 	l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
 
-	optimization = "-Os"
+	optimization = "-O0"
 
 	gcc_args = i_dirs + l_libs + [ optimization, "-mmcu=" + mcu,
 		"-DF_CPU=%s" % f_cpu, "-o", a_out ]
-	gcc_args += sources + ard_sources#["tst.c"]
+	gcc_args += sources
 
-	success, _, streams = run(["avr-gcc"] + gcc_args)
+	success, _, streams = run_gcc(["avr-gcc"] + gcc_args)
 	if success :
 		stdoutdata, stderrdata = streams
-		print("compiled" + " " +
-			stdoutdata.decode() + stderrdata.decode())
+		__print_streams("compiled", " ", stdoutdata, stderrdata)
 	else :
 		stdoutdata, stderrdata = streams
-		print("failed to execute avr-gcc" + " " +
-			stdoutdata.decode() + stderrdata.decode())
+		__print_streams("failed to execute avr-gcc", " ",
+			stdoutdata, stderrdata)
 		sys.exit(10)
 
 	success, rc, streams = run(["avr-size", a_out])
@@ -193,22 +229,32 @@ def build() :
 		print("failed to execute avr-size")
 		sys.exit(20)
 
-	success, _, __ = run(["avr-objcopy", "-j", ".text", "-j",
-		".data" "-O" "ihex", a_out, a_hex])
+	success, _, __ = run(["avr-objcopy",
+		"--strip-debug",
+		"-j", ".text",
+		"-j", ".data",
+		"-O", "ihex", a_out, a_hex])
 	if success :
 		print("hex file created")
 	else :
 		print("failed to execute avr-objcopy")
 		sys.exit(30)
 
-#	sys.exit(0)
+#	sys.exit(0)#XXX XXX XXX XXX XXX
 
-	success, _, streams = run(["avrdude", "-q",
-		"-n", #XXX XXX XXX XXX XXX
+#	success, _, streams = run(["avrdude", "-q" ] +
+##		["-n"] if dry_run else [] +
+#		["-c"+"arduino",
+#		"-P" + prog_port,
+#		"-p" + prog_mcu,
+#		"-Uflash:w:" + a_hex + ":i"])
+	success, _, streams = run_gcc(["avrdude", "-q",# ] +
+#		"-n", #] if dry_run else [] +
 		"-c"+"arduino",
 		"-P" + prog_port,
 		"-p" + prog_mcu,
 		"-Uflash:w:" + a_hex + ":i"])
+
 	if success :
 		print("succesfully uploaded")
 	else :
