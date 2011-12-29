@@ -129,64 +129,76 @@ def get_board_types() :
 
 
 def __print_streams(*v) :
-	print("".join([ f.decode() for f in v if f ]))
+	print("".join([ f.decode("utf8", "replace") for f in v if f ]))
 
 
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
+
 def build() :
 	boards_txt = BOARDS_TXT
-	ARDUINO_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
+	AUX_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
 	board = "uno"
 	ignore_file = "amkignore"
-	prog_port = "/dev/ttyACM0"
 	workdir = os.getcwd()
 	wdir_recurse = True
-	dry_run = True #XXX XXX XXX XXX XXX 
+	dry_run = False #XXX XXX XXX XXX XXX
+	skip_programming = False #XXX XXX XXX XXX XXX
+	prog_port = "/dev/ttyACM0"
+	prog_driver = "avrdude"# or "dfu-programmer"
+	prog_adapter = "arduino"#None for dfu-programmer
+	optimization = "-Os"
+	verbose = False#TODO TODO TODO
+	aux_src_dirs = [ src_dir_t(AUX_SRC_DIR, False) ]
+	board_db = {}#{ "uno" : { "name":"uno board", "build.mcu" : "atmega328p", "build.f_cpu" : "16000000L", "upload.maximum_size" : "32000" } }
 
-	src_dirs = [
-		src_dir_t(workdir, True),
-		src_dir_t(ARDUINO_SRC_DIR, False)
-	]
+	board_info = board_db
+	if boards_txt :
+		boards_txt_data = __parse_boards(boards_txt)
+		if not boards_txt_data :
+			print("failed to read boards info from '%s'" % boards_txt)
+		else :
+			board_info.update(boards_txt_data)
+	if not board_info :
+		print("got no board informations, quitting")
+		sys.exit(200)
 
+	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
 
-	ignores = __read_ignore(os.path.join(workdir, ignore_file))
-#	pprint(ignores)
-	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
-	re_ignore = re.compile("("+")|(".join(ign_res)+")")
-	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
+	do_ignore = lambda fn: False
+	if ignore_file :
+		ignores = __read_ignore(os.path.join(workdir, ignore_file))
+		if ignores != None :
+#			pprint(ignores)
+			ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
+			re_ignore = re.compile("("+")|(".join(ign_res)+")")
+			do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
+		else :
+			print("error reading ignore file '%s'" % ignore_file)
 
 	sources, idirs = [], []
 	for directory, recurse in src_dirs:
-		src, loc_idirs = __list_files(directory, recurse,
-			ignore=do_ignore)
-		sources += src
-		idirs += loc_idirs
-
-##	ard_sources, ard_idirs = [], []
-#	ard_sources, ard_idirs = __list_files(arduino_src_dir, False,
-#		ignore=do_ignore)
-#	pprint(ard_sources)
-
-#	sources, loc_idirs = __list_files(workdir, wdir_recurse,
-#		ignore=do_ignore)
-
-
+		try :
+			src, loc_idirs = __list_files(directory, recurse,
+				ignore=do_ignore)
+		except StopIteration :
+			print("can not access '%s'" % directory)
+		else :
+			sources += src
+			idirs += loc_idirs
 #	pprint(sources)
-
-
-	board_info = __parse_boards(boards_txt)
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
 	flash_size = int(board_info[board]["upload.maximum_size"])
-	prog_mcu = mcu.capitalize() #"m328p"
+	prog_mcu = mcu.capitalize()
 
-	print("%s (%s @ %iMHz), %i source file(s)" %
-		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000, len(sources)))
+	print("%s (%s @ %iMHz), %i source files, %i include directories" %
+		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000, len(sources), len(idirs)))
 
-	run_gcc = partial(__run_external, workdir=workdir, redir=False)
 	run = partial(__run_external, workdir=workdir, redir=True)
+	run_loud = partial(__run_external, workdir=workdir, redir=False)
+#	run_loud = run
 
 #	a_out_f = tempfile.NamedTemporaryFile()
 #	a_hex_f = tempfile.NamedTemporaryFile()
@@ -197,16 +209,13 @@ def build() :
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
 	a_out, a_hex = "a.out", "a.hex"
 	i_dirs = [ "-I" + d for d in ( idirs + board_idirs ) ]
-#""
 	l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
-
-	optimization = "-O0"
 
 	gcc_args = i_dirs + l_libs + [ optimization, "-mmcu=" + mcu,
 		"-DF_CPU=%s" % f_cpu, "-o", a_out ]
 	gcc_args += sources
 
-	success, _, streams = run_gcc(["avr-gcc"] + gcc_args)
+	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
 	if success :
 		stdoutdata, stderrdata = streams
 		__print_streams("compiled", " ", stdoutdata, stderrdata)
@@ -221,10 +230,12 @@ def build() :
 		stdoutdata, _ = streams
 		head, val = stdoutdata.decode().split(os.linesep)[0:2]
 		sizes = dict(zip(head.split(), val.split()))
-#TODO check against boards.txt
-		print("memory usage: flash %iB, ram %iB" %
-			(int(sizes["text"]),
-			int(sizes["data"])+int(sizes["bss"])))
+		total_flash = int(sizes["text"])
+		total_sram = int(sizes["data"])+int(sizes["bss"])
+		print("memory usage: flash %iB (%.1f%%), ram %iB" %
+			(total_flash, total_flash*100.0/flash_size, total_sram))
+		if total_flash > flash_size :
+			print("input file is bigger than target flash!")
 	else :
 		print("failed to execute avr-size")
 		sys.exit(20)
@@ -240,27 +251,26 @@ def build() :
 		print("failed to execute avr-objcopy")
 		sys.exit(30)
 
-#	sys.exit(0)#XXX XXX XXX XXX XXX
-
-#	success, _, streams = run(["avrdude", "-q" ] +
-##		["-n"] if dry_run else [] +
-#		["-c"+"arduino",
-#		"-P" + prog_port,
-#		"-p" + prog_mcu,
-#		"-Uflash:w:" + a_hex + ":i"])
-	success, _, streams = run_gcc(["avrdude", "-q",# ] +
-#		"-n", #] if dry_run else [] +
-		"-c"+"arduino",
-		"-P" + prog_port,
-		"-p" + prog_mcu,
-		"-Uflash:w:" + a_hex + ":i"])
-
-	if success :
-		print("succesfully uploaded")
-	else :
-		stdoutdata, stderrdata = streams
-		print("failed to run avrdude '%s'" % stderrdata.decode())
-		sys.exit(40)
+	if not skip_programming :
+		if prog_driver == "avrdude" :
+			success, _, streams = run(["avrdude", "-q", ] +
+				(["-n", ] if dry_run else []) +
+				["-c"+prog_adapter,
+				"-P" + prog_port,
+				"-p" + prog_mcu,
+				"-Uflash:w:" + a_hex + ":i"])
+			if success :
+				print("succesfully uploaded")
+			else :
+				stdoutdata, stderrdata = streams
+				print("failed to run avrdude '%s'" % stderrdata.decode())
+				sys.exit(40)
+		elif prog_driver == "dfu-programmer" :
+#TODO
+			sys.exit(40)
+		else :
+			print("unknown programmer driver")
+			sys.exit(40)
 
 # ----------------------------------------------------------------------------
 
