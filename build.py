@@ -15,13 +15,13 @@ from itertools import islice
 
 try :
 	from serial.tools.list_ports import comports
+	from serial import Serial
+	from serial.serialutil import SerialException
 except e :
 	print("can not find appropriate version of pySerial")
 	def comports() :
 		return []
-else :
-	from serial import Serial
-	from serial.serialutil import SerialException
+#TODO fake rest of imports
 
 
 def __run_external(args, workdir=None, redir=False) :
