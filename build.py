@@ -11,6 +11,7 @@ import fnmatch
 import re
 from pprint import pprint
 from collections import namedtuple
+from itertools import islice
 
 try :
 	from serial.tools.list_ports import comports
@@ -58,7 +59,7 @@ def list_resources(workdir, recurse, ignore=lambda fn: False,
 	include_dirs = []
 	tree = os.walk(workdir)
 	src_total, idir_total = 0, 0
-	for root, dirs, files in tree if recurse else [ tree.next() ] :
+	for root, dirs, files in tree if recurse else islice(tree, 1) :
 		src_files = [ os.path.join(workdir, root, fn) for fn in files if re_src.match(fn) ]
 		src_total += len(src_files)
 		sources += [ fn for fn in src_files if not ignore(fn) ]
@@ -135,7 +136,8 @@ def get_board_types() :
 
 
 def __print_streams(*v) :
-	print("".join([ f.decode("utf8", "replace") for f in v if f ]))
+	print("".join([ str(f) for f in v if f ]))
+#	print("".join([ f.decode("utf8", "replace") for f in v if f ]))
 
 
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
