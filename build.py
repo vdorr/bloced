@@ -173,7 +173,7 @@ board_db
 	appended to data from boards.txt, usefull if there is no boards.txt
 	{ "uno" : {
 		"name":"uno board",
-		"build.mcu" : "atmega328p",
+		"build.mcu" : "atmega328p", #for avrdude/dfu-programmer
 		"build.f_cpu" : "16000000L",
 		"upload.maximum_size" : "32000" } }
 	"""
@@ -187,7 +187,7 @@ board_db
 			board_info.update(boards_txt_data)
 	if not board_info :
 		print("got no board informations, quitting")
-		sys.exit(200)
+		return (200,)
 
 	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
 
@@ -253,7 +253,7 @@ board_db
 		stdoutdata, stderrdata = streams
 		__print_streams("failed to execute avr-gcc", " ",
 			stdoutdata, stderrdata)
-		sys.exit(10)
+		return (10, )
 
 	success, rc, streams = run(["avr-size", a_out])
 	if success :
@@ -268,7 +268,7 @@ board_db
 			print("input file is bigger than target flash!")
 	else :
 		print("failed to execute avr-size")
-		sys.exit(20)
+		return (20, )
 
 	success, _, __ = run(["avr-objcopy",
 		"--strip-debug",
@@ -279,13 +279,13 @@ board_db
 		print("hex file created")
 	else :
 		print("failed to execute avr-objcopy")
-		sys.exit(30)
+		return (30, )
 
 	if not skip_programming :
 		if prog_driver == "avrdude" :
 			if not prog_port :
 				print("avrdude programmer port not set!, quitting")
-				sys.exit(400)
+				return (400, )
 			success, _, streams = run(["avrdude", "-q", ] +
 				(["-n", ] if dry_run else []) +
 				["-c"+prog_adapter,
@@ -297,13 +297,13 @@ board_db
 			else :
 				stdoutdata, stderrdata = streams
 				print("failed to run avrdude '%s'" % stderrdata.decode())
-				sys.exit(40)
+				return (40, )
 		elif prog_driver == "dfu-programmer" :
 #TODO
-			sys.exit(40)
+			return (40, )
 		else :
 			print("unknown programmer driver")
-			sys.exit(40)
+			return (40, )
 
 # ----------------------------------------------------------------------------
 
@@ -314,7 +314,7 @@ BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
 
 if __name__ == "__main__" :
 	AUX_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
-	build("uno", os.getcwd(),
+	rc, = build("uno", os.getcwd(),
 		wdir_recurse = True,
 		aux_src_dirs = [ src_dir_t(AUX_SRC_DIR, False) ],
 		boards_txt = BOARDS_TXT,
@@ -326,6 +326,7 @@ if __name__ == "__main__" :
 		verbose = False,
 		skip_programming = False,
 		dry_run = False)
+	sys.exit(rc)
 #board_db = { "uno" : { "name":"uno board", "build.mcu" : "atmega328p", "build.f_cpu" : "16000000L", "upload.maximum_size" : "32000" } }
 
 # ----------------------------------------------------------------------------
