@@ -120,10 +120,6 @@ def get_ports(do_test_read=True) :
 		return ports
 
 
-#TODO TODO TODO
-BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
-
-
 def get_board_types() :
 	return __parse_boards(BOARDS_TXT)
 
@@ -134,23 +130,41 @@ def __print_streams(*v) :
 
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
+def build(board, workdir,
+	wdir_recurse = True,
+	aux_src_dirs = [],
+	boards_txt = None,
+	board_db = {},
+	ignore_file = "amkignore",
+	prog_port = None,
+	prog_driver = "avrdude", # or "dfu-programmer"
+	prog_adapter = "arduino", #None for dfu-programmer
+	optimization = "-Os",
+	verbose = False,
+	skip_programming = False,
+	dry_run = False ) :
 
-def build() :
-	boards_txt = BOARDS_TXT
-	AUX_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
-	board = "uno"
-	ignore_file = "amkignore"
-	workdir = os.getcwd()
-	wdir_recurse = True
-	dry_run = False #XXX XXX XXX XXX XXX
-	skip_programming = False #XXX XXX XXX XXX XXX
-	prog_port = "/dev/ttyACM0"
-	prog_driver = "avrdude"# or "dfu-programmer"
-	prog_adapter = "arduino"#None for dfu-programmer
-	optimization = "-Os"
-	verbose = False#TODO TODO TODO
-	aux_src_dirs = [ src_dir_t(AUX_SRC_DIR, False) ]
-	board_db = {}#{ "uno" : { "name":"uno board", "build.mcu" : "atmega328p", "build.f_cpu" : "16000000L", "upload.maximum_size" : "32000" } }
+	"""
+boards_txt
+	path to arduino-style boards.txt
+	at least this or board_db must be supplied
+skip_programming
+	compile, create hex, but do not start programming driver
+dry_run
+	as above, but use dry run of driver (avrdude -n)
+ignore_file
+	path to file with ignored file, applied to all source dirs, including auxiliary
+	one glob per line, lines starting with # are skipped
+aux_src_dirs
+	list of 2-tuples (str, bool) (directory, recurse)
+board_db
+	appended to data from boards.txt, usefull if there is no boards.txt
+	{ "uno" : {
+		"name":"uno board",
+		"build.mcu" : "atmega328p",
+		"build.f_cpu" : "16000000L",
+		"upload.maximum_size" : "32000" } }
+	"""
 
 	board_info = board_db
 	if boards_txt :
@@ -175,7 +189,8 @@ def build() :
 			do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 		else :
 			print("error reading ignore file '%s'" % ignore_file)
-
+#TODO ignore include directories
+#TODO count ignored resources
 	sources, idirs = [], []
 	for directory, recurse in src_dirs:
 		try :
@@ -253,6 +268,9 @@ def build() :
 
 	if not skip_programming :
 		if prog_driver == "avrdude" :
+			if not prog_port :
+				print("avrdude programmer port not set!, quitting")
+				sys.exit(400)
 			success, _, streams = run(["avrdude", "-q", ] +
 				(["-n", ] if dry_run else []) +
 				["-c"+prog_adapter,
@@ -274,8 +292,26 @@ def build() :
 
 # ----------------------------------------------------------------------------
 
+
+#TODO TODO TODO guess it, somehow
+BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
+
+
 if __name__ == "__main__" :
-	build()
+	AUX_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
+	build("uno", os.getcwd(),
+		wdir_recurse = True,
+		aux_src_dirs = [ src_dir_t(AUX_SRC_DIR, False) ],
+		boards_txt = BOARDS_TXT,
+		ignore_file = "amkignore",
+		prog_port = "/dev/ttyACM0",
+		prog_driver = "avrdude", # or "dfu-programmer"
+		prog_adapter = "arduino", #None for dfu-programmer
+		optimization = "-Os",
+		verbose = False,
+		skip_programming = False,
+		dry_run = False)
+#board_db = { "uno" : { "name":"uno board", "build.mcu" : "atmega328p", "build.f_cpu" : "16000000L", "upload.maximum_size" : "32000" } }
 
 # ----------------------------------------------------------------------------
 
