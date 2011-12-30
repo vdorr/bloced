@@ -40,24 +40,34 @@ def __run_external(args, workdir=None, redir=False) :
 			return (False, p.returncode, (stdoutdata, stderrdata))
 
 
+def __re_from_glob_list(globs) :
+	expr = "(" + ")|(".join([ fnmatch.translate(ln) for ln in globs ]) + ")"
+	return re.compile(expr)
+
+
 __src_exts = ( "*.c", "*.cpp" )
 __hdr_exts = ( "*.h", "*.hpp" )
 
-__re_src = re.compile("("+")|(".join([ fnmatch.translate(ln) for ln in __src_exts ])+")")
-__re_hdr = re.compile("("+")|(".join([ fnmatch.translate(ln) for ln in __hdr_exts ])+")")
+__re_src = __re_from_glob_list(__src_exts)
+__re_hdr = __re_from_glob_list(__hdr_exts)
 
 
-def __list_files(workdir, recurse, ignore=lambda fn: False) :
+def list_resources(workdir, recurse, ignore=lambda fn: False,
+		re_src=__re_src, re_hdr=__re_hdr) :
 	sources = []
-	inlude_dirs = []
+	include_dirs = []
 	tree = os.walk(workdir)
+	src_total, idir_total = 0, 0
 	for root, dirs, files in tree if recurse else [ tree.next() ] :
-		src_files = [ os.path.join(workdir, root, fn) for fn in files ]
-		sources += [ fn for fn in src_files
-			if __re_src.match(fn.lower()) and not ignore(fn) ]
-		if any([ __re_hdr.match(fn) for fn in files ]) :
-			inlude_dirs.append(os.path.join(workdir, root))
-	return sources, inlude_dirs
+		src_files = [ os.path.join(workdir, root, fn) for fn in files if re_src.match(fn) ]
+		src_total += len(src_files)
+		sources += [ fn for fn in src_files if not ignore(fn) ]
+		if any([ re_hdr.match(fn) for fn in files ]) :
+			++idir_total
+			idir = os.path.join(workdir, root)
+			if not ignore(idir) :
+				include_dirs.append(idir)
+	return sources, include_dirs, src_total, idir_total
 
 
 def __read_lines(file_name) :
@@ -130,20 +140,20 @@ def __print_streams(*v) :
 
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
-def build(board, workdir,
-	wdir_recurse = True,
-	aux_src_dirs = [],
-	boards_txt = None,
-	board_db = {},
-	ignore_file = "amkignore",
-	prog_port = None,
-	prog_driver = "avrdude", # or "dfu-programmer"
-	prog_adapter = "arduino", #None for dfu-programmer
-	optimization = "-Os",
-	verbose = False,
-	skip_programming = False,
-	dry_run = False ) :
 
+def build(board, workdir,
+		wdir_recurse = True,
+		aux_src_dirs = [],
+		boards_txt = None,
+		board_db = {},
+		ignore_file = "amkignore",
+		prog_port = None,
+		prog_driver = "avrdude", # or "dfu-programmer"
+		prog_adapter = "arduino", #None for dfu-programmer
+		optimization = "-Os",
+		verbose = False,
+		skip_programming = False,
+		dry_run = False ) :
 	"""
 boards_txt
 	path to arduino-style boards.txt
@@ -189,13 +199,15 @@ board_db
 			do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 		else :
 			print("error reading ignore file '%s'" % ignore_file)
-#TODO ignore include directories
-#TODO count ignored resources
+
 	sources, idirs = [], []
+	src_total, idir_total = 0, 0
 	for directory, recurse in src_dirs:
 		try :
-			src, loc_idirs = __list_files(directory, recurse,
-				ignore=do_ignore)
+			src, loc_idirs, srccnt, idircnt = list_resources(
+				directory, recurse, ignore=do_ignore)
+			src_total += srccnt
+			idir_total += idircnt
 		except StopIteration :
 			print("can not access '%s'" % directory)
 		else :
@@ -208,8 +220,9 @@ board_db
 	flash_size = int(board_info[board]["upload.maximum_size"])
 	prog_mcu = mcu.capitalize()
 
-	print("%s (%s @ %iMHz), %i source files, %i include directories" %
-		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000, len(sources), len(idirs)))
+	print("%s (%s @ %iMHz), %i(%i) source files, %i(%i) include directories" %
+		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
+		len(sources), src_total, len(idirs), idir_total))
 
 	run = partial(__run_external, workdir=workdir, redir=True)
 	run_loud = partial(__run_external, workdir=workdir, redir=False)
