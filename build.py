@@ -143,6 +143,26 @@ def __print_streams(*v) :
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
 
+#TODO temp file mode
+def build_source(board, source,
+		aux_src_dirs = [],
+		boards_txt = None,
+		board_db = {},
+		ignore_file = "amkignore",
+		prog_port = None,
+		prog_driver = "avrdude", # or "dfu-programmer"
+		prog_adapter = "arduino", #None for dfu-programmer
+		optimization = "-Os",
+		verbose = False,
+		skip_programming = False,
+		dry_run = False,
+		blob_stream=None) :
+	"""
+blob_stream
+	writeble file-like object, of not None, hex file will be written to this file
+	"""
+	return (0, )
+
 def build(board, workdir,
 		wdir_recurse = True,
 		aux_src_dirs = [],
@@ -299,11 +319,31 @@ board_db
 				print("failed to run avrdude '%s'" % stderrdata.decode())
 				return (40, )
 		elif prog_driver == "dfu-programmer" :
-#TODO
+			if not dry_run :
+				success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
+				if not success :
+					print("failed to erase chip")
+					return (601, )
+				success, _, streams = run(["dfu-programmer",
+					prog_mcu, "flash", a_hex])
+				if not success :
+					print("failed to write flash")
+					return (602, )
+			if dry_run :
+				success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
+				if not success :
+					print("failed to reset mcu")
+					return (603, )
+			else :
+				success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
+				if not success :
+					print("failed to start mcu")
+					return (604, )
 			return (40, )
 		else :
 			print("unknown programmer driver")
 			return (40, )
+	return (0, )
 
 # ----------------------------------------------------------------------------
 
