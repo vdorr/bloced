@@ -3,6 +3,10 @@
 from build import build, build_source
 import sys
 import os
+try :
+	from StringIO import StringIO
+except ImportError :
+	from io import StringIO
 
 if __name__ == "__main__" :
 	boards = {
@@ -35,7 +39,7 @@ if __name__ == "__main__" :
 	x = 0
 	if x == 0 :
 		source = "void main() { for (;;); }"
-		hexstream = None
+		hexstream = StringIO()
 		rc, = build_source("16u2@8M", source,
 			aux_src_dirs = [],#[ src_dir_t(AUX_SRC_DIR, False) ],
 			boards_txt = None, #BOARDS_TXT,
@@ -49,6 +53,7 @@ if __name__ == "__main__" :
 			dry_run = True,
 			board_db=boards,
 			blob_stream=hexstream)
+		print(hexstream.getvalue())
 	elif x == 1 :
 		rc, = build("16u2@8M", os.getcwd(),
 			wdir_recurse = True,
@@ -78,6 +83,6 @@ if __name__ == "__main__" :
 			skip_programming = False,
 			dry_run = True,
 			board_db=boards)
-	sys.exit(rc)
+	sys.exit(rc[0])
 
 

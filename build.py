@@ -195,7 +195,7 @@ blob_stream
 #		a_hex=a_hex_f.name)
 
 	if blob_stream and r[0] :
-		a_hex_f = open(os.path.join(workdir, "a.hex"), "w")
+		a_hex_f = open(os.path.join(workdir, "a.hex"), "r")
 		shutil.copyfileobj(a_hex_f, blob_stream)
 		a_hex_f.close()
 
