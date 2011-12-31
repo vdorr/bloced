@@ -12,6 +12,7 @@ import re
 from pprint import pprint
 from collections import namedtuple
 from itertools import islice
+import shutil
 
 try :
 	from serial.tools.list_ports import comports
@@ -144,7 +145,7 @@ src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
 
 #TODO temp file mode
-def build_source(board, source, workdir,
+def build_source(board, source,
 		aux_src_dirs=[],
 		boards_txt=None,
 		board_db={},
@@ -162,15 +163,22 @@ blob_stream
 	writable file-like object, of not None, hex file will be written to this file
 	"""
 
-	source_f = tempfile.NamedTemporaryFile()
-	a_out_f = tempfile.NamedTemporaryFile()
-	a_hex_f = tempfile.NamedTemporaryFile()
+	workdir = tempfile.mkdtemp()
+	print("working directory '%s'" % workdir)
+
+	source_f = open(os.path.join(workdir, "source.c"), "w")
+#	a_out_f = open(os.path.join(workdir, "a.out"), "w")
+#	a_hex_f = open(os.path.join(workdir, "a.hex"), "w")
+#	a_out_f.close()
+#	a_hex_f.close()
 
 	source_f.write(source)
+	source_f.write(os.linesep)
+	source_f.close()
 
-	build(board, workdir,
+	r = build(board, workdir,
 		wdir_recurse=False,
-		aux_src_files=[ source_f.name ],#XXX
+#		aux_src_files=[ source_f.name ],#XXX
 		aux_src_dirs=aux_src_dirs,
 		boards_txt=boards_txt,
 		board_db=board_db,
@@ -182,18 +190,19 @@ blob_stream
 		optimization=optimization,
 		verbose=verbose,
 		skip_programming=skip_programming,
-		dry_run=dry_run,
-		a_out=a_out_f.name,
-		a_hex=a_hex_f.name)
+		dry_run=dry_run),
+#		a_out=a_out_f.name,
+#		a_hex=a_hex_f.name)
 
-	if blob_stream :
-		pass
+	if blob_stream and r[0] :
+		a_hex_f = open(os.path.join(workdir, "a.hex"), "w")
+		shutil.copyfileobj(a_hex_f, blob_stream)
+		a_hex_f.close()
 
-	source_f.close()
-	a_out_f.close()
-	a_hex_f.close()
 
-	return (0, )
+	shutil.rmtree(workdir)
+
+	return r
 
 
 def build(board, workdir,
@@ -272,7 +281,9 @@ board_db
 		else :
 			sources += src
 			idirs += loc_idirs
-#	pprint(sources)
+	if verbose :
+		print("source files:")
+		pprint(sources)
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]

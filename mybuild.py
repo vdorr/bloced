@@ -36,7 +36,7 @@ if __name__ == "__main__" :
 	if x == 0 :
 		source = "void main() { for (;;); }"
 		hexstream = None
-		rc, = build_source("16u2@8M", source, os.getcwd(),
+		rc, = build_source("16u2@8M", source,
 			aux_src_dirs = [],#[ src_dir_t(AUX_SRC_DIR, False) ],
 			boards_txt = None, #BOARDS_TXT,
 			ignore_file = "amkignore",
@@ -44,7 +44,7 @@ if __name__ == "__main__" :
 			prog_driver = "avrdude",
 			prog_adapter = None, #"arduino", #None for dfu-programmer
 			optimization = "-Os",#default "-Os",
-			verbose = False,
+			verbose = True,
 			skip_programming = True,
 			dry_run = True,
 			board_db=boards,
