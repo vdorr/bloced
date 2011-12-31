@@ -17,7 +17,7 @@ try :
 	from serial.tools.list_ports import comports
 	from serial import Serial
 	from serial.serialutil import SerialException
-except e :
+except :
 	print("can not find appropriate version of pySerial")
 	def comports() :
 		return []
@@ -144,38 +144,75 @@ src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
 
 #TODO temp file mode
-def build_source(board, source,
-		aux_src_dirs = [],
-		boards_txt = None,
-		board_db = {},
-		ignore_file = "amkignore",
-		prog_port = None,
-		prog_driver = "avrdude", # or "dfu-programmer"
-		prog_adapter = "arduino", #None for dfu-programmer
-		optimization = "-Os",
-		verbose = False,
-		skip_programming = False,
-		dry_run = False,
+def build_source(board, source, workdir,
+		aux_src_dirs=[],
+		boards_txt=None,
+		board_db={},
+		ignore_file="amkignore",
+		prog_port=None,
+		prog_driver="avrdude", # or "dfu-programmer"
+		prog_adapter="arduino", #None for dfu-programmer
+		optimization="-Os",
+		verbose=False,
+		skip_programming=False,
+		dry_run=False,
 		blob_stream=None) :
 	"""
 blob_stream
-	writeble file-like object, of not None, hex file will be written to this file
+	writable file-like object, of not None, hex file will be written to this file
 	"""
+
+	source_f = tempfile.NamedTemporaryFile()
+	a_out_f = tempfile.NamedTemporaryFile()
+	a_hex_f = tempfile.NamedTemporaryFile()
+
+	source_f.write(source)
+
+	build(board, workdir,
+		wdir_recurse=False,
+		aux_src_files=[ source_f.name ],#XXX
+		aux_src_dirs=aux_src_dirs,
+		boards_txt=boards_txt,
+		board_db=board_db,
+		ignore_file=ignore_file,
+		ignore_lines = [],#XXX
+		prog_port=prog_port,
+		prog_driver=prog_driver,
+		prog_adapter=prog_adapter,
+		optimization=optimization,
+		verbose=verbose,
+		skip_programming=skip_programming,
+		dry_run=dry_run,
+		a_out=a_out_f.name,
+		a_hex=a_hex_f.name)
+
+	if blob_stream :
+		pass
+
+	source_f.close()
+	a_out_f.close()
+	a_hex_f.close()
+
 	return (0, )
 
+
 def build(board, workdir,
-		wdir_recurse = True,
-		aux_src_dirs = [],
-		boards_txt = None,
-		board_db = {},
-		ignore_file = "amkignore",
-		prog_port = None,
-		prog_driver = "avrdude", # or "dfu-programmer"
-		prog_adapter = "arduino", #None for dfu-programmer
-		optimization = "-Os",
-		verbose = False,
-		skip_programming = False,
-		dry_run = False ) :
+		wdir_recurse=True,
+		aux_src_dirs=[],
+		aux_src_files=[],
+		boards_txt=None,
+		board_db={},
+		ignore_file="amkignore",
+		ignore_lines=[], #TODO TODO TODO
+		prog_port=None,
+		prog_driver="avrdude", # or "dfu-programmer"
+		prog_adapter="arduino", #None for dfu-programmer
+		optimization="-Os",
+		verbose=False,
+		skip_programming=False,
+		dry_run=False,
+		a_out="a.out",
+		a_hex="a.hex" ) :
 	"""
 boards_txt
 	path to arduino-style boards.txt
@@ -188,7 +225,7 @@ ignore_file
 	path to file with ignored file, applied to all source dirs, including auxiliary
 	one glob per line, lines starting with # are skipped
 aux_src_dirs
-	list of 2-tuples (str, bool) (directory, recurse)
+	list of tuples (str, bool) (directory, recurse)
 board_db
 	appended to data from boards.txt, usefull if there is no boards.txt
 	{ "uno" : {
@@ -212,7 +249,7 @@ board_db
 	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
 
 	do_ignore = lambda fn: False
-	if ignore_file :
+	if workdir and ignore_file :
 		ignores = __read_ignore(os.path.join(workdir, ignore_file))
 		if ignores != None :
 #			pprint(ignores)
@@ -222,7 +259,7 @@ board_db
 		else :
 			print("error reading ignore file '%s'" % ignore_file)
 
-	sources, idirs = [], []
+	sources, idirs = list(aux_src_files), []
 	src_total, idir_total = 0, 0
 	for directory, recurse in src_dirs:
 		try :
@@ -250,14 +287,8 @@ board_db
 	run_loud = partial(__run_external, workdir=workdir, redir=False)
 #	run_loud = run
 
-#	a_out_f = tempfile.NamedTemporaryFile()
-#	a_hex_f = tempfile.NamedTemporaryFile()
-#	a_out = a_out_f.name
-#	a_hex = a_hex_f.name
-
 	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
-	a_out, a_hex = "a.out", "a.hex"
 	i_dirs = [ "-I" + d for d in ( idirs + board_idirs ) ]
 	l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
 
