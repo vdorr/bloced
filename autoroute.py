@@ -1,6 +1,10 @@
 
+from sys import version_info
+if version_info.major == 3 :
+	from itertools import product, zip_longest
+else :
+	from itertools import product, izip_longest
 from collections import namedtuple
-from itertools import product, zip_longest
 from pprint import pprint
 
 # ------------------------------------------------------------------------------------------------------------
