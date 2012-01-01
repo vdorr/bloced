@@ -1,6 +1,6 @@
 
 from collections import namedtuple
-from itertools import ifilter, izip_longest, imap, product
+from itertools import product, zip_longest
 from pprint import pprint
 
 # ------------------------------------------------------------------------------------------------------------
@@ -24,8 +24,8 @@ def trln(p, b, r1, r2) :
 	if p[1] >= r2[1] and p[1] <= (r2[1] + r2[3]) :
 		vals += [r2[0], r2[0] + r2[2]]
 	return (p[1],
-		max(ifilter(lambda v : v <= p[0], vals)),
-		min(ifilter(lambda v : v >= p[0], vals)),)
+		max(filter(lambda v : v <= p[0], vals)),
+		min(filter(lambda v : v >= p[0], vals)),)
 
 def transp(o) :
 	if len(o) == 4 :
@@ -63,14 +63,14 @@ def trial_line(p, angle, b, r1, r2) :
 
 def my_lvl1_trlines(hl, vl, cut, g, b, r1, r2) :
 	lns = izip_longest(
-		imap(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
+		map(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
 			xrange(cut.x - g + 1, hl[1], -g)),
-		imap(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
+		map(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
 			xrange(cut.x + g, hl[2], g)),
-		imap(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
+		map(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
 			xrange(vl[1], cut.y - g, g)),#XXX
 			#xrange(cut.y - g - 1, vl[1], g)),
-		imap(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
+		map(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
 			xrange(cut.y + g, vl[2], g)),
 		fillvalue = None)
 	for tup in lns :
@@ -91,7 +91,7 @@ def mtroute_simple(s, t, b, r1, r2) :
 		     
 	#print("trln_s", trln_s)	print("trln_t", trln_t)
 
-	x = filter(None, imap(lambda p: intersect(p[0], p[1]),
+	x = filter(None, map(lambda p: intersect(p[0], p[1]),
 		product(trln_t[0], trln_s[0])))
 	if x :
 		is_simple = filter(lambda cr: type(cr[0]) != pnt, x)
@@ -116,7 +116,7 @@ def mtroute_simple(s, t, b, r1, r2) :
 		trit, trit2, trln, trln2 = trit2, trit, trln2, trln
 
 		for lvl in trln : #TODO use dropwhile
-			x = filter(None, imap(lambda p: intersect(next_trln, p), lvl))
+			x = filter(None, map(lambda p: intersect(next_trln, p), lvl))
 			if x :
 				crossing, (next_trln, l2) = x[0]
 
@@ -125,10 +125,10 @@ def mtroute_simple(s, t, b, r1, r2) :
 				# $crossing
 				# if $l2 have level 1 - crossing of $l2 and trial line of level 0 from $trln
 
-				q = filter(None, imap(lambda p: intersect(next_trln, p), trln2[0]))
+				q = filter(None, map(lambda p: intersect(next_trln, p), trln2[0]))
 				solution = [ q[0][0], crossing ]
 				if l2 in trln[1] :
-					w = filter(None, imap(lambda p: intersect(l2, p), trln[0]))
+					w = filter(None, map(lambda p: intersect(l2, p), trln[0]))
 					solution.append(w[0][0])
 				if trln == trln_s :
 					solution.reverse()
