@@ -20,7 +20,7 @@ from PIL import ImageTk, Image, ImageDraw, ImageFont
 from pprint import pprint
 from collections import namedtuple
 from functools import partial
-from itertools import imap, chain, dropwhile, groupby
+from itertools import dropwhile, groupby
 #import argparse #TODO use sys instead
 import traceback
 import os
@@ -708,9 +708,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.clear_selection()
 		selected = self.canv.find_enclosed(x, y, r, b)
 		if selected :
-#			blcks = filter(None, imap(
-#				lambda w: self.window_index[w] if w in self.window_index else None,
-#					selected)) # blocks and joints
 #			lns = filter(lambda v: v[1][0] in selected, self.connection2line.items())
 			blcks = [ self.window_index[w] for w in selected if w in self.window_index ]
 			lns = [ v for v in self.connection2line.items() if v[1][0] in selected ]
@@ -727,17 +724,11 @@ class BlockEditor(Frame, GraphModelListener) :
 	def measure_objects(self, selected_blocks, selected_lines) :
 		blocks, lines = None, None
 		if selected_lines :
-#			lines = reduce(mathutils.max_rect,
-#				imap(lambda l: self.canv.bbox(l[1][0]), selected_lines))
 			lines = reduce(mathutils.max_rect,
 					[ self.canv.bbox(w) for _, (w, _) in selected_lines ])
-			assert(lines == reduce(mathutils.max_rect, imap(lambda l: self.canv.bbox(l[1][0]), selected_lines)))
 		if selected_blocks :
-#			blocks = reduce(mathutils.max_rect,
-#				imap(lambda b: self.canv.bbox(b.window), selected_blocks))
 			blocks = reduce(mathutils.max_rect,
 				[ self.canv.bbox(b.window) for b in selected_blocks ])
-			assert(blocks == reduce(mathutils.max_rect, imap(lambda b: self.canv.bbox(b.window), selected_blocks)))
 		if blocks and lines :
 			return mathutils.max_rect(blocks, lines) 
 		else :
