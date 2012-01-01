@@ -321,7 +321,7 @@ class BasicBlocksFactory(BlockFactory) :
 		try :
 			dirname, dirnames, filenames = os.walk(basedir).next()
 		except :
-			print "load_library: failed to scan ", basedir
+			print("load_library: failed to scan ", basedir)
 			return (False, )
 
 		lib_name = os.path.split(dirname)[-1]
@@ -340,7 +340,7 @@ class BasicBlocksFactory(BlockFactory) :
 				try :
 					blocks = load_macro(f)
 				except :
-					print "failed to load " + f
+					print("failed to load " + f)
 				else :
 					if blocks == None :
 						continue #XXX
@@ -350,7 +350,7 @@ class BasicBlocksFactory(BlockFactory) :
 					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
 						os.path.join(dirname, fname + os.path.extsep + "h")])
 				except :
-					print "failed to load " + f
+					print("failed to load " + f)
 					raise
 				else :
 					if blocks == None :
