@@ -1,22 +1,6 @@
 #! /usr/bin/python
 
 from sys import exit, version_info
-
-if version_info.major == 3 :
-	from tkinter import * #TODO this is not good
-	from tkinter import font as tkFont #XXX ?!?!?!?
-	import tkinter.messagebox as tkMessageBox
-	from tkinter.filedialog import askopenfilename, asksaveasfilename
-	from tkinter import ttk
-else :
-	from Tkinter import * #TODO this is not good
-	import tkFont
-	import tkMessageBox
-	from tkFileDialog import askopenfilename, asksaveasfilename
-	import ttk
-
-from PIL import ImageTk, Image, ImageDraw, ImageFont
-
 from pprint import pprint
 from collections import namedtuple
 from functools import partial
@@ -38,6 +22,21 @@ from serializer import *
 from implement import implement_dfs, try_mkmac
 import mathutils
 import build
+
+if version_info.major == 3 :
+	from tkinter import * #TODO this is not good
+	from tkinter import font as tkFont #XXX ?!?!?!?
+	import tkinter.messagebox as tkMessageBox
+	from tkinter.filedialog import askopenfilename, asksaveasfilename
+	from tkinter import ttk
+else :
+	from Tkinter import * #TODO this is not good
+	import tkFont
+	import tkMessageBox
+	from tkFileDialog import askopenfilename, asksaveasfilename
+	import ttk
+
+from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------------------------------------------------------
 
