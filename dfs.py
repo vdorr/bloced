@@ -897,7 +897,7 @@ def __mc_assign_side(tb, center_x, center_y, x, y) :
 def __mc_assign_positions(term_sides, side) :
 	assert(side in (N, S, W, E))
 	terms = [ (tb, sd, y if side in (N, S) else x) for tb, sd, (x, y) in term_sides if sd == side ]
-	terms.sort(key=lambda (tb, sd, y): y)
+	terms.sort(key=lambda tb_sd_y: tb_sd_y[2])#(tb, sd, y): y)
 	step = 1.0 / (len(terms) + 1)
 	term_positions = [ (tb, sd, (i + 1) * step) for (tb, sd, p), i in zip(terms, count()) ]
 #	print "step=", step, "term_positions=", term_positions
@@ -909,16 +909,17 @@ def try_mkmac(model) :
 
 	terms = [ __mc_term_info(model, b)
 		for b in model.blocks if b.prototype.__class__ in (InputProto, OutputProto) ]
-	print "try_mkmac:", terms
+	print("try_mkmac:", terms)
 
+	def __sizes(rct0, rct1) :
+		(l0, t0, r0, b0), (l1, t1, r1, b1) = rct0, rct1
+		return (l1 if l1 < l0 else l0,
+			t1 if t1 < t0 else t0,
+			r1 if r1 > r0 else r0,
+			b1 if b1 > b0 else b0)
 	if terms :
 		#TODO use mathutils.bounding_rect
-		(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
-				l1 if l1 < l0 else l0,
-				t1 if t1 < t0 else t0,
-				r1 if r1 > r0 else r0,
-				b1 if b1 > b0 else b0),
-			[ (x, y, x, y) for _, (x, y) in terms ])
+		(l, t, r, b) = reduce(__sizes, [ (x, y, x, y) for _, (x, y) in terms ])
 	else :
 		(l, t, r, b) = (0, 0, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT)
 #	(l, t, r, b) = (l-1, t-1, r+1, b+1)
@@ -926,11 +927,11 @@ def try_mkmac(model) :
 #	k = float(b) / float(r)# (l,t) (r,b)
 ##	k = float(b-t) / float(r-l)# (l,t) (r,b)
 ##	kb = float(t-b) / float(r-l) # (l,b) (r,t)
-	print "try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t
+	print("try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t)
 
 	term_sides = [ (tb, __mc_assign_side(tb, l+((r-l)/2), t+((b-t)/2), x, y), (x, y)) for tb, (x, y) in terms]
 #	xxx = [ (tb, __mc_assign_side(tb, k, (r-l)/2, (b-t), x, y)) for tb, (x, y) in terms]
-	print "try_mkmac: sides=", term_sides
+	print("try_mkmac: sides=", term_sides)
 
 #	term_WE = [ (tb, side) for tb, side in term_sides if side in (W, E) ]
 #	term_NS = [ (tb, side) for tb, side in term_sides if side in (N, S) ]
@@ -964,7 +965,7 @@ def try_mkmac(model) :
 
 	term_positions = terms_N + terms_S + terms_W + terms_E
 
-	print "term_positions=", mc_width, mc_height, term_positions
+	print("term_positions=", mc_width, mc_height, term_positions)
 
 	mc_name = None # TODO
 	terminals = None
