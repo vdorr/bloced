@@ -1,15 +1,24 @@
 #! /usr/bin/python
 
-from Tkinter import * #TODO this is not good
-import tkFont
-import tkMessageBox
-from tkFileDialog import askopenfilename, asksaveasfilename
-import ttk
+from sys import exit, version_info
+
+if version_info.major == 3 :
+	from tkinter import * #TODO this is not good
+	from tkinter import font as tkFont #XXX ?!?!?!?
+	import tkinter.messagebox as tkMessageBox
+	from tkinter.filedialog import askopenfilename, asksaveasfilename
+	from tkinter import ttk
+else :
+	from Tkinter import * #TODO this is not good
+	import tkFont
+	import tkMessageBox
+	from tkFileDialog import askopenfilename, asksaveasfilename
+	import ttk
+
 from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 from pprint import pprint
 from collections import namedtuple
-from sys import exit
 from functools import partial
 from itertools import imap, chain, dropwhile, groupby
 #import argparse #TODO use sys instead
@@ -458,7 +467,7 @@ class BlockEditor(Frame, GraphModelListener) :
 #TODO TODO TODO
 			return None
 #			self.model.can_connect(sender.model, srcterm, blck.model, dstterm)
-			print "blckMouseUp:", twire
+			print("blckMouseUp:", twire)
 #			sender.model, srcterm
 			proto = core.JointProto()
 			w, h = proto.default_size
@@ -743,7 +752,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.coords(self.selection_rect, b[0]-m, b[1]-m, b[2]+m, b[3]+m)
 
 	def create_selection_rect(self, x0, y0, x1, y1) :
-		print  x1, y1
+		print(x1, y1)
 		a = 4
 		c = 4
 		b = 0
@@ -813,7 +822,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	def select_next(self) :
 		if self.selection :
-			print "TODO select_next"
+			print("TODO select_next")
 
 	# ----------------------------------------------------------------------------------------------------
 
@@ -1079,7 +1088,7 @@ class BlockEditorWindow(object) :
 
 	def implement(self) :
 		out = implement_dfs(self.bloced.get_model(), None)
-		print "out:", out
+		print("out:", out)
 
 
 	def close_window(self, a=None) :
