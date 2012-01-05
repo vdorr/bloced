@@ -1200,9 +1200,9 @@ class BlockEditorWindow(object) :
 #		mainframe.rowconfigure(1, weight=1)
 
 		self.tabs = ttk.Notebook(self.root)
-		self.tabs .grid(column=0, row=0, sticky=(N, W, E, S))
-		self.tabs .columnconfigure(0, weight=1)
-		self.tabs .rowconfigure(1, weight=1)
+		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
+		self.tabs.columnconfigure(0, weight=1)
+		self.tabs.rowconfigure(1, weight=1)
 
 #ttk.Notebook
 		self.bloced = BlockEditor(self.tabs)
@@ -1213,6 +1213,17 @@ class BlockEditorWindow(object) :
 		f1 = ttk.Frame(self.tabs)
 
 		self.tabs.add(self.bloced, text="Sheet#1")
+
+		self.statusbar = Frame(self.root, height=32)
+		self.statusbar.grid(column=0, row=1, sticky=(N, W, E, S))
+		self.statusbar.columnconfigure(0, weight=1)
+		self.statusbar.columnconfigure(1, weight=1)
+
+		self.status_label_left = Label(self.statusbar, text="left", relief=SUNKEN)
+		self.status_label_left.grid(column=0, row=0, sticky=(N, W, S))
+
+		self.status_label_right = Label(self.statusbar, text="right", relief=SUNKEN)
+		self.status_label_right.grid(column=1, row=0, sticky=(N, E, S))
 
 #		self.cons = Text(mainframe,height=10,background='white')
 #		self.cons.grid(column=0, row=3, sticky=(W, E, S))
