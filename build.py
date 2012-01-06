@@ -294,6 +294,7 @@ board_db
 		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total))
 
+	global run, run_loud #XXX
 	run = partial(__run_external, workdir=workdir, redir=True)
 	run_loud = partial(__run_external, workdir=workdir, redir=False)
 #	run_loud = run
@@ -343,48 +344,60 @@ board_db
 		print("failed to execute avr-objcopy")
 		return (30, )
 
+	rc = (0, )
+
 	if not skip_programming :
-		if prog_driver == "avrdude" :
-			if not prog_port :
-				print("avrdude programmer port not set!, quitting")
-				return (400, )
-			success, _, streams = run(["avrdude", "-q", ] +
-				(["-n", ] if dry_run else []) +
-				["-c"+prog_adapter,
-				"-P" + prog_port,
-				"-p" + prog_mcu,
-				"-Uflash:w:" + a_hex + ":i"])
-			if success :
-				print("succesfully uploaded")
-			else :
-				stdoutdata, stderrdata = streams
-				print("failed to run avrdude '%s'" % stderrdata.decode())
-				return (40, )
-		elif prog_driver == "dfu-programmer" :
-			if not dry_run :
-				success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
-				if not success :
-					print("failed to erase chip")
-					return (601, )
-				success, _, streams = run(["dfu-programmer",
-					prog_mcu, "flash", a_hex])
-				if not success :
-					print("failed to write flash")
-					return (602, )
-			if dry_run :
-				success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
-				if not success :
-					print("failed to reset mcu")
-					return (603, )
-			else :
-				success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
-				if not success :
-					print("failed to start mcu")
-					return (604, )
-			return (40, )
+		rc = program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+			verbose=verbose,
+			dry_run=dry_run)
+
+	return rc
+
+
+def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		verbose=False,
+		dry_run=False) :
+	if prog_driver == "avrdude" :
+		if not prog_port :
+			print("avrdude programmer port not set!, quitting")
+			return (400, )
+		success, _, streams = run(["avrdude", "-q", ] +
+			(["-n", ] if dry_run else []) +
+			["-c"+prog_adapter,
+			"-P" + prog_port,
+			"-p" + prog_mcu,
+			"-Uflash:w:" + a_hex + ":i"])
+		if success :
+			print("succesfully uploaded")
 		else :
-			print("unknown programmer driver")
+			stdoutdata, stderrdata = streams
+			print("failed to run avrdude '%s'" % stderrdata.decode())
 			return (40, )
+	elif prog_driver == "dfu-programmer" :
+		if not dry_run :
+			success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
+			if not success :
+				print("failed to erase chip")
+				return (601, )
+			success, _, streams = run(["dfu-programmer",
+				prog_mcu, "flash", a_hex])
+			if not success :
+				print("failed to write flash")
+				return (602, )
+		if dry_run :
+			success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
+			if not success :
+				print("failed to reset mcu")
+				return (603, )
+		else :
+			success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
+			if not success :
+				print("failed to start mcu")
+				return (604, )
+		return (40, )
+	else :
+		print("unknown programmer driver")
+		return (40, )
 	return (0, )
 
 # ----------------------------------------------------------------------------
