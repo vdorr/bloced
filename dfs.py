@@ -22,8 +22,10 @@ OUTPUT_TERM = 2
 term_size = 8
 
 TERM_SIZE = 8
-MIN_BLOCK_WIDTH = 48
-MIN_BLOCK_HEIGHT = 32
+
+#for macroes and foreign functions
+MIN_BLOCK_WIDTH = 64
+MIN_BLOCK_HEIGHT = 48
 
 # ------------------------------------------------------------------------------------------------------------
 
