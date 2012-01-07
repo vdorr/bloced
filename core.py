@@ -7,14 +7,7 @@ from collections import namedtuple
 from itertools import groupby, count
 from pprint import pprint
 
-# ------------------------------------------------------------------------------------------------------------
-
-class BlockFactory(object) :
-
-	block_list = property(lambda self: self.__blocks)
-
-	def __init__(self) :
-		self.__blocks = []
+from implement import here
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -314,7 +307,8 @@ def load_c_module(lib_name, input_files) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BasicBlocksFactory(BlockFactory) :
+class BasicBlocksFactory(object) :
+
 
 	def load_library(self, basedir) :
 #		print basedir
@@ -344,7 +338,7 @@ class BasicBlocksFactory(BlockFactory) :
 				else :
 					if blocks == None :
 						continue #XXX
-					self._BlockFactory__blocks += blocks
+					self.__blocks += blocks
 			elif ext == "c" and (fname + os.path.extsep + "h") in filenames : #XXX too naive!
 				try :
 					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
@@ -355,25 +349,29 @@ class BasicBlocksFactory(BlockFactory) :
 				else :
 					if blocks == None :
 						continue #XXX
-					self._BlockFactory__blocks += blocks
-
-
+					self.__blocks += blocks
 		for d in dirnames :
 			self.load_library(os.path.join(dirname, d))
 
-		self._BlockFactory__blocks += []
+		self.__blocks += []
+
 		return (True, )
+
 
 	def get_block_by_name(self, type_name) :
 		p = list(islice(dropwhile(lambda proto: proto.type_name != type_name,
-			self._BlockFactory__blocks), 0, 1))
+			self.__blocks), 0, 1))
 		if not p :
 			raise Exception("type_name '" + type_name + "' not found")
 		return p[0]#.__class__()
 
-	def __init__(self) :
-		BlockFactory.__init__(self)
-		self._BlockFactory__blocks += [
+
+	block_list = property(lambda self: self.__blocks)
+
+
+	def __init__(self, scan_dir=None) :
+#		print("factory init scan_dir=", scan_dir, id(self), here(10))
+		self.__blocks = [
 			JointProto(),
 			ConstProto(),
 			DelayProto(),
@@ -409,11 +407,13 @@ class BasicBlocksFactory(BlockFactory) :
 			SBP("di", "Process IO", [ In(0, "nr", W, .5), Out(0, "y", E, .5) ], exe_name="io_di"),
 			SBP("do", "Process IO", [ In(-1, "nr", W, .33), In(-2, "x", W, .66) ], exe_name="io_do"),
 		]
+		if scan_dir :
+			self.load_library(scan_dir)
 
 # ------------------------------------------------------------------------------------------------------------
 
-def create_block_factory() :
-	return BasicBlocksFactory()
+def create_block_factory(**args) :
+	return BasicBlocksFactory(**args)
 
 # ----------------------------------------------------------------------------
 

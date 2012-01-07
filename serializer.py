@@ -22,11 +22,11 @@ def pickle_dfs_model(m, f) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def unpickle_dfs_model(f) :
+def unpickle_dfs_model(f, lib=None) :
 	try :
 		types, struct, meta = pickle.load(f)
 #		pprint((types, struct, meta))
-		return restore_dfs_model(types, struct, meta)
+		return restore_dfs_model(types, struct, meta, lib)
 	except pickle.PickleError :
 		print("PickleError")
 		raise
@@ -65,10 +65,11 @@ def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def restore_dfs_model(types, struct, meta) :
+def restore_dfs_model(types, struct, meta, lib) :
 	m = dfs.GraphModel()
 	m.enable_logging = False
-	load_to_dfs_model(m, types, struct, meta, deserializing=True)
+	fact = core.create_block_factory() if lib is None else lib
+	load_to_dfs_model(m, types, struct, meta, fact, deserializing=True)
 	m.enable_logging = True
 	return m
 
@@ -77,7 +78,7 @@ def restore_dfs_model(types, struct, meta) :
 def stname(t0) :
 	return t0[0] if isinstance(t0, tuple) else t0
 
-def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
+def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 
 	if len(meta) == 2 :
 		graph_meta, block_meta, = meta
@@ -88,7 +89,6 @@ def load_to_dfs_model(m, types, struct, meta, deserializing=False) :
 		
 	block_meta = dict(block_meta)#XXX XXX
 
-	fact = core.create_block_factory()#XXX XXX
 	blocks = {}
 	for n, type_name in types :
 		t = fact.get_block_by_name(type_name)

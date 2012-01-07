@@ -988,7 +988,7 @@ class BlockEditorWindow(object) :
 	def open_this_file_new(self, fname) :
 		try :
 			f = open(fname, "rb")
-			mdl = unpickle_dfs_model(f)
+			mdl = unpickle_dfs_model(f, lib=self.blockfactory)
 			f.close()
 			self.bloced.set_model(mdl, deserializing=True)
 			self.__set_current_file_name(fname)
@@ -1233,8 +1233,9 @@ class BlockEditorWindow(object) :
 
 		self.bloced.changed_event = self.__changed_event
 
-		self.blockfactory = core.create_block_factory()
-		self.blockfactory.load_library(os.path.join(os.getcwd(), "library"))
+		self.blockfactory = core.create_block_factory(
+			scan_dir=os.path.join(os.getcwd(), "library"))
+#		self.blockfactory.load_library(os.path.join(os.getcwd(), "library"))
 
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar
