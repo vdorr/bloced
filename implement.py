@@ -827,13 +827,16 @@ if __name__ == "__main__" :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	from serializer import unpickle_dfs_model
+	from core import create_block_factory
 	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
+	blockfactory = create_block_factory(
+			scan_dir=os.path.join(os.getcwd(), "library"))
 	try :
 		f = open(fname, "rb")
-		model = unpickle_dfs_model(f)
+		model = unpickle_dfs_model(f, lib=blockfactory)
 		f.close()
 	except :
 		print("error loading input file")

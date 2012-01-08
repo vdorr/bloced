@@ -978,6 +978,9 @@ def try_mkmac(model) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+import build
+import ccodegen
+
 class Model(object) :
 
 	def __worker_thread(self, nr) :
@@ -990,9 +993,30 @@ class Model(object) :
 	def add_job(self) :
 		pass
 
+	def build_model(model, board_type, out_fobj) :
+	#	class DummyFile(object):
+	#		def write(self, s) :
+	#			print(s)
+	#	out_fobj = DummyFile()
+		implement_dfs(model, None, ccodegen.codegen_alt, out_fobj)
+		blob = None
+		return (True, (blob, ))
+
+
+	def upload_to_board(board_type, prog_port, blob) :
+		build.query_board_db(board_type, "")
+		rc = build.program("avrdude", prog_port, "arduino", prog_mcu, blob,
+			verbose=False,
+			dry_run=False)
+		return (True, tuple())
+
 	sheets = property(lambda self: self.__sheets)
 
 	meta = property(lambda self: self.__meta)
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 
 	def __init__(self) :
 		self.__sheets = []

@@ -233,8 +233,13 @@ def extract_exports(src_str) :
 		assert(set(outputs+inputs)==set(args_list))
 
 		terms_in = [ vmex_arg(a) for a in inputs ]
-		terms_out = [ vmex_arg(a) for a in outputs ] if outputs else [ vmex_arg((ret_type, "out")) ]
-#		print terms_in, terms_out
+		if outputs :
+			terms_out = [ vmex_arg(a) for a in outputs ]
+		elif ret_type[-1] != "void" :
+			terms_out = [ vmex_arg((ret_type, "out")) ]
+		else :
+			terms_out = []
+#		print name, ret_type#, terms_in, terms_out
 
 		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 		vmex_funcs.append((name, (terms_in, terms_out)))
