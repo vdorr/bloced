@@ -33,15 +33,17 @@ def here(depth=1) :
 
 #XXX XXX XXX
 
+#TODO fetch type informations from some "machine support package"
+
 type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
 
 #type_name : (size_in_words, size_in_bytes, priority)
 KNOWN_TYPES = {
 	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
 	"vm_char_t" : type_t(1, 1, 0), #TODO
-	"vm_word_t" : type_t(1, None, 1),
-	"vm_dword_t" : type_t(2, None, 2),
-	"vm_float_t" : type_t(2, None, 3),
+	"vm_word_t" : type_t(1, 2, 1),
+	"vm_dword_t" : type_t(2, 4, 2),
+	"vm_float_t" : type_t(2, 4, 3),
 	"void" : None,
 }
 
@@ -368,64 +370,128 @@ def __merge_g_and_conns(g, conns) :
 # ------------------------------------------------------------------------------------------------------------
 
 
+value_t = namedtuple("value_t", [ "value_type", "value"])#, "resource" 
+
+
+def __parse_num_lit(value, base=10, known_types=None) :
+	s = value.strip()
+	if s[-1] in "fF" or "." in s:
+		return ("vm_float_t", float(s))
+	else :
+		if s[-1] in "lL" :
+			return ("vm_dword_t", int(s[:-1], base))
+		else :
+#			print here(2), s, base
+			v = int(s, base)
+			val_type = "vm_word_t"
+			if known_types :
+				w_bytes = known_types["vm_word_t"].size_in_bytes
+				over = v > (2 ** ((w_bytes * 8 ) - 1) - 1)
+				val_type = "vm_dword_t" if over else "vm_word_t"
+			return (val_type, v)
+
+
+def parse_literal(s, known_types=None, variables={}) :
+	x = s.strip()
+	num_sig = (x[1:].strip()[0:2] if x[0] == "-" else x[0:2]).lower()
+	if x[0] == x[-1] == '"' :
+		return ("vm_dword_t", s.strip("\"'"))
+	elif num_sig == "0x" :
+		return __parse_num_lit(x, base=16, known_types=known_types)
+	elif num_sig == "0d" :
+		return __parse_num_lit(x, base=10, known_types=known_types)
+	elif num_sig == "0o" :
+		return __parse_num_lit(x, base=8, known_types=known_types)
+	elif num_sig == "0b" :
+		return __parse_num_lit(x, base=2, known_types=known_types)
+	elif num_sig[0] in ".0123456789" :
+		return __parse_num_lit(x)
+	elif x[0] in "_abcdefghijklmnoprstuvwxyz" :
+		if x in variables :
+			return variables[x]
+		else :
+			return (None, x)
+	else :
+		raise Exception("can not parse value")
+
+
 def compare_types(known_types, a, b) :
-	return known_types[a.type_name].priority - known_types[b.type_name].priority
+#	print here(), a, b, known_types
+	return known_types[a].priority - known_types[b].priority
 
 
-def __infer_types_pre_dive(g, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
-	print "{0}{1}/{2}:{3} -> {4}{5}/{6}:{7}".format(
-		n, nt, nt_nr, nt.type_name,
-		m, mt, mt_nr, nt.type_name)
+def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
+#	print "{0}{1}/{2}:{3} <- {4}{5}/{6}:{7}".format(
+#		n, nt, nt_nr, nt.type_name,
+#		m, mt, mt_nr, nt.type_name)
 
-	assert(nt.direction == OUTPUT_TERM)
+	assert(mt.direction == OUTPUT_TERM)
+	assert(nt.direction == INPUT_TERM)
 
-	nt_type_name = nt.type_name
+	mt_type_name = mt.type_name
 
-	if nt_type_name == "<inferred>"	:
+	if mt_type_name == "<inferred>"	:
+
+		if m.prototype.__class__ == DelayOutProto :
+#			pprint(dir(m))
+			value_type, _ = parse_literal(delays[m], known_types=known_types)
+#			print m, delays[m], value_type
+#			exit(0)
+			mt_type_name = types[m, mt, mt_nr] = value_type
+		else :
+			inherited = []
+			for t, t_nr, preds in g[m].p :
+				if t.type_name == "<inferred>" :
+					print "\t", t, types[m, t, t_nr]#(m, t, t_nr) in types
+	#				inherited.append(t.type_name)
+					inherited.append(types[m, t, t_nr])
+			print "\t", m, inherited
+
+			mt_type_name = sorted(inherited,
+				cmp=partial(compare_types, known_types))[-1]
+			print here(), "types[n, nt, nt_nr] =", mt_type_name
+			types[m, mt, mt_nr] = mt_type_name
+
+	if nt.type_name == "<inferred>"	:
+		print here(), "types[n, nt, nt_nr] = ", mt_type_name
+
+#		if n.prototype.__class__ == DelayInProto :
+#			types[n, nt, nt_nr] = "<delay>"
+#		else :
+		types[n, nt, nt_nr] = mt_type_name
 
 
-#		winner = sorted(n.terms, key=compare_types)
-#		winner = sorted(n.terms,
-#			cmp=partial(compare_types, known_types))
-#		print n, n.terms, "winner=", winner
-
-		p, s = g[n]
-
-		inherited = []
-		for t, t_nr, preds in p :
-			if t.type_name == "<inferred>" :
-				print t, (n, t, t_nr) in types
-#				inherited.append(t)
-
-
-		print n, p
-		
-		
-		nt_type_name = "?!?!?"
-		types[n, nt, nt_nr] = nt_type_name
-
-	if mt.type_name == "<inferred>"	:
-		types[m, mt, mt_nr] = nt_type_name
-
-
-def infer_types(g, known_types=KNOWN_TYPES) :
+def infer_types(g, expd_dels, known_types) :
 	"""
 types of outputs are inferred from types of inferred (in fact, inherited) inputs
 block with inferred output type must have at least one inferred input type
 if block have more than one inferred input type, highest priority type is used for all outputs
+type of Delay is derived from initial value
 	"""
+
+#	return None
+
+#	pprint(expd_dels)
+
+	
+
+	delays = { }
+	for k, (din, dout) in expd_dels.items() :
+		delays[din] = delays[dout] = k.value
+		
+
 	types = {}
 	dft_alt(g,
 #		pre_visit = lambda *a, **b: None,
-		pre_dive = partial(__infer_types_pre_dive, g, types, known_types),
-#		post_dive = lambda *a, **b: None,
+#		pre_dive = partial(__infer_types_pre_dive, g, types, known_types),
+		post_dive = partial(__infer_types_pre_dive, g, delays, types, known_types),
 #		post_visit = lambda *a, **b: None,
 #		pre_tree = lambda *a, **b: None,
 #		post_tree = lambda *a, **b: None,
 		sinks_to_sources=True)
 
 	pprint(types)
-	exit(666)
+#	exit(666)
 
 	return types
 
@@ -457,7 +523,7 @@ def make_dag(model, meta) :
 
 	__expand_joints_new(graph)
 	__join_taps(graph)
-	types = infer_types(graph)
+	types = infer_types(graph, delays, known_types=KNOWN_TYPES)
 
 	return graph, delays, types
 
@@ -757,7 +823,7 @@ if 0 :
 
 ## ------------------------------------------------------------------------------------------------------------
 
-	def add_tmp_ref(tmp, refs) :
+	def add_tmp_ref(tmp, refs, slot_type=None) :
 		assert(len(refs)>0)
 		slot = get_tmp_slot(tmp)
 		tmp[slot] = list(refs)
