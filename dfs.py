@@ -104,12 +104,18 @@ class TermModel(object) :
 #		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
 
 class In(TermModel) :
-	def __init__(self, arg_index, name, side, pos, type_name=None, variadic=False, commutative=False) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name="<inferred>",
+			variadic=False,
+			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
 			type_name=type_name)
 
 class Out(TermModel) :
-	def __init__(self, arg_index, name, side, pos, type_name=None, variadic=False, commutative=False) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name="<inferred>",
+			variadic=False,
+			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,
 			type_name=type_name)
 

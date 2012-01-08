@@ -56,7 +56,10 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
-			slot = add_tmp_ref(tmp, succs)
+			slot = add_tmp_ref(tmp, succs,
+				slot_type=out_term.type_name)#XXX typed signal
+#TODO if all succs have same type different from out_term, cast now and store as new type
+#if storage permits, however
 			outs.append("&tmp%i"%slot)
 		elif len(succs) == 1 and len(outputs) == 1 :
 #			print "passing by"
@@ -87,7 +90,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 		assert(n==del_in)
 #		print 666
 		if not del_out in visited :
-			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
+			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
+				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("tmp%i = del%i" % (slot, n.nr))
 #		code.append("to del%i" % n.nr)
 		expr = "del%i=%s" % tuple([n.nr]+args)
@@ -149,7 +153,7 @@ def generate(g, expd_dels) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta) :
+def codegen_alt(g, expd_dels, meta, types) :
 #		function_name="tsk",
 #		separate_state_vars=False,
 #		separate_temp_vars=False,

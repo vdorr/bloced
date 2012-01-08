@@ -31,6 +31,23 @@ def here(depth=1) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+#XXX XXX XXX
+
+type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
+
+#type_name : (size_in_words, size_in_bytes, priority)
+KNOWN_TYPES = {
+	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
+	"vm_char_t" : type_t(1, 1, 0), #TODO
+	"vm_word_t" : type_t(1, None, 1),
+	"vm_dword_t" : type_t(2, None, 2),
+	"vm_float_t" : type_t(2, None, 3),
+	"void" : None,
+}
+
+#XXX XXX XXX
+# ------------------------------------------------------------------------------------------------------------
+
 adjs_t = namedtuple("a", [ "p", "s", ])
 
 # ------------------------------------------------------------------------------------------------------------
@@ -350,6 +367,71 @@ def __merge_g_and_conns(g, conns) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+def compare_types(known_types, a, b) :
+	return known_types[a.type_name].priority - known_types[b.type_name].priority
+
+
+def __infer_types_pre_dive(g, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	print "{0}{1}/{2}:{3} -> {4}{5}/{6}:{7}".format(
+		n, nt, nt_nr, nt.type_name,
+		m, mt, mt_nr, nt.type_name)
+
+	assert(nt.direction == OUTPUT_TERM)
+
+	nt_type_name = nt.type_name
+
+	if nt_type_name == "<inferred>"	:
+
+
+#		winner = sorted(n.terms, key=compare_types)
+#		winner = sorted(n.terms,
+#			cmp=partial(compare_types, known_types))
+#		print n, n.terms, "winner=", winner
+
+		p, s = g[n]
+
+		inherited = []
+		for t, t_nr, preds in p :
+			if t.type_name == "<inferred>" :
+				print t, (n, t, t_nr) in types
+#				inherited.append(t)
+
+
+		print n, p
+		
+		
+		nt_type_name = "?!?!?"
+		types[n, nt, nt_nr] = nt_type_name
+
+	if mt.type_name == "<inferred>"	:
+		types[m, mt, mt_nr] = nt_type_name
+
+
+def infer_types(g, known_types=KNOWN_TYPES) :
+	"""
+types of outputs are inferred from types of inferred (in fact, inherited) inputs
+block with inferred output type must have at least one inferred input type
+if block have more than one inferred input type, highest priority type is used for all outputs
+	"""
+	types = {}
+	dft_alt(g,
+#		pre_visit = lambda *a, **b: None,
+		pre_dive = partial(__infer_types_pre_dive, g, types, known_types),
+#		post_dive = lambda *a, **b: None,
+#		post_visit = lambda *a, **b: None,
+#		pre_tree = lambda *a, **b: None,
+#		post_tree = lambda *a, **b: None,
+		sinks_to_sources=True)
+
+	pprint(types)
+	exit(666)
+
+	return types
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 #TODO	__check_directions(conns)
 def make_dag(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
@@ -375,8 +457,9 @@ def make_dag(model, meta) :
 
 	__expand_joints_new(graph)
 	__join_taps(graph)
+	types = infer_types(graph)
 
-	return graph, delays
+	return graph, delays, types
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -653,22 +736,10 @@ def sortable_sinks(g, sinks) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#XXX XXX XXX
-
-KNOWN_TYPES = {
-	"vm_char_t" : (None, ), #XXX XXX XXX
-	"vm_word_t" : (1, ),
-	"vm_dword_t" : (2, ),
-	"vm_float_t" : (2, ),
-}
-
-#XXX XXX XXX
-# ------------------------------------------------------------------------------------------------------------
-
 #TODO testing
 #TODO it may be better to use dictionary
 
-if 1 :
+if 0 :
 
 ## TODO may have limit parameter and generate spill code
 	def temp_init() :
@@ -758,7 +829,7 @@ else :
 	#		print "get_tmp_ref: id=", id(tmp)
 		assert(len(refs)>0)
 		slot = get_tmp_slot(tmp)
-		print "add_tmp_ref: ", "slot=", slot
+		print "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 		tmp[slot_type][slot] = list(refs)
 		return slot
 
@@ -813,8 +884,8 @@ def printg(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 def implement_dfs(model, meta, codegen, out_fobj) :
-	graph, delays = make_dag(model, meta)
-	code = codegen(graph, delays, {})
+	graph, delays, types = make_dag(model, meta)
+	code = codegen(graph, delays, types, {})
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 # ------------------------------------------------------------------------------------------------------------

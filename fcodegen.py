@@ -112,7 +112,7 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta) :
+def codegen_alt(g, expd_dels, meta, types) :
 
 	numbering = sethi_ullman(g)
 	tmp = temp_init()
