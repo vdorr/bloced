@@ -188,7 +188,8 @@ def codegen_alt(g, expd_dels, meta) :
 
 	output = ("void tsk()" + linesep + "{" + linesep +
 		# locals and delays
-		(("\tvm_word_t " + string.join(variables, ", ") + ";" + linesep)
+		(("\tvm_word_t " #TODO TODO TODO infer
++ string.join(variables, ", ") + ";" + linesep)
 			if len(variables) else "") +
 		# main loop
 		"\tfor(;;)"+ linesep + "\t{" + linesep +
