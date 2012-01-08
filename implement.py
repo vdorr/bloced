@@ -385,14 +385,14 @@ def __dft_alt_roots_sorter(g, roots) :
 	for comp, number in zip(graph_components(g), count()) :
 		comps.update({ n : number for n in comp})
 	sortable = sortable_sinks(g, roots)
-	print(here(), "sortable=", sortable)
+#	print(here(), "sortable=", sortable)
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 
 def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
 		if len(neighbours) > 1 :
 #TODO TODO TODO
-			print("__dft_alt_term_sorter:", neighbours, "sort needed")
+#			print("__dft_alt_term_sorter:", neighbours, "sort needed")
 			lid = location_id(g, block, term=(t, t_nr))
 			keys = { (b, mt, nr) : location_id(g, b, term=(mt, nr)) for b, mt, nr in neighbours }
 			neighbours_list = sorted(neighbours, key=lambda i: keys[i])
@@ -415,7 +415,7 @@ def __dft_alt_term_sorter(g, block, preds) :
 def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
 		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
-	print("\t", "".join(edge))
+#	print("\t", "".join(edge))
 	hsh.update("".join(edge))
 
 def location_id(g, block, term=None) :
@@ -425,7 +425,7 @@ def location_id(g, block, term=None) :
 	dft(g, block, undirected=True,
 		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
 	digest = hsh.hexdigest()
-	print(here(), block, term, digest)
+#	print(here(), block, term, digest)
 	return digest
 
 # ------------------------------------------------------------------------------------------------------------
@@ -508,7 +508,7 @@ def dft(g, v,
 	}
 	"""
 
-	pprint(g)
+#	pprint(g)
 
 	visited[v] = True
 	term_list = None
@@ -546,7 +546,7 @@ def dft_alt(g,
 #	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
 	s = __dft_alt_roots_selector(g, sinks_to_sources, __dft_alt_roots_sorter)
 
-	print("dft_alt: s=", s)
+#	print("dft_alt: s=", s)
 #TODO TODO TODO
 #	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
 #TODO TODO TODO
