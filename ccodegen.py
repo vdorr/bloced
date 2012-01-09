@@ -23,6 +23,11 @@ __operators = {
 	"mul" :		lambda n, args : "(" + string.join(args, "*") + ")",
 	"div" :		lambda n, args : "(" + string.join(args, "/") + ")",
 	"mod" :		lambda n, args : "(" + string.join(args, "%") + ")",
+	"lt" :		lambda n, args : "(" + string.join(args, "<") + ")",
+	"gt" :		lambda n, args : "(" + string.join(args, ">") + ")",
+	"lte" :		lambda n, args : "(" + string.join(args, "<=") + ")",
+	"gte" :		lambda n, args : "(" + string.join(args, ">=") + ")",
+	"eq" :		lambda n, args : "(" + string.join(args, "==") + ")",
 	#"divmod"
 }
 
