@@ -185,7 +185,8 @@ def codegen_alt(g, expd_dels, meta, types) :
 #	pprint(g)
 
 	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels, types))
-#	print tmp
+	pprint(tmp)
+
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
@@ -194,20 +195,33 @@ def codegen_alt(g, expd_dels, meta, types) :
 #TODO mangle state vars names so that state vars from different task can share the same namespace
 #TODO infer function prototype from Input/Output blocks
 
+
+	
+
 	state_var_prefix = ""
 	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
 			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
 
 	temp_var_prefix = ""
-	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(tmp_max_slots_used(tmp)) ] + [ "dummy" ]
+#	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(tmp_max_slots_used(tmp)) ] + [ "dummy" ]
+	temp_vars = []
+	for slot_type in tmp :
+		slot_cnt = tmp_max_slots_used(tmp, slot_type=slot_type)
+		print here(), slot_type, slot_cnt
+		if slot_cnt > 0 :
+			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
+			temp_vars.append(slot_type + " " + ", ".join(names) + ";")
+# + [ "dummy"
 
 	variables = state_vars + temp_vars
 
 	output = ("void tsk()" + linesep + "{" + linesep +
 		# locals and delays
-		(("\tvm_word_t " #TODO TODO TODO infer
-+ string.join(variables, ", ") + ";" + linesep)
-			if len(variables) else "") +
+#		(("\tvm_word_t " #TODO TODO TODO infer
+linesep.join(variables) +
+#+ string.join(variables, ", ") + ";" + linesep)
+#			if len(variables) else "") +
+
 		# main loop
 		"\tfor(;;)"+ linesep + "\t{" + linesep +
 		"\t\t" + string.join(code, linesep + "\t\t") + linesep +

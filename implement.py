@@ -421,11 +421,16 @@ a, b are type names, keys in known_types dict with type_t tuples
 
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
+#	print n, nt, nt_nr, "<-", m, mt, mt_nr
 	mt_type_name = mt.type_name
 	if mt_type_name == "<inferred>"	:
 		if m.prototype.__class__ == DelayOutProto :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
+		elif m.prototype.__class__ == ConstProto :
+			value_type, _ = parse_literal(m.value, known_types=known_types)
+			mt_type_name = types[m, mt, mt_nr] = value_type
+#			print here(), mt_type_name
 		else :
 			inherited = []
 			for t, t_nr, preds in g[m].p :
@@ -767,14 +772,12 @@ def sortable_sinks(g, sinks) :
 
 def temp_init() :
 	tmp = { tp_name : [] for tp_name in KNOWN_TYPES if tp_name != "<inferred>" }
-#	if __DBG :
 #	print "temp_init: id=", id(tmp), tmp
 	return tmp
 
 
 def get_tmp_slot(tmp, slot_type="vm_word_t") :
-#	if __DBG :
-#		print "get_tmp_slot: id=", id(tmp)
+#	print "get_tmp_slot: id=", id(tmp)
 	if "empty" in tmp[slot_type] :
 		slot = tmp[slot_type].index("empty")
 	else :
@@ -785,29 +788,41 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 
 def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 #	print "add_tmp_ref:", refs
-#	if __DBG :
 #	print "add_tmp_ref: id=", id(tmp)
 	assert(len(refs)>0)
 	assert(slot_type != "<inferred>")
-	slot = get_tmp_slot(tmp)
-#	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
+	slot = get_tmp_slot(tmp, slot_type=slot_type)
+	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
 
-def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
-	t_tmp = tmp[slot_type]
-#	if __DBG :
-#		print "pop_tmp_ref: id=", id(tmp)
+#def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+#	t_tmp = tmp[slot_type]
+##	print "pop_tmp_ref: id=", id(tmp)
 #	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
-	for slot, nr in zip(t_tmp, count()) :
-		if slot != "empty" and (b, t, t_nr) in slot :
-			slot.remove((b, t, t_nr))
-			if len(slot) == 0 :
-				t_tmp[nr] = "empty"
-#			else :
-#				print "pop_tmp_ref:", t_tmp[nr]
-			return nr
+#	pprint(tmp)
+#	for slot, nr in zip(t_tmp, count()) :
+#		if slot != "empty" and (b, t, t_nr) in slot :
+#			slot.remove((b, t, t_nr))
+#			if len(slot) == 0 :
+#				t_tmp[nr] = "empty"
+##			else :
+##				print "pop_tmp_ref:", t_tmp[nr]
+#			return nr
+#	return None
+
+
+def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+#	print "pop_tmp_ref:", "slot_type=", slot_type, "searching:", b, t
+#	pprint(tmp)
+	for _, t_tmp in tmp.items() :
+		for slot, nr in zip(t_tmp, count()) :
+			if slot != "empty" and (b, t, t_nr) in slot :
+				slot.remove((b, t, t_nr))
+				if len(slot) == 0 :
+					t_tmp[nr] = "empty"
+				return nr
 	return None
 
 
@@ -815,20 +830,23 @@ def tmp_used_slots(tmp) :
 	"""
 returns current number of non-empty slots of all types
 	"""
-#	if __DBG :
-#		print "tmp_used_slots: id=", id(tmp)
+#	print "tmp_used_slots: id=", id(tmp)
 	return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
 		for tp, t_tmp in tmp.items() ])
 
 
-def tmp_max_slots_used(tmp) :
+def tmp_max_slots_used(tmp, slot_type=None) :
 	"""
 returns peak number of slots in use to this time
+returns results for single data type if slot_type argument set
 	"""
-#	if __DBG :
-	#		print "tmp_used_slots: id=", id(tmp)
-	return sum([ sum([ 1 for slot in t_tmp ])
-		for tp, t_tmp in tmp.items() ])
+
+	used = [ t_tmp for tp, t_tmp in tmp.items()
+		if slot_type == None or tp == slot_type ]
+
+	print "tmp_used_slots: id=", id(tmp), used
+
+	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in used ])
 
 # ------------------------------------------------------------------------------------------------------------
 

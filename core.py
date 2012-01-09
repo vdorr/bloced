@@ -20,7 +20,7 @@ class JointProto(BlockPrototype):
 class ConstProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
-			[ Out(0, "y", E, 0.5, type_name="vm_word_t") ], #TODO infer type from value
+			[ Out(0, "y", E, 0.5, type_name="<inferred>") ],
 			default_size=(96,28), category="Special")
 
 class DelayProto(BlockPrototype):
