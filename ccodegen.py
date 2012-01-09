@@ -27,9 +27,10 @@ __operators = {
 }
 
 def __implement(n, args, outs) :
+	print here(2), n, args, outs
 	if n.prototype.type_name in __operators :
 		assert(len(args) >= 2)
-		assert(len(outs) == 1)
+		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
 		return __operators[n.prototype.type_name](n, args)
 	else :
 		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
@@ -51,6 +52,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 	outs = []
 
 #	print "__post_visit:", n, tmp, subtrees
+	print here(), n, outputs
 
 	for out_term, out_t_nr, succs in outputs :
 #		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
@@ -95,6 +97,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 		assert(n==del_in)
 #		print 666
 		if not del_out in visited :
+			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("tmp%i = del%i" % (slot, n.nr))
