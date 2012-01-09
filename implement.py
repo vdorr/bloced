@@ -797,22 +797,6 @@ def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 	return slot
 
 
-#def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
-#	t_tmp = tmp[slot_type]
-##	print "pop_tmp_ref: id=", id(tmp)
-#	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
-#	pprint(tmp)
-#	for slot, nr in zip(t_tmp, count()) :
-#		if slot != "empty" and (b, t, t_nr) in slot :
-#			slot.remove((b, t, t_nr))
-#			if len(slot) == 0 :
-#				t_tmp[nr] = "empty"
-##			else :
-##				print "pop_tmp_ref:", t_tmp[nr]
-#			return nr
-#	return None
-
-
 def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
 #	print "pop_tmp_ref:", "slot_type=", slot_type, "searching:", b, t
 #	pprint(tmp)
@@ -840,13 +824,10 @@ def tmp_max_slots_used(tmp, slot_type=None) :
 returns peak number of slots in use to this time
 returns results for single data type if slot_type argument set
 	"""
-
-	used = [ t_tmp for tp, t_tmp in tmp.items()
+	slots = [ t_tmp for tp, t_tmp in tmp.items()
 		if slot_type == None or tp == slot_type ]
-
-	print "tmp_used_slots: id=", id(tmp), used
-
-	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in used ])
+#	print "tmp_used_slots: id=", id(tmp), usage
+	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in slots ])
 
 # ------------------------------------------------------------------------------------------------------------
 
