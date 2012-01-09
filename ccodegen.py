@@ -35,7 +35,7 @@ def __implement(n, args, outs) :
 		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
 
 # execution
-def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 
 #	print "__post_visit:", n.to_string()
 
@@ -56,8 +56,14 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
+			if out_term.type_name == "<inferred>" :
+				pprint(types)
+				slot_type = types[n, out_term, out_t_nr]
+				print here(), slot_type
+			else :
+				slot_type = out_term.type_name
 			slot = add_tmp_ref(tmp, succs,
-				slot_type=out_term.type_name)#XXX typed signal
+				slot_type=slot_type)#XXX typed signal
 #TODO if all succs have same type different from out_term, cast now and store as new type
 #if storage permits, however
 			outs.append("&tmp%i"%slot)
@@ -171,7 +177,7 @@ def codegen_alt(g, expd_dels, meta, types) :
 #	print here(2)
 #	pprint(g)
 
-	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
+	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels, types))
 #	print tmp
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)

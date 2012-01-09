@@ -433,31 +433,20 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 	if mt_type_name == "<inferred>"	:
 
 		if m.prototype.__class__ == DelayOutProto :
-#			pprint(dir(m))
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
-#			print m, delays[m], value_type
-#			exit(0)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
 			inherited = []
 			for t, t_nr, preds in g[m].p :
 				if t.type_name == "<inferred>" :
-					print "\t", t, types[m, t, t_nr]#(m, t, t_nr) in types
-	#				inherited.append(t.type_name)
 					inherited.append(types[m, t, t_nr])
-			print "\t", m, inherited
-
 			mt_type_name = sorted(inherited,
 				cmp=partial(compare_types, known_types))[-1]
-			print here(), "types[n, nt, nt_nr] =", mt_type_name
+#			print here(), "types[n, nt, nt_nr] =", mt_type_name
 			types[m, mt, mt_nr] = mt_type_name
 
 	if nt.type_name == "<inferred>"	:
-		print here(), "types[n, nt, nt_nr] = ", mt_type_name
-
-#		if n.prototype.__class__ == DelayInProto :
-#			types[n, nt, nt_nr] = "<delay>"
-#		else :
+#		print here(), "types[n, nt, nt_nr] = ", mt_type_name
 		types[n, nt, nt_nr] = mt_type_name
 
 
@@ -872,7 +861,7 @@ else :
 	def temp_init() :
 		tmp = { tp_name : [] for tp_name in KNOWN_TYPES }
 	#	if __DBG :
-	#		print "temp_init: id=", id(tmp)
+		print "temp_init: id=", id(tmp), tmp
 		return tmp
 
 # ------------------------------------------------------------------------------------------------------------
@@ -892,10 +881,10 @@ else :
 	def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 	#	print "add_tmp_ref:", refs
 	#	if __DBG :
-	#		print "get_tmp_ref: id=", id(tmp)
+		print "add_tmp_ref: id=", id(tmp)
 		assert(len(refs)>0)
 		slot = get_tmp_slot(tmp)
-		print "add_tmp_ref: ", "slot=", slot, "type=", slot_type
+		print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 		tmp[slot_type][slot] = list(refs)
 		return slot
 
@@ -951,7 +940,7 @@ def printg(g) :
 
 def implement_dfs(model, meta, codegen, out_fobj) :
 	graph, delays, types = make_dag(model, meta)
-	code = codegen(graph, delays, types, {})
+	code = codegen(graph, delays, types, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 # ------------------------------------------------------------------------------------------------------------
