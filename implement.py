@@ -369,7 +369,6 @@ def __merge_g_and_conns(g, conns) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-
 value_t = namedtuple("value_t", [ "value_type", "value"])#, "resource" 
 
 
@@ -454,7 +453,6 @@ type of Delay is derived from initial value
 		post_dive = partial(__infer_types_pre_dive, g, delays, types, known_types),
 		sinks_to_sources=True)
 	return types
-
 
 # ------------------------------------------------------------------------------------------------------------
 
