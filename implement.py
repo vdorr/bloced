@@ -381,7 +381,6 @@ def __parse_num_lit(value, base=10, known_types=None) :
 		if s[-1] in "lL" :
 			return ("vm_dword_t", int(s[:-1], base))
 		else :
-#			print here(2), s, base
 			v = int(s, base)
 			val_type = "vm_word_t"
 			if known_types :
@@ -416,22 +415,15 @@ def parse_literal(s, known_types=None, variables={}) :
 
 
 def compare_types(known_types, a, b) :
-#	print here(), a, b, known_types
+	"""
+a, b are type names, keys in known_types dict with type_t tuples
+	"""
 	return known_types[a].priority - known_types[b].priority
 
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
-#	print "{0}{1}/{2}:{3} <- {4}{5}/{6}:{7}".format(
-#		n, nt, nt_nr, nt.type_name,
-#		m, mt, mt_nr, nt.type_name)
-
-	assert(mt.direction == OUTPUT_TERM)
-	assert(nt.direction == INPUT_TERM)
-
 	mt_type_name = mt.type_name
-
 	if mt_type_name == "<inferred>"	:
-
 		if m.prototype.__class__ == DelayOutProto :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
@@ -442,11 +434,8 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 					inherited.append(types[m, t, t_nr])
 			mt_type_name = sorted(inherited,
 				cmp=partial(compare_types, known_types))[-1]
-#			print here(), "types[n, nt, nt_nr] =", mt_type_name
 			types[m, mt, mt_nr] = mt_type_name
-
 	if nt.type_name == "<inferred>"	:
-#		print here(), "types[n, nt, nt_nr] = ", mt_type_name
 		types[n, nt, nt_nr] = mt_type_name
 
 
@@ -457,31 +446,13 @@ block with inferred output type must have at least one inferred input type
 if block have more than one inferred input type, highest priority type is used for all outputs
 type of Delay is derived from initial value
 	"""
-
-#	return None
-
-#	pprint(expd_dels)
-
-	
-
 	delays = { }
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value
-		
-
 	types = {}
 	dft_alt(g,
-#		pre_visit = lambda *a, **b: None,
-#		pre_dive = partial(__infer_types_pre_dive, g, types, known_types),
 		post_dive = partial(__infer_types_pre_dive, g, delays, types, known_types),
-#		post_visit = lambda *a, **b: None,
-#		pre_tree = lambda *a, **b: None,
-#		post_tree = lambda *a, **b: None,
 		sinks_to_sources=True)
-
-	pprint(types)
-#	exit(666)
-
 	return types
 
 
@@ -637,13 +608,13 @@ def dft(g, v,
 		visited={},
 		term=None) :
 	"""
-	graph structure:
-	{
-		blockA :
-			(p=[ (blockA->term, blockA->term->term_number,
-				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
-			 s=[ ]), ...
-	}
+graph structure:
+{
+	blockA :
+		(p=[ (blockA->term, blockA->term->term_number,
+			[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+		 s=[ ]), ...
+}
 	"""
 
 #	pprint(g)
@@ -727,8 +698,8 @@ def __su_post_visit(g, numbering, n, visited) :
 #TODO add documentation
 #TODO take into account temp variables?
 	"""
-	commutativity comes in two flavours, it may be commutative block,
-	or numbered instances of variadic terminal
+commutativity comes in two flavours, it may be commutative block,
+or numbered instances of variadic terminal
 	"""
 
 #	print here(), n, visited
@@ -799,7 +770,7 @@ def sortable_sinks(g, sinks) :
 def temp_init() :
 	tmp = { tp_name : [] for tp_name in KNOWN_TYPES }
 #	if __DBG :
-	print "temp_init: id=", id(tmp), tmp
+#	print "temp_init: id=", id(tmp), tmp
 	return tmp
 
 
@@ -817,10 +788,10 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 #	print "add_tmp_ref:", refs
 #	if __DBG :
-	print "add_tmp_ref: id=", id(tmp)
+#	print "add_tmp_ref: id=", id(tmp)
 	assert(len(refs)>0)
 	slot = get_tmp_slot(tmp)
-	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
+#	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
@@ -835,8 +806,8 @@ def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
 			slot.remove((b, t, t_nr))
 			if len(slot) == 0 :
 				t_tmp[nr] = "empty"
-			else :
-				print "pop_tmp_ref:", t_tmp[nr]
+#			else :
+#				print "pop_tmp_ref:", t_tmp[nr]
 			return nr
 	return None
 

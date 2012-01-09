@@ -53,13 +53,12 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 #	print "__post_visit:", n, tmp, subtrees
 
 	for out_term, out_t_nr, succs in outputs :
-		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
+#		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
 			if out_term.type_name == "<inferred>" :
-				pprint(types)
 				slot_type = types[n, out_term, out_t_nr]
-				print here(), slot_type
+#				print here(), slot_type
 			else :
 				slot_type = out_term.type_name
 			slot = add_tmp_ref(tmp, succs,
