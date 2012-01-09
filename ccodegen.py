@@ -32,7 +32,7 @@ __operators = {
 }
 
 def __implement(n, args, outs) :
-	print here(2), n, args, outs
+#	print here(2), n, args, outs
 	if n.prototype.type_name in __operators :
 		assert(len(args) >= 2)
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
@@ -57,7 +57,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) 
 	outs = []
 
 #	print "__post_visit:", n, tmp, subtrees
-	print here(), n, outputs
+#	print here(), n, outputs
 
 	for out_term, out_t_nr, succs in outputs :
 		if out_term.type_name == "<inferred>" :
@@ -100,7 +100,6 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) 
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
-#		print 666
 		if not del_out in visited :
 			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
@@ -147,25 +146,6 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) 
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def generate(g, expd_dels) :
-#	tmp = temp_init()
-#	subtrees = {}
-#	code = []
-#	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
-#	assert(tmp_used_slots(tmp) == 0)
-#	assert(len(subtrees) == 0)
-
-#	state_var_prefix = ""
-#	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
-#			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
-
-#	temp_var_prefix = ""
-#	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(len(tmp)) ] + [ "dummy" ]
-
-#	return (state_vars, temp_vars, code)
-
-# ------------------------------------------------------------------------------------------------------------
-
 def codegen_alt(g, expd_dels, meta, types) :
 #		function_name="tsk",
 #		separate_state_vars=False,
@@ -176,7 +156,6 @@ def codegen_alt(g, expd_dels, meta, types) :
 #		infer_signature=True,
 #		input_blocks=None,
 #		output_blocks=None) :
-#	pprint(g)
 	tmp = temp_init()
 	subtrees = {}
 	code = []
@@ -184,6 +163,7 @@ def codegen_alt(g, expd_dels, meta, types) :
 
 #	print here(2)
 #	pprint(g)
+#	pprint(types)
 
 	dft_alt(g, post_visit = partial(__post_visit,
 		g, code, tmp, subtrees, expd_dels, types, dummies))
@@ -197,13 +177,9 @@ def codegen_alt(g, expd_dels, meta, types) :
 #TODO mangle state vars names so that state vars from different task can share the same namespace
 #TODO infer function prototype from Input/Output blocks
 
+	task_name = "tsk"
 
-	pprint(types)
-
-	state_var_prefix = ""
-#	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
-#			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
-
+	state_var_prefix = ""#task_name + "_"
 	state_vars = []
 	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_in = expd_dels[d][0]
@@ -211,27 +187,17 @@ def codegen_alt(g, expd_dels, meta, types) :
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, int(d.value), linesep))
 
-
-	temp_var_prefix = ""
-#	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(tmp_max_slots_used(tmp)) ] + [ "dummy" ]
+	temp_var_prefix = ""#task_name + "_" #TODO allow tmp var sharing
 	temp_vars = []
 	for slot_type in tmp :
 		slot_cnt = tmp_max_slots_used(tmp, slot_type=slot_type)
-		print here(), slot_type, slot_cnt
 		if slot_cnt > 0 :
 			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
 			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
 
-	variables = state_vars + temp_vars
-
-	output = ("void tsk()" + linesep + "{" + linesep +
+	output = ("void " + task_name + "()" + linesep + "{" + linesep +
 		# locals and delays
-#		(("\tvm_word_t " #TODO TODO TODO infer
-"".join(state_vars)+# + linesep +
-"".join(temp_vars) +
-#+ string.join(variables, ", ") + ";" + linesep)
-#			if len(variables) else "") +
-
+		"".join(temp_vars + state_vars) +
 		# main loop
 		"\tfor(;;)"+ linesep + "\t{" + linesep +
 		"\t\t" + string.join(code, linesep + "\t\t") + linesep +

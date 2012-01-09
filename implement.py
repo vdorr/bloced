@@ -771,7 +771,8 @@ def sortable_sinks(g, sinks) :
 #__DBG = 0
 
 def temp_init() :
-	tmp = { tp_name : [] for tp_name in KNOWN_TYPES if tp_name != "<inferred>" }
+	tmp = { tp_name : []
+		for tp_name in KNOWN_TYPES if not tp_name in ("void", "<inferred>") }
 #	print "temp_init: id=", id(tmp), tmp
 	return tmp
 
@@ -792,7 +793,7 @@ def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 	assert(len(refs)>0)
 	assert(slot_type != "<inferred>")
 	slot = get_tmp_slot(tmp, slot_type=slot_type)
-	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
+#	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
