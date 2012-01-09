@@ -41,7 +41,7 @@ def __implement(n, args, outs) :
 		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
 
 # execution
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) :
 
 #	print "__post_visit:", n.to_string()
 
@@ -60,16 +60,15 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 	print here(), n, outputs
 
 	for out_term, out_t_nr, succs in outputs :
+		if out_term.type_name == "<inferred>" :
+			term_type = types[n, out_term, out_t_nr]
+		else :
+			term_type = out_term.type_name
 #		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
-			if out_term.type_name == "<inferred>" :
-				slot_type = types[n, out_term, out_t_nr]
-#				print here(), slot_type
-			else :
-				slot_type = out_term.type_name
 			slot = add_tmp_ref(tmp, succs,
-				slot_type=slot_type)#XXX typed signal
+				slot_type=term_type)
 #TODO if all succs have same type different from out_term, cast now and store as new type
 #if storage permits, however
 			outs.append("&tmp%i"%slot)
@@ -77,7 +76,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 #			print "passing by"
 			pass
 		else :
-			outs.append("&dummy")
+			dummies.add(term_type)
+			outs.append("&"+term_type+"_dummy")
 
 	#gather inputs
 	for in_term, in_t_nr, preds in inputs :
@@ -147,22 +147,22 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def generate(g, expd_dels) :
-	tmp = temp_init()
-	subtrees = {}
-	code = []
-	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
-	assert(tmp_used_slots(tmp) == 0)
-	assert(len(subtrees) == 0)
+#def generate(g, expd_dels) :
+#	tmp = temp_init()
+#	subtrees = {}
+#	code = []
+#	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels))
+#	assert(tmp_used_slots(tmp) == 0)
+#	assert(len(subtrees) == 0)
 
-	state_var_prefix = ""
-	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
-			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
+#	state_var_prefix = ""
+#	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
+#			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
 
-	temp_var_prefix = ""
-	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(len(tmp)) ] + [ "dummy" ]
+#	temp_var_prefix = ""
+#	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(len(tmp)) ] + [ "dummy" ]
 
-	return (state_vars, temp_vars, code)
+#	return (state_vars, temp_vars, code)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -180,12 +180,14 @@ def codegen_alt(g, expd_dels, meta, types) :
 	tmp = temp_init()
 	subtrees = {}
 	code = []
+	dummies = set()
 
 #	print here(2)
 #	pprint(g)
 
-	dft_alt(g, post_visit = partial(__post_visit, g, code, tmp, subtrees, expd_dels, types))
-	pprint(tmp)
+	dft_alt(g, post_visit = partial(__post_visit,
+		g, code, tmp, subtrees, expd_dels, types, dummies))
+#	pprint(tmp)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
@@ -196,11 +198,19 @@ def codegen_alt(g, expd_dels, meta, types) :
 #TODO infer function prototype from Input/Output blocks
 
 
-	
+	pprint(types)
 
 	state_var_prefix = ""
-	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
-			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
+#	state_vars = [ "%sdel%i = %i" % (state_var_prefix, i, int(d.value))
+#			for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) ]
+
+	state_vars = []
+	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
+		del_in = expd_dels[d][0]
+		del_type = types[del_in, del_in.terms[0], 0]
+		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
+			del_type, state_var_prefix, i, int(d.value), linesep))
+
 
 	temp_var_prefix = ""
 #	temp_vars = [ "%stmp%i" % (temp_var_prefix, i) for i in range(tmp_max_slots_used(tmp)) ] + [ "dummy" ]
@@ -210,15 +220,15 @@ def codegen_alt(g, expd_dels, meta, types) :
 		print here(), slot_type, slot_cnt
 		if slot_cnt > 0 :
 			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
-			temp_vars.append(slot_type + " " + ", ".join(names) + ";")
-# + [ "dummy"
+			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
 
 	variables = state_vars + temp_vars
 
 	output = ("void tsk()" + linesep + "{" + linesep +
 		# locals and delays
 #		(("\tvm_word_t " #TODO TODO TODO infer
-"\t" + linesep.join(variables) + linesep +
+"".join(state_vars)+# + linesep +
+"".join(temp_vars) +
 #+ string.join(variables, ", ") + ";" + linesep)
 #			if len(variables) else "") +
 
