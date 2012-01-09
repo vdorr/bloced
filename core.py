@@ -404,6 +404,11 @@ class BasicBlocksFactory(object) :
 			BinaryOp("mod", "Arithmetic", commutative=False),
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33), In(-1, "d", W, .66),
 				Out(-1, "q", E, .33), Out(-2, "r", E, .66)  ], pure=True),
+			BinaryOp("lt", "Arithmetic", commutative=False),
+			BinaryOp("gt", "Arithmetic", commutative=False),
+			BinaryOp("eq", "Arithmetic", commutative=False),
+			BinaryOp("lte", "Arithmetic", commutative=False),
+			BinaryOp("gte", "Arithmetic", commutative=False),
 
 #			SBP("load", "Memory", [ ]),
 #			SBP("store", "Memory", [ ]),
