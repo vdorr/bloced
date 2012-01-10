@@ -159,10 +159,10 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_pair, new_pai
 #XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
-	replace single block from g with subgraph, subgraph may be empty dict and function might be used
-	to map block terminal to other blocks in g
-	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
-	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
+replace single block from g with subgraph, subgraph may be empty dict and function might be used
+to map block terminal to other blocks in g
+map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
 #	print "map_in=", map_in
 #	print "map_out=", map_out
@@ -420,6 +420,15 @@ a, b are type names, keys in known_types dict with type_t tuples
 	return known_types[a].priority - known_types[b].priority
 
 
+def __infer_block_type(block, preds, types, known_types) :
+	inherited = []
+	for t, t_nr, preds in preds :
+		if t.type_name == "<inferred>" :
+			inherited.append(types[block, t, t_nr])
+	return sorted(inherited,
+		cmp=partial(compare_types, known_types))[-1]
+
+
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
 #	print n, nt, nt_nr, "<-", m, mt, mt_nr
 	mt_type_name = mt.type_name
@@ -432,15 +441,16 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 			mt_type_name = types[m, mt, mt_nr] = value_type
 #			print here(), mt_type_name
 		else :
-			inherited = []
-			for t, t_nr, preds in g[m].p :
-				if t.type_name == "<inferred>" :
-					inherited.append(types[m, t, t_nr])
-			mt_type_name = sorted(inherited,
-				cmp=partial(compare_types, known_types))[-1]
-			types[m, mt, mt_nr] = mt_type_name
+			types[m, mt, mt_nr] = __infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
 		types[n, nt, nt_nr] = mt_type_name
+
+
+def __infer_types_post_visit(g, types, known_types, n, visited) :
+	p, s = g[n]
+	for t, t_nr, succs in s :
+		if not succs :
+			types[n, t, t_nr] = __infer_block_type(n, p, types, known_types)
 
 
 def infer_types(g, expd_dels, known_types) :
@@ -450,12 +460,13 @@ block with inferred output type must have at least one inferred input type
 if block have more than one inferred input type, highest priority type is used for all outputs
 type of Delay is derived from initial value
 	"""
-	delays = { }
+	delays = {}
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value
 	types = {}
 	dft_alt(g,
-		post_dive = partial(__infer_types_pre_dive, g, delays, types, known_types),
+		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
+		post_visit=partial(__infer_types_post_visit, g, types, known_types),
 		sinks_to_sources=True)
 	return types
 
