@@ -389,6 +389,7 @@ class BasicBlocksFactory(object) :
 			SysRqProto(),
 			InputProto(),
 			OutputProto(),
+			SBP("Sink", "Special", [ In(-1, "", W, .5, type_name="<infer>") ], pure=True),
 
 			BinaryOp("xor", "Logic", commutative=True),
 			BinaryOp("or", "Logic", commutative=True),
@@ -403,7 +404,7 @@ class BasicBlocksFactory(object) :
 			BinaryOp("div", "Arithmetic", commutative=False),
 			BinaryOp("mod", "Arithmetic", commutative=False),
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33), In(-1, "d", W, .66),
-				Out(-1, "q", E, .33), Out(-2, "r", E, .66)  ], pure=True),
+				Out(-1, "q", E, .33), Out(-2, "r", E, .66) ], pure=True),
 			BinaryOp("lt", "Arithmetic", commutative=False),
 			BinaryOp("gt", "Arithmetic", commutative=False),
 			BinaryOp("eq", "Arithmetic", commutative=False),
