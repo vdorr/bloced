@@ -195,15 +195,23 @@ def codegen_alt(g, expd_dels, meta, types) :
 			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
 			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
 
+	dummy_var_prefix = ""#task_name + "_" #TODO allow tmp var sharing
+	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
+
 	output = ("void " + task_name + "()" + linesep + "{" + linesep +
 		# locals and delays
-		"".join(temp_vars + state_vars) +
+		"".join(temp_vars + state_vars + dummy_vars) +
 		# main loop
 		"\tfor(;;)"+ linesep + "\t{" + linesep +
 		"\t\t" + string.join(code, linesep + "\t\t") + linesep +
 		"\t}" + linesep +
 		linesep + "}")
 	return output
+
+
+def churn_code(tmp, expd_dels, dummies) :
+#TODO
+	pass
 
 # ------------------------------------------------------------------------------------------------------------
 
