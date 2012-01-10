@@ -189,7 +189,7 @@ def codegen_alt(g, expd_dels, meta, types) :
 
 	temp_var_prefix = ""#task_name + "_" #TODO allow tmp var sharing
 	temp_vars = []
-	for slot_type in tmp :
+	for slot_type in sorted(tmp.keys()) :
 		slot_cnt = tmp_max_slots_used(tmp, slot_type=slot_type)
 		if slot_cnt > 0 :
 			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
@@ -206,7 +206,28 @@ def codegen_alt(g, expd_dels, meta, types) :
 		"\t\t" + string.join(code, linesep + "\t\t") + linesep +
 		"\t}" + linesep +
 		linesep + "}")
+
 	return output
+
+
+def merge_codegen_output(a, b) :
+
+	tmp0, expd_dels0, dummies0 = a
+	tmp1, expd_dels1, dummies1 = b
+
+	tmp = dict(tmp1)
+	for k, v in tmp0.items() :
+		if k in tmp :
+			tmp[k].extend(v)
+		else :
+			tmp[k] = v
+
+	expd_dels = dict(expd_dels0)
+	expd_dels.update(expd_dels1)
+
+	dummies = dummies0.union(dummies1)
+
+	return tmp, expd_dels, dummies
 
 
 def churn_code(tmp, expd_dels, dummies) :
