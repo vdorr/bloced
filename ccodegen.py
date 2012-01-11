@@ -179,6 +179,36 @@ def codegen_alt(g, expd_dels, meta, types) :
 
 	task_name = "tsk"
 
+#	return code, types, tmp, expd_dels, dummies
+	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
+
+
+def merge_codegen_output(a, b) :
+
+	code0, types0, tmp0, expd_dels0, dummies0 = a
+	code1, types1, tmp1, expd_dels1, dummies1 = b
+
+	code = code0 + code1
+
+	types = dict(types0)
+	types.update(types1)
+
+	tmp = dict(tmp1)
+	for k, v in tmp0.items() :
+		if k in tmp :
+			tmp[k].extend(v)
+		else :
+			tmp[k] = v
+
+	expd_dels = dict(expd_dels0)
+	expd_dels.update(expd_dels1)
+
+	dummies = dummies0.union(dummies1)
+
+	return code, types, tmp, expd_dels, dummies
+
+
+def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
 	state_var_prefix = ""#task_name + "_"
 	state_vars = []
 	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
@@ -208,31 +238,6 @@ def codegen_alt(g, expd_dels, meta, types) :
 		linesep + "}")
 
 	return output
-
-
-def merge_codegen_output(a, b) :
-
-	tmp0, expd_dels0, dummies0 = a
-	tmp1, expd_dels1, dummies1 = b
-
-	tmp = dict(tmp1)
-	for k, v in tmp0.items() :
-		if k in tmp :
-			tmp[k].extend(v)
-		else :
-			tmp[k] = v
-
-	expd_dels = dict(expd_dels0)
-	expd_dels.update(expd_dels1)
-
-	dummies = dummies0.union(dummies1)
-
-	return tmp, expd_dels, dummies
-
-
-def churn_code(tmp, expd_dels, dummies) :
-#TODO
-	pass
 
 # ------------------------------------------------------------------------------------------------------------
 
