@@ -41,7 +41,7 @@ def __implement(n, args, outs) :
 		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
 
 # execution
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, n, visited) :
 
 #	print "__post_visit:", n.to_string()
 
@@ -104,9 +104,11 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) 
 			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
-			code.append("tmp%i = del%i" % (slot, n.nr))
+#			code.append("tmp%i = del%i" % (slot, n.nr))
+			code.append("tmp{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
 #		code.append("to del%i" % n.nr)
-		expr = "del%i=%s" % tuple([n.nr]+args)
+#		expr = "del%i=%s" % tuple([n.nr]+args)
+		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
 	elif isinstance(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_out)
@@ -116,7 +118,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, n, visited) 
 			expr = "tmp%i" % slot
 #			code.append("tmp%i" % slot)
 		else :
-			expr = "del%i" % n.nr
+#			expr = "del%i" % n.nr
+			expr = "{0}del{1}".format(state_var_prefix, n.nr)
 #			exe_name = "get_del%i" % n.nr
 #			code.append("del%i" % n.nr)
 #		exe_name = "get_del%i" % n.nr
@@ -156,17 +159,22 @@ def codegen_alt(g, expd_dels, meta, types) :
 #		infer_signature=True,
 #		input_blocks=None,
 #		output_blocks=None) :
+
+	task_name = "tsk"
+
 	tmp = temp_init()
 	subtrees = {}
 	code = []
 	dummies = set()
+	state_var_prefix = task_name + "_"
 
 #	print here(2)
 #	pprint(g)
 #	pprint(types)
 
 	dft_alt(g, post_visit = partial(__post_visit,
-		g, code, tmp, subtrees, expd_dels, types, dummies))
+		g, code, tmp, subtrees, expd_dels, types,
+		dummies, state_var_prefix))
 #	pprint(tmp)
 
 	assert(tmp_used_slots(tmp) == 0)
@@ -176,8 +184,6 @@ def codegen_alt(g, expd_dels, meta, types) :
 #TODO return state variables separately from task code
 #TODO mangle state vars names so that state vars from different task can share the same namespace
 #TODO infer function prototype from Input/Output blocks
-
-	task_name = "tsk"
 
 #	return code, types, tmp, expd_dels, dummies
 	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
@@ -209,7 +215,8 @@ def merge_codegen_output(a, b) :
 
 
 def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
-	state_var_prefix = ""#task_name + "_"
+
+	state_var_prefix = task_name + "_"
 	state_vars = []
 	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_in = expd_dels[d][0]
