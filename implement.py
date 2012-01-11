@@ -781,9 +781,9 @@ def sortable_sinks(g, sinks) :
 
 #__DBG = 0
 
-def temp_init() :
+def temp_init(known_types=KNOWN_TYPES) :
 	tmp = { tp_name : []
-		for tp_name in KNOWN_TYPES if not tp_name in ("void", "<inferred>") }
+		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
 #	print "temp_init: id=", id(tmp), tmp
 	return tmp
 
