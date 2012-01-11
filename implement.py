@@ -441,7 +441,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 			mt_type_name = types[m, mt, mt_nr] = value_type
 #			print here(), mt_type_name
 		else :
-			types[m, mt, mt_nr] = __infer_block_type(m, g[m].p, types, known_types)
+			types[m, mt, mt_nr] = mt_type_name = __infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
 		types[n, nt, nt_nr] = mt_type_name
 
