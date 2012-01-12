@@ -505,12 +505,6 @@ def make_dag(model, meta) :
 
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
-#TODO sort components
-#location_id(g, block, term=None)
-#	dft(g, block, undirected=True,
-#		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
-#	digest = hsh.hexdigest()
-
 	for comp in graph_components(g) :
 		hsh = hashlib.md5()
 		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
@@ -524,9 +518,8 @@ def __dft_alt_roots_sorter(g, roots) :
 		per_comp = cmp(comps[a], comps[b])
 		return per_comp if per_comp else cmp(sortable[a], sortable[b])
 
-	print(here(), "sortable=", sorted(sortable, cmp=comparer))
+#	print(here(), "sortable=", sortable, "comps=", comps)
 	return sorted(sortable, cmp=comparer)
-	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 
 
 def __dft_alt_term_sorter(g, block, preds) :
