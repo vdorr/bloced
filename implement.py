@@ -519,7 +519,12 @@ def __dft_alt_roots_sorter(g, roots) :
 		comps.update({ n : comp_loc_ids[n] for n in comp})
 
 	sortable = sortable_sinks(g, roots)
-#	print(here(), "sortable=", sortable)
+
+	def comparer(a, b) :
+		per_comp = cmp(comps[a], comps[b])
+		return per_comp if per_comp else cmp(sortable[a], sortable[b])
+
+	print(here(), "sortable=", sorted(sortable, cmp=comparer))
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 
 
