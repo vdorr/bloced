@@ -25,7 +25,7 @@ def pre_dive(code, tmp, n, nt, nt_nr, m, mt, mt_nr, visited) :
 
 # single input preparation
 def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
-	print "post_dive:", n, nt, "<-", m, mt
+#	print "post_dive:", n, nt, "<-", m, mt
 #	assert(n in visited)
 #	assert(m in visited)
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
@@ -51,16 +51,16 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 # execution
 def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 
-	print "post_visit", n, n.prototype
+#	print "post_visit", n, n.prototype
 
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
-		print 1
+#		print 1
 		if not del_out in visited :
-			print 2
+#			print 2
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("del%i to tmp%i" % (n.nr, slot))
 		code.append("to del%i" % n.nr)

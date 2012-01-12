@@ -103,6 +103,9 @@ class TermModel(object) :
 		return "." + self.__name
 #		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
 
+	def __lt__(self, b) :
+		return id(self) < id(b)
+
 class In(TermModel) :
 	def __init__(self, arg_index, name, side, pos, type_name=None, variadic=False, commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,

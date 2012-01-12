@@ -17,7 +17,7 @@ __operators = {
 	"nor" :		lambda n, args : "!(" + string.join(args, "|") + ")",
 	"and" :		lambda n, args : "(" + string.join(args, "&") + ")",
 	"nand" :	lambda n, args : "!(" + string.join(args, "&") + ")",
-	"not" :		lambda n, (arg,) : "!(" + arg + ")",
+	"not" :		lambda n, arg : "!(" + arg[0] + ")",
 	"add" :		lambda n, args : "(" + string.join(args, "+") + ")",
 	"sub" :		lambda n, args : "(" + string.join(args, "-") + ")",
 	"mul" :		lambda n, args : "(" + string.join(args, "*") + ")",
@@ -53,7 +53,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, n, visited) :
 #	print "__post_visit:", n, tmp, subtrees
 
 	for out_term, out_t_nr, succs in outputs :
-		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
+		print("out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs)
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
 			slot = add_tmp_ref(tmp, succs)

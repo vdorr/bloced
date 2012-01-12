@@ -3,7 +3,7 @@ from dfs import *
 from core import *
 from collections import namedtuple
 from functools import partial
-from itertools import groupby, chain, count
+from itertools import groupby, chain, count, islice
 from pprint import pprint
 import sys
 import hashlib
@@ -16,7 +16,7 @@ def here(depth=1) :
 	stack = traceback.extract_stack()[:-1]
 	take = len(stack) if depth > len(stack)  else depth
 	trace = stack[(len(stack)-take):]
-	return string.join([ ("%s:%i" % (f[2], f[1])) for f in trace ], ">")
+	return "->".join([ ("%s:%i" % (f[2], f[1])) for f in trace ])
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -416,7 +416,7 @@ def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
 		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
 #	print("\t", "".join(edge))
-	hsh.update("".join(edge))
+	hsh.update("".join(edge).encode())
 
 def location_id(g, block, term=None) :
 	assert(term==None or (term!=None and len(term) == 2))
@@ -475,7 +475,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 			assert(m in visited)
 			post_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 		try :
-			nt, nt_nr, m, mt, mt_nr = it.next()
+			((nt, nt_nr, m, mt, mt_nr), ) = islice(it, 1)
 			stack[-1] = n, (nt, nt_nr, m, mt, mt_nr), it
 			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 			if not m in visited :
@@ -484,7 +484,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 #				print "\t", here(), m
 				pre_visit(m, visited, terms)
 				stack.append((m, None, terms.__iter__()))
-		except StopIteration :
+		except ValueError : #StopIteration :
 			stack.pop(-1)
 			post_visit(n, visited)
 
@@ -585,29 +585,42 @@ def graph_components(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def __su_get_number(numbering, src_blocks_tuple) :
+	t, nr, src_b, i = src_blocks_tuple
+	return numbering[src_b][0]
+
 def __su_post_visit(g, numbering, n, visited) :
 #TODO add documentation
 #TODO take into account temp variables?
 	"""
-	commutativity comes in two flavours, it may be commutative block,
-	or numbered instances of variadic terminal
+commutativity comes in two flavours, it may be commutative block,
+or numbered instances of variadic terminal
 	"""
 
-#	print here(), n, visited
+#	print here(), n
 
 	p, s = g[n] # XXX s might be used to analyze spill space usage
 	src_blocks1 = [ (t, nr, src_b, i) for ((t, nr, ((src_b, src_t, src_t_nt),)), i) in zip(p, count()) ]
+	src_blocks1.sort(key=lambda sb : __su_get_number(numbering, sb))
 	if n.prototype.commutative :
-		src_grouped = ( ( None, sorted(src_blocks1, key=lambda (t, nr, src_b, i) : -numbering[src_b][0]) ), )
+#		src_grouped = [ ( None, sorted(src_blocks1, key=lambda sb : __su_get_number(numbering, sb)) ) ]
+		src_grouped = [ ( None, src_blocks1 ) ]
+#		src_grouped_old = [ ( None, sorted(src_blocks1, key=lambda (t, nr, src_b, i) : -numbering[src_b][0]) ) ]
+#		print here(), src_grouped_old == src_grouped
 	else :
-		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda (term, _0, _1, _2): term) ]
+#		print here()
+#		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda (term, _0, _1, _2): term) ]
+		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda sb: sb[0]) ]
 	index = 0
 	evaluated_blocks = []
 	usages = []
 	indices = []
 	for group_term, src_blocks in src_grouped :
 		if not n.prototype.commutative and group_term.commutative:
-			src_blocks = sorted(src_blocks, key=lambda (t, nr, src_b, i) : -numbering[src_b][0])
+#			src_blocks_old = sorted(src_blocks, key=lambda (t, nr, src_b, i) : -numbering[src_b][0])
+			src_blocks.sort(key=lambda sb : __su_get_number(numbering, sb))
+#			print(here(), src_blocks_old == src_blocks)
+
 		for term, nr, src_b, i in src_blocks :
 			if not src_b in evaluated_blocks :
 #				print here(), numbering, src_b
@@ -623,6 +636,7 @@ def __su_post_visit(g, numbering, n, visited) :
 
 def sethi_ullman(g) :
 #TODO testing, is it (easily) possible to algorithmically create graph with given numbering?
+	print(here())
 	numbering = {}
 	dft_alt(g, post_visit = partial(__su_post_visit, g, numbering))
 	return numbering
@@ -758,7 +772,7 @@ else :
 	#		print "get_tmp_ref: id=", id(tmp)
 		assert(len(refs)>0)
 		slot = get_tmp_slot(tmp)
-		print "add_tmp_ref: ", "slot=", slot
+		print("add_tmp_ref: ", "slot=", slot)
 		tmp[slot_type][slot] = list(refs)
 		return slot
 
@@ -775,7 +789,7 @@ else :
 				if len(slot) == 0 :
 					t_tmp[nr] = "empty"
 				else :
-					print "pop_tmp_ref:", t_tmp[nr]
+					print("pop_tmp_ref:", t_tmp[nr])
 				return nr
 		return None
 
