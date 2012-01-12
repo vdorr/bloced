@@ -96,7 +96,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in visited :
-			print here(), del_out.type_name
+#			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("tmp{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
@@ -185,7 +185,9 @@ def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
-	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
+#	print(dir(expd_dels.keys()[0]))
+	for d, i in zip(sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr), count()) :
+#	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_in = expd_dels[d][0]
 		del_type = types[del_in, del_in.terms[0], 0]
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(

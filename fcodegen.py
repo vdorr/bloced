@@ -3,7 +3,6 @@ import dfs
 from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
-import string
 from functools import partial
 from itertools import count, groupby
 from pprint import pprint
@@ -128,7 +127,8 @@ def codegen_alt(g, expd_dels, meta, types) :
 
 	assert(tmp_used_slots(tmp) == 0)
 
-	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
+#	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x,y: y.nr-x.nr) ]
+	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr, reverse=True) ]
 	output = (": tsk" + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * tmp_max_slots_used(tmp)) + linesep +
@@ -137,7 +137,7 @@ def codegen_alt(g, expd_dels, meta, types) :
 		if ( len(tmp) or len(del_init) ) else "")+
 		# main loop
 		"\tbegin" + linesep +
-		string.join([ "\t\t" + loc for loc in code ], linesep) + linesep +
+		linesep.join([ "\t\t" + loc for loc in code ]) + linesep +
 		"\tagain" + linesep + ";")
 
 	return output

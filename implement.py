@@ -421,12 +421,16 @@ a, b are type names, keys in known_types dict with type_t tuples
 
 
 def __infer_block_type(block, preds, types, known_types) :
-	inherited = []
+	inferred = None
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
-			inherited.append(types[block, t, t_nr])
-	return sorted(inherited,
-		cmp=partial(compare_types, known_types))[-1]
+			inherited = types[block, t, t_nr]
+			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
+				inferred = inherited
+#	return sorted(inherited,
+#		cmp=partial(compare_types, known_types))[-1]
+
+	return inferred
 
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
@@ -509,17 +513,18 @@ def __dft_alt_roots_sorter(g, roots) :
 		hsh = hashlib.md5()
 		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
 		for m in sorted(comp, key=lambda n: comp_loc_ids[n]) :
-			hsh.update(comp_loc_ids[m])
+			hsh.update(comp_loc_ids[m].encode())
 		comps.update({ n : hsh.hexdigest() for n in comp})
 
 	sortable = sortable_sinks(g, roots)
-
-	def comparer(a, b) :
-		per_comp = cmp(comps[a], comps[b])
-		return per_comp if per_comp else cmp(sortable[a], sortable[b])
-
 #	print(here(), "sortable=", sortable, "comps=", comps)
-	return sorted(sortable, cmp=comparer)
+
+#	def comparer(a, b) :
+#		per_comp = cmp(comps[a], comps[b])
+#		return per_comp if per_comp else cmp(sortable[a], sortable[b])
+#	return sorted(sortable, cmp=comparer)
+
+	return sorted(sortable, key=lambda x: comps[x]+"_"+sortable[x])
 
 
 def __dft_alt_term_sorter(g, block, preds) :
