@@ -149,18 +149,13 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types) :
-#		function_name="tsk",
-#		separate_state_vars=False,
-#		separate_temp_vars=False,
-##		shared_temp_vars=False,
-#		wrap_in_function=True,
-#		wrap_in_loop=True,
-#		infer_signature=True,
-#		input_blocks=None,
-#		output_blocks=None) :
+def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
+	task_name, code, types, tmp, expd_dels, dummies = codegen(
+		g, expd_dels, meta, types, task_name=task_name)
+	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
 
-	task_name = "tsk"
+
+def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
 	tmp = temp_init()
 	subtrees = {}
@@ -168,25 +163,14 @@ def codegen_alt(g, expd_dels, meta, types) :
 	dummies = set()
 	state_var_prefix = task_name + "_"
 
-#	print here(2)
-#	pprint(g)
-#	pprint(types)
-
 	dft_alt(g, post_visit = partial(__post_visit,
 		g, code, tmp, subtrees, expd_dels, types,
 		dummies, state_var_prefix))
-#	pprint(tmp)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-#TODO get name of task from from meta
-#TODO return state variables separately from task code
-#TODO mangle state vars names so that state vars from different task can share the same namespace
-#TODO infer function prototype from Input/Output blocks
-
-#	return code, types, tmp, expd_dels, dummies
-	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
+	return task_name, code, types, tmp, expd_dels, dummies
 
 
 def merge_codegen_output(a, b) :
