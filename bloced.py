@@ -1115,6 +1115,7 @@ class BlockEditorWindow(object) :
 			mnu.add_separator()
 		else :
 			self.__add_submenu_item(*((mnu, )+item))
+#			self.__add_submenu_item(*((mnu, )+item+(tuple() if len(item)==5 else (None,))))
 
 
 	def __add_submenu_item(self, parent, text, accel, handler, item_type="command", items=[]) :
@@ -1126,6 +1127,11 @@ class BlockEditorWindow(object) :
 			parent.add_cascade(label=text, menu=mnu)
 			for item in items :
 				self.__add_menu_item(mnu, item)
+		elif item_type in [ "radiobutton", "checkbutton" ] :
+			var = StringVar()
+			parent.add(item_type, label=txt, underline=under,
+				command=partial(handler, var) if handler else None,
+				accelerator=accel, variable=var)
 		else :
 			parent.add(item_type, label=txt, underline=under,
 				command=handler, accelerator=accel)
@@ -1177,6 +1183,14 @@ class BlockEditorWindow(object) :
 
 	def mkmac(self) :
 		try_mkmac(self.bloced.model)
+
+
+	def __choose_port(self, *a, **b) :
+		print(a[0].get())
+
+
+	def __choose_board(self, *a, **b) :
+		print(a[0].get())
 
 
 	def __init__(self) :
@@ -1281,9 +1295,9 @@ class BlockEditorWindow(object) :
 #			("&Stop", "Ctrl+F5", None)
 			"-",
 			("Board", None, None, "cascade",
-				[(b, None, None, "radiobutton") for b in build.get_board_types()]),
+				[(b, None, self.__choose_board, "radiobutton") for b in build.get_board_types()]),
 			("Serial Port", None, None, "cascade",
-				[(p, None, None, "radiobutton") for p, desc, nfo in build.get_ports()]),
+				[(p, None, self.__choose_port, "radiobutton") for p, desc, nfo in build.get_ports()]),
 			])
 
 		self.__add_top_menu("&Help", [
