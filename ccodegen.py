@@ -3,31 +3,30 @@ import dfs
 from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
-import string
 from functools import partial
-from itertools import count, groupby
+from itertools import count
 from pprint import pprint
 from implement import *
 
 # ------------------------------------------------------------------------------------------------------------
 
 __operators = {
-	"xor" :		lambda n, args : "(" + string.join(args, "^") + ")",
-	"or" :		lambda n, args : "(" + string.join(args, "|") + ")",
-	"nor" :		lambda n, args : "!(" + string.join(args, "|") + ")",
-	"and" :		lambda n, args : "(" + string.join(args, "&") + ")",
-	"nand" :	lambda n, args : "!(" + string.join(args, "&") + ")",
-	"not" :		lambda n, (arg,) : "!(" + arg + ")",
-	"add" :		lambda n, args : "(" + string.join(args, "+") + ")",
-	"sub" :		lambda n, args : "(" + string.join(args, "-") + ")",
-	"mul" :		lambda n, args : "(" + string.join(args, "*") + ")",
-	"div" :		lambda n, args : "(" + string.join(args, "/") + ")",
-	"mod" :		lambda n, args : "(" + string.join(args, "%") + ")",
-	"lt" :		lambda n, args : "(" + string.join(args, "<") + ")",
-	"gt" :		lambda n, args : "(" + string.join(args, ">") + ")",
-	"lte" :		lambda n, args : "(" + string.join(args, "<=") + ")",
-	"gte" :		lambda n, args : "(" + string.join(args, ">=") + ")",
-	"eq" :		lambda n, args : "(" + string.join(args, "==") + ")",
+	"xor" :		lambda n, args : "(" + "^".join(args) + ")",
+	"or" :		lambda n, args : "(" + "|".join(args) + ")",
+	"nor" :		lambda n, args : "!(" + "|".join(args) + ")",
+	"and" :		lambda n, args : "(" + "&".join(args) + ")",
+	"nand" :	lambda n, args : "!(" + "&".join(args) + ")",
+	"not" :		lambda n, arg : "!(" + arg[0] + ")",
+	"add" :		lambda n, args : "(" + "+".join(args) + ")",
+	"sub" :		lambda n, args : "(" + "-".join(args) + ")",
+	"mul" :		lambda n, args : "(" + "*".join(args) + ")",
+	"div" :		lambda n, args : "(" + "/".join(args) + ")",
+	"mod" :		lambda n, args : "(" + "%".join(args) + ")",
+	"lt" :		lambda n, args : "(" + "<".join(args) + ")",
+	"gt" :		lambda n, args : "(" + ">".join(args) + ")",
+	"lte" :		lambda n, args : "(" + "<=".join(args) + ")",
+	"gte" :		lambda n, args : "(" + ">=".join(args) + ")",
+	"eq" :		lambda n, args : "(" + "==".join(args) + ")",
 	#"divmod"
 }
 
@@ -39,7 +38,7 @@ def __implement(n, args, outs) :
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
 		return __operators[n.prototype.type_name](n, args)
 	else :
-		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
+		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
 def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, n, visited) :
@@ -206,7 +205,7 @@ def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
 		"".join(temp_vars + state_vars + dummy_vars) +
 		# main loop
 		"\tfor(;;)"+ linesep + "\t{" + linesep +
-		"\t\t" + string.join(code, linesep + "\t\t") + linesep +
+		"\t\t" + (linesep + "\t\t").join(code) + linesep +
 		"\t}" + linesep +
 		linesep + "}")
 
