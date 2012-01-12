@@ -31,6 +31,7 @@ __operators = {
 	#"divmod"
 }
 
+
 def __implement(n, args, outs) :
 #	print here(2), n, args, outs
 	if n.prototype.type_name in __operators :
@@ -40,13 +41,9 @@ def __implement(n, args, outs) :
 	else :
 		return n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
 
-# execution
+
 def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, n, visited) :
-
 #	print "__post_visit:", n.to_string()
-
-
-#TODO can i get rid off som cycles by use of other callbacks?
 
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
@@ -79,7 +76,6 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 			dummies.add(term_type)
 			outs.append("&"+term_type+"_dummy")
 
-	#gather inputs
 	for in_term, in_t_nr, preds in inputs :
 		assert(len(preds)==1)
 		((m, m_t, m_t_nr), ) = preds
@@ -104,10 +100,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
-#			code.append("tmp%i = del%i" % (slot, n.nr))
 			code.append("tmp{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
-#		code.append("to del%i" % n.nr)
-#		expr = "del%i=%s" % tuple([n.nr]+args)
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
 	elif isinstance(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
@@ -116,22 +109,13 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 		if del_in in visited :
 			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 			expr = "tmp%i" % slot
-#			code.append("tmp%i" % slot)
 		else :
-#			expr = "del%i" % n.nr
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
-#			exe_name = "get_del%i" % n.nr
-#			code.append("del%i" % n.nr)
-#		exe_name = "get_del%i" % n.nr
 	else :
 		assert(n.prototype.exe_name != None)
-#		exe_name = n.prototype.exe_name
 		expr = __implement(n, args, outs)
-#		expr = n.prototype.exe_name + "(" + string.join(args + outs, ", ") + ")"
 
-#	expr = exe_name + "(" + string.join(args, ", ") + string.join(outs, ", ") + ")"
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
-
 #	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
 
 	if is_expr :
