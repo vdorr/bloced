@@ -516,7 +516,7 @@ def __dft_alt_roots_sorter(g, roots) :
 		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
 		for m in sorted(comp, key=lambda n: comp_loc_ids[n]) :
 			hsh.update(comp_loc_ids[m])
-		comps.update({ n : comp_loc_ids[n] for n in comp})
+		comps.update({ n : hsh.hexdigest() for n in comp})
 
 	sortable = sortable_sinks(g, roots)
 
@@ -525,6 +525,7 @@ def __dft_alt_roots_sorter(g, roots) :
 		return per_comp if per_comp else cmp(sortable[a], sortable[b])
 
 	print(here(), "sortable=", sorted(sortable, cmp=comparer))
+	return sorted(sortable, cmp=comparer)
 	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
 
 
