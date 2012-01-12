@@ -7,7 +7,7 @@ from collections import namedtuple
 from itertools import groupby, count
 from pprint import pprint
 
-from implement import here
+from implement import here, KNOWN_TYPES
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -19,7 +19,8 @@ class JointProto(BlockPrototype):
 
 class ConstProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Const", [ Out(0, "y", E, 0.5) ],
+		BlockPrototype.__init__(self, "Const",
+			[ Out(0, "y", E, 0.5, type_name="<inferred>") ],
 			default_size=(96,28), category="Special")
 
 class DelayProto(BlockPrototype):
@@ -164,13 +165,13 @@ def load_macro(filename) :
 
 VMEX_SIG = "_VM_EXPORT_"
 
-known_types = {
-	"vm_char_t" : (None, ), #XXX XXX XXX
-	"vm_word_t" : (1, ),
-	"vm_dword_t" : (2, ),
-	"vm_float_t" : (2, ),
-	"void" : (0, ),
-}
+#known_types = {
+#	"vm_char_t" : (None, ), #XXX XXX XXX
+#	"vm_word_t" : (1, ),
+#	"vm_dword_t" : (2, ),
+#	"vm_float_t" : (2, ),
+#	"void" : (0, ),
+#}
 
 def is_vmex_line(s) :
 	ln = s.strip()
@@ -194,7 +195,7 @@ term_type = namedtuple("term", (
 #	"side", "pos",
 	"direction", "variadic", "commutative", "type_name"))
 
-def vmex_arg(a) :
+def vmex_arg(a, known_types) :
 	sig, name = a
 #	print "vmex_arg", a
 
@@ -207,7 +208,7 @@ def vmex_arg(a) :
 	(type_name, ) = [ tp for tp in sig if tp in known_types ]
 	return term_type(name, direction, variadic, commutative, type_name)
 
-def extract_exports(src_str) :
+def extract_exports(src_str, known_types) :
 	src_lines = src_str.split("\n")
 #	pprint(src_lines)
 	exports = [ parse_vmex_line(ln) for ln in
@@ -232,11 +233,11 @@ def extract_exports(src_str) :
 		inputs = [ a for a in args_list if not a in outputs ]
 		assert(set(outputs+inputs)==set(args_list))
 
-		terms_in = [ vmex_arg(a) for a in inputs ]
+		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
 		if outputs :
-			terms_out = [ vmex_arg(a) for a in outputs ]
+			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
 		elif ret_type[-1] != "void" :
-			terms_out = [ vmex_arg((ret_type, "out")) ]
+			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
 		else :
 			terms_out = []
 #		print name, ret_type#, terms_in, terms_out
@@ -246,11 +247,11 @@ def extract_exports(src_str) :
 
 	return vmex_funcs
 
-def extract_vmex(fname) :
+def extract_vmex(fname, known_types) :
 	srcf = open(fname, "r")
 	src_str = srcf.read()
 	srcf.close()
-	return extract_exports(src_str)
+	return extract_exports(src_str, known_types)
 
 from dfs import TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT, guess_block_size
 
@@ -303,7 +304,7 @@ def load_c_module(lib_name, input_files) :
 #	print "load_c_module:", input_files
 #	exports = [ (fn, extract_vmex(fn)) for fn in input_files ]
 	header = [ fn for fn in input_files if __is_header(fn) ][-1]
-	exports = extract_vmex(header)
+	exports = extract_vmex(header, KNOWN_TYPES)
 #	print("library '%s' exports %i functions" % (lib_name, len(exports)))
 #	pprint(exports)
 #TODO now produce prototypes
@@ -388,6 +389,7 @@ class BasicBlocksFactory(object) :
 			SysRqProto(),
 			InputProto(),
 			OutputProto(),
+			SBP("Sink", "Special", [ In(-1, "", W, .5, type_name="<infer>") ], pure=True),
 
 			BinaryOp("xor", "Logic", commutative=True),
 			BinaryOp("or", "Logic", commutative=True),
@@ -402,15 +404,22 @@ class BasicBlocksFactory(object) :
 			BinaryOp("div", "Arithmetic", commutative=False),
 			BinaryOp("mod", "Arithmetic", commutative=False),
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33), In(-1, "d", W, .66),
-				Out(-1, "q", E, .33), Out(-2, "r", E, .66)  ], pure=True),
+				Out(-1, "q", E, .33), Out(-2, "r", E, .66) ], pure=True),
+			BinaryOp("lt", "Arithmetic", commutative=False),
+			BinaryOp("gt", "Arithmetic", commutative=False),
+			BinaryOp("eq", "Arithmetic", commutative=False),
+			BinaryOp("lte", "Arithmetic", commutative=False),
+			BinaryOp("gte", "Arithmetic", commutative=False),
 
 #			SBP("load", "Memory", [ ]),
 #			SBP("store", "Memory", [ ]),
 #			SBP("load_nv", "Memory", [ ]),
 #			SBP("store_nv", "Memory", [ ]),
 
-			SBP("di", "Process IO", [ In(0, "nr", W, .5), Out(0, "y", E, .5) ], exe_name="io_di"),
-			SBP("do", "Process IO", [ In(-1, "nr", W, .33), In(-2, "x", W, .66) ], exe_name="io_do"),
+			SBP("di", "Process IO", [ In(0, "nr", W, .5, type_name="vm_word_t"),
+				Out(0, "y", E, .5, type_name="vm_word_t") ], exe_name="io_di"),
+			SBP("do", "Process IO", [ In(-1, "nr", W, .33, type_name="vm_word_t"),
+				In(-2, "x", W, .66, type_name="vm_word_t") ], exe_name="io_do"),
 		]
 		if scan_dir :
 			self.load_library(scan_dir)

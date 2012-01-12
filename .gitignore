@@ -6,3 +6,5 @@
 */tmp/*
 tmp/
 usersettings.pickle
+.coverage
+htmlcov

@@ -31,6 +31,25 @@ def here(depth=1) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+#XXX XXX XXX
+
+#TODO fetch type informations from some "machine support package"
+
+type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
+
+#type_name : (size_in_words, size_in_bytes, priority)
+KNOWN_TYPES = {
+	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
+	"vm_char_t" : type_t(1, 1, 0), #TODO
+	"vm_word_t" : type_t(1, 2, 1),
+	"vm_dword_t" : type_t(2, 4, 2),
+	"vm_float_t" : type_t(2, 4, 3),
+	"void" : None,
+}
+
+#XXX XXX XXX
+# ------------------------------------------------------------------------------------------------------------
+
 adjs_t = namedtuple("a", [ "p", "s", ])
 
 # ------------------------------------------------------------------------------------------------------------
@@ -140,10 +159,10 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_pair, new_pai
 #XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
-	replace single block from g with subgraph, subgraph may be empty dict and function might be used
-	to map block terminal to other blocks in g
-	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
-	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
+replace single block from g with subgraph, subgraph may be empty dict and function might be used
+to map block terminal to other blocks in g
+map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
 #	print "map_in=", map_in
 #	print "map_out=", map_out
@@ -350,6 +369,109 @@ def __merge_g_and_conns(g, conns) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+value_t = namedtuple("value_t", [ "value_type", "value"])#, "resource" 
+
+
+def __parse_num_lit(value, base=10, known_types=None) :
+	s = value.strip()
+	if s[-1] in "fF" or "." in s:
+		return ("vm_float_t", float(s))
+	else :
+		if s[-1] in "lL" :
+			return ("vm_dword_t", int(s[:-1], base))
+		else :
+			v = int(s, base)
+			val_type = "vm_word_t"
+			if known_types :
+				w_bytes = known_types["vm_word_t"].size_in_bytes
+				over = v > (2 ** ((w_bytes * 8 ) - 1) - 1)
+				val_type = "vm_dword_t" if over else "vm_word_t"
+			return (val_type, v)
+
+
+def parse_literal(s, known_types=None, variables={}) :
+	x = s.strip()
+	num_sig = (x[1:].strip()[0:2] if x[0] == "-" else x[0:2]).lower()
+	if x[0] == x[-1] == '"' :
+		return ("vm_dword_t", s.strip("\"'"))
+	elif num_sig == "0x" :
+		return __parse_num_lit(x, base=16, known_types=known_types)
+	elif num_sig == "0d" :
+		return __parse_num_lit(x, base=10, known_types=known_types)
+	elif num_sig == "0o" :
+		return __parse_num_lit(x, base=8, known_types=known_types)
+	elif num_sig == "0b" :
+		return __parse_num_lit(x, base=2, known_types=known_types)
+	elif num_sig[0] in ".0123456789" :
+		return __parse_num_lit(x)
+	elif x[0] in "_abcdefghijklmnoprstuvwxyz" :
+		if x in variables :
+			return variables[x]
+		else :
+			return (None, x)
+	else :
+		raise Exception("can not parse value")
+
+
+def compare_types(known_types, a, b) :
+	"""
+a, b are type names, keys in known_types dict with type_t tuples
+	"""
+	return known_types[a].priority - known_types[b].priority
+
+
+def __infer_block_type(block, preds, types, known_types) :
+	inherited = []
+	for t, t_nr, preds in preds :
+		if t.type_name == "<inferred>" :
+			inherited.append(types[block, t, t_nr])
+	return sorted(inherited,
+		cmp=partial(compare_types, known_types))[-1]
+
+
+def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
+#	print n, nt, nt_nr, "<-", m, mt, mt_nr
+	mt_type_name = mt.type_name
+	if mt_type_name == "<inferred>"	:
+		if m.prototype.__class__ == DelayOutProto :
+			value_type, _ = parse_literal(delays[m], known_types=known_types)
+			mt_type_name = types[m, mt, mt_nr] = value_type
+		elif m.prototype.__class__ == ConstProto :
+			value_type, _ = parse_literal(m.value, known_types=known_types)
+			mt_type_name = types[m, mt, mt_nr] = value_type
+#			print here(), mt_type_name
+		else :
+			types[m, mt, mt_nr] = mt_type_name = __infer_block_type(m, g[m].p, types, known_types)
+	if nt.type_name == "<inferred>"	:
+		types[n, nt, nt_nr] = mt_type_name
+
+
+def __infer_types_post_visit(g, types, known_types, n, visited) :
+	p, s = g[n]
+	for t, t_nr, succs in s :
+		if not succs :
+			types[n, t, t_nr] = __infer_block_type(n, p, types, known_types)
+
+
+def infer_types(g, expd_dels, known_types) :
+	"""
+types of outputs are inferred from types of inferred (in fact, inherited) inputs
+block with inferred output type must have at least one inferred input type
+if block have more than one inferred input type, highest priority type is used for all outputs
+type of Delay is derived from initial value
+	"""
+	delays = {}
+	for k, (din, dout) in expd_dels.items() :
+		delays[din] = delays[dout] = k.value
+	types = {}
+	dft_alt(g,
+		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
+		post_visit=partial(__infer_types_post_visit, g, types, known_types),
+		sinks_to_sources=True)
+	return types
+
+# ------------------------------------------------------------------------------------------------------------
+
 #TODO	__check_directions(conns)
 def make_dag(model, meta) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
@@ -375,18 +497,30 @@ def make_dag(model, meta) :
 
 	__expand_joints_new(graph)
 	__join_taps(graph)
+	types = infer_types(graph, delays, known_types=KNOWN_TYPES)
 
-	return graph, delays
+	return graph, delays, types
 
 # ------------------------------------------------------------------------------------------------------------
 
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
-	for comp, number in zip(graph_components(g), count()) :
-		comps.update({ n : number for n in comp})
+	for comp in graph_components(g) :
+		hsh = hashlib.md5()
+		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
+		for m in sorted(comp, key=lambda n: comp_loc_ids[n]) :
+			hsh.update(comp_loc_ids[m])
+		comps.update({ n : hsh.hexdigest() for n in comp})
+
 	sortable = sortable_sinks(g, roots)
-#	print(here(), "sortable=", sortable)
-	return sorted(sorted(sortable, key=sortable.__getitem__), key=lambda n: comps[n])
+
+	def comparer(a, b) :
+		per_comp = cmp(comps[a], comps[b])
+		return per_comp if per_comp else cmp(sortable[a], sortable[b])
+
+#	print(here(), "sortable=", sortable, "comps=", comps)
+	return sorted(sortable, cmp=comparer)
+
 
 def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
@@ -499,13 +633,13 @@ def dft(g, v,
 		visited={},
 		term=None) :
 	"""
-	graph structure:
-	{
-		blockA :
-			(p=[ (blockA->term, blockA->term->term_number,
-				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
-			 s=[ ]), ...
-	}
+graph structure:
+{
+	blockA :
+		(p=[ (blockA->term, blockA->term->term_number,
+			[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+		 s=[ ]), ...
+}
 	"""
 
 #	pprint(g)
@@ -667,153 +801,70 @@ def sortable_sinks(g, sinks) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#XXX XXX XXX
-
-KNOWN_TYPES = {
-	"vm_char_t" : (None, ), #XXX XXX XXX
-	"vm_word_t" : (1, ),
-	"vm_dword_t" : (2, ),
-	"vm_float_t" : (2, ),
-}
-
-#XXX XXX XXX
-# ------------------------------------------------------------------------------------------------------------
-
 #TODO testing
 #TODO it may be better to use dictionary
 
-if 1 :
+#__DBG = 0
 
-## TODO may have limit parameter and generate spill code
-	def temp_init() :
-		return []
+def temp_init(known_types=KNOWN_TYPES) :
+	tmp = { tp_name : []
+		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
+#	print "temp_init: id=", id(tmp), tmp
+	return tmp
 
-## ------------------------------------------------------------------------------------------------------------
 
-	def get_tmp_slot(tmp) :
-		if "empty" in tmp :
-			slot = tmp.index("empty")
-		else :
-			slot = len(tmp)
-			tmp.append("empty")
-		return slot
+def get_tmp_slot(tmp, slot_type="vm_word_t") :
+#	print "get_tmp_slot: id=", id(tmp)
+	if "empty" in tmp[slot_type] :
+		slot = tmp[slot_type].index("empty")
+	else :
+		slot = len(tmp[slot_type])
+		tmp[slot_type].append("empty")
+	return slot
 
-## ------------------------------------------------------------------------------------------------------------
 
-	def add_tmp_ref(tmp, refs) :
-		assert(len(refs)>0)
-		slot = get_tmp_slot(tmp)
-		tmp[slot] = list(refs)
-		return slot
+def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
+#	print "add_tmp_ref:", refs
+#	print "add_tmp_ref: id=", id(tmp)
+	assert(len(refs)>0)
+	assert(slot_type != "<inferred>")
+	slot = get_tmp_slot(tmp, slot_type=slot_type)
+#	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
+	tmp[slot_type][slot] = list(refs)
+	return slot
 
-## ------------------------------------------------------------------------------------------------------------
 
-	def pop_tmp_ref(tmp, b, t, t_nr) :
-	#	print "tmp=", tmp, "searching:", b, t
-		for slot, nr in zip(tmp, count()) :
-			if slot != "empty" and (b, t, t_nr) in slot :
-				slot.remove((b, t, t_nr))
-				if len(slot) == 0 :
-					tmp[nr] = "empty"
-	#			else :
-	#				print "pop_tmp_ref:", tmp[nr]
-				return nr
-		return None
-
-## ------------------------------------------------------------------------------------------------------------
-
-	def tmp_used_slots(tmp) :
-#		assert( sum([ 1 for slot in tmp if slot != "empty"])== reduce(lambda cnt, slot: cnt + (0 if slot == "empty" else 1), tmp, 0))
-		return sum([ 1 for slot in tmp if slot != "empty" ])
-
-# ------------------------------------------------------------------------------------------------------------
-
-	def tmp_max_slots_used(tmp) :
-		"""
-		returns peak number of slots in use to this time
-		"""
-		return len(tmp)
-
-# ------------------------------------------------------------------------------------------------------------
-
-else :
-
-# ------------------------------------------------------------------------------------------------------------
-
-#TODO testing
-#TODO it may be better to use dictionary
-
-	__DBG = 0
-
-# TODO may have limit parameter and generate spill code
-	def temp_init() :
-		tmp = { tp_name : [] for tp_name in KNOWN_TYPES }
-	#	if __DBG :
-	#		print "temp_init: id=", id(tmp)
-		return tmp
-
-# ------------------------------------------------------------------------------------------------------------
-
-	def get_tmp_slot(tmp, slot_type="vm_word_t") :
-	#	if __DBG :
-	#		print "get_tmp_slot: id=", id(tmp)
-		if "empty" in tmp[slot_type] :
-			slot = tmp[slot_type].index("empty")
-		else :
-			slot = len(tmp[slot_type])
-			tmp[slot_type].append("empty")
-		return slot
-
-# ------------------------------------------------------------------------------------------------------------
-
-	def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
-	#	print "add_tmp_ref:", refs
-	#	if __DBG :
-	#		print "get_tmp_ref: id=", id(tmp)
-		assert(len(refs)>0)
-		slot = get_tmp_slot(tmp)
-		print("add_tmp_ref: ", "slot=", slot)
-		tmp[slot_type][slot] = list(refs)
-		return slot
-
-# ------------------------------------------------------------------------------------------------------------
-
-	def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
-		t_tmp = tmp[slot_type]
-	#	if __DBG :
-	#		print "pop_tmp_ref: id=", id(tmp)
-	#	print "pop_tmp_ref:", "slot_type=", slot_type, "t_tmp=", t_tmp, "searching:", b, t
+def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+#	print "pop_tmp_ref:", "slot_type=", slot_type, "searching:", b, t
+#	pprint(tmp)
+	for _, t_tmp in tmp.items() :
 		for slot, nr in zip(t_tmp, count()) :
 			if slot != "empty" and (b, t, t_nr) in slot :
 				slot.remove((b, t, t_nr))
 				if len(slot) == 0 :
 					t_tmp[nr] = "empty"
-				else :
-					print("pop_tmp_ref:", t_tmp[nr])
 				return nr
-		return None
+	return None
 
-# ------------------------------------------------------------------------------------------------------------
 
-	def tmp_used_slots(tmp) :
-		"""
-		returns current number of non-empty slots of all types
-		"""
-	#	if __DBG :
-	#		print "tmp_used_slots: id=", id(tmp)
-		return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
-			for tp, t_tmp in tmp.items() ])
+def tmp_used_slots(tmp) :
+	"""
+returns current number of non-empty slots of all types
+	"""
+#	print "tmp_used_slots: id=", id(tmp)
+	return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
+		for tp, t_tmp in tmp.items() ])
 
-# ------------------------------------------------------------------------------------------------------------
 
-	def tmp_max_slots_used(tmp) :
-		"""
-		returns peak number of slots in use to this time
-		"""
-	#	if __DBG :
-	#		print "tmp_used_slots: id=", id(tmp)
-		return sum([ sum([ 1 for slot in t_tmp ])
-			for tp, t_tmp in tmp.items() ])
+def tmp_max_slots_used(tmp, slot_type=None) :
+	"""
+returns peak number of slots in use to this time
+returns results for single data type if slot_type argument set
+	"""
+	slots = [ t_tmp for tp, t_tmp in tmp.items()
+		if slot_type == None or tp == slot_type ]
+#	print "tmp_used_slots: id=", id(tmp), usage
+	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in slots ])
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -827,8 +878,8 @@ def printg(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 def implement_dfs(model, meta, codegen, out_fobj) :
-	graph, delays = make_dag(model, meta)
-	code = codegen(graph, delays, {})
+	graph, delays, types = make_dag(model, meta)
+	code = codegen(graph, delays, types, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 # ------------------------------------------------------------------------------------------------------------
