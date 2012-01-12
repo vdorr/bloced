@@ -192,15 +192,13 @@ def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, int(d.value), linesep))
 
-	temp_var_prefix = ""#task_name + "_" #TODO allow tmp var sharing
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :
 		slot_cnt = tmp_max_slots_used(tmp, slot_type=slot_type)
 		if slot_cnt > 0 :
-			names = [ "{0}tmp{1}".format(temp_var_prefix, i) for i in range(slot_cnt) ]
+			names = [ "tmp{0}".format(i) for i in range(slot_cnt) ]
 			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
 
-	dummy_var_prefix = ""#task_name + "_" #TODO allow tmp var sharing
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
 
 	output = ("void " + task_name + "()" + linesep + "{" + linesep +
