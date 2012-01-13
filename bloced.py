@@ -107,6 +107,7 @@ class textbox(Frame):
 
 # ------------------------------------------------------------------------------------------------------------
 
+#TODO move to dfs
 def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
 #	print "txt_width=", txt_width
 	txt_height = tsz #XXX XXX XXX
@@ -762,6 +763,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.selection_rect = None
 			self.selection = None
 
+#TODO move to dfs
 	@editing
 	def delete_selection(self) :
 		if self.selection :
@@ -773,7 +775,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.__raise_changed_event()#XXX decorator?
 
 	#TODO optimize (blockmodel.geo = (pos, size, angles) ...)
-	#XXX blockmodel.transform?
+#TODO move to dfs
 	#XXX create editor model/move to dfs?
 	@editing	
 	def rotate_selection(self, x, y, z) :
@@ -798,7 +800,7 @@ class BlockEditor(Frame, GraphModelListener) :
 				m.center = l, t
 			self.__raise_changed_event()#XXX decorator?
 
-	#XXX editor model?
+#TODO move to dfs
 	@editing	
 	def move_selection(self, x, y) :
 		if self.selection :
