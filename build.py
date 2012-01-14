@@ -10,7 +10,7 @@ from functools import partial
 import fnmatch
 import re
 from pprint import pprint
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from itertools import islice
 import shutil
 
@@ -98,7 +98,7 @@ def __parse_boards(boards_txt) :
 	if lines == None :
 		return None
 	valid = re.compile("\s*\w+\.\S+\s*=\s*\S+")
-	board_info = {}
+	board_info = OrderedDict()
 	for line in [ ln for ln in lines if valid.match(ln) ] :
 		key, value = line.split("=")
 		dot = key.index(".")

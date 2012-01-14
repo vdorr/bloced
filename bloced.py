@@ -69,6 +69,7 @@ class Configuration(object):
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
 	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
 	HELP_URL = "http://www.tinfoilhat.cz"
+	POLL_WORKERS_PERIOD = 1000
 
 cfg = Configuration()
 
@@ -967,8 +968,11 @@ class BlockEditor(Frame, GraphModelListener) :
 
 class BlockEditorWindow(object) :
 
-
-	filetypes = ( ("bloced files", "*.bloc"), ("all files", "*") )
+	def show_warning(self, msg) :
+		try :
+			tkMessageBox.showwarning(cfg.APP_NAME, msg, parent=self.root)
+		except :
+			pass
 
 
 	def new_file(self, a=None) :
@@ -980,7 +984,7 @@ class BlockEditorWindow(object) :
 
 
 	def open_file(self, a=None) :
-		fname = askopenfilename(filetypes=BlockEditorWindow.filetypes)
+		fname = askopenfilename(filetypes=KNOWN_EXTENSIONS)
 		if fname :
 			self.open_this_file_new(fname)
 
@@ -988,13 +992,13 @@ class BlockEditorWindow(object) :
 	def open_this_file_new(self, fname) :
 		try :
 			f = open(fname, "rb")
-			mdl = unpickle_dfs_model(f, lib=self.blockfactory)
+			mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
 			f.close()
 			self.bloced.set_model(mdl, deserializing=True)
 			self.__set_current_file_name(fname)
 			self.bloced.changed = False
 		except IOError :
-			print("IOError")
+			self.show_warning("Failed to open file '{0}'".format(fname))
 
 
 	def save_file(self, fname) :
@@ -1012,11 +1016,11 @@ class BlockEditorWindow(object) :
 
 
 	def save_file_as(self) :
-		return self.save_file(asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
+		return self.save_file(asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
 
 
 	def save_current_file(self, a=None) :
-		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=BlockEditorWindow.filetypes))
+		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
 
 
 	def mnu_edit_cut(self, a=None) :
@@ -1090,6 +1094,7 @@ class BlockEditorWindow(object) :
 			elif ans == tkMessageBox.YES :
 				if not self.save_current_file() :
 					return None
+		self.work.finish()
 		self.__save_user_settings()
 		self.root.destroy()
 
@@ -1097,6 +1102,7 @@ class BlockEditorWindow(object) :
 	def __on_closing(self) :
 		self.close_window()
 
+	# ----------------------------------------------------------------------------------------------------
 
 	def __convert_mnu_text(self, text) :
 		under = text.find("&")
@@ -1111,30 +1117,42 @@ class BlockEditorWindow(object) :
 
 
 	def __add_menu_item(self, mnu, item) :
+		menu = None
 		if item == "-" :
-			mnu.add_separator()
+			menu = mnu.add_separator()
 		else :
-			self.__add_submenu_item(*((mnu, )+item))
+			menu = self.__add_submenu_item(mnu, item)
 #			self.__add_submenu_item(*((mnu, )+item+(tuple() if len(item)==5 else (None,))))
+		return menu
 
 
-	def __add_submenu_item(self, parent, text, accel, handler, item_type="command", items=[]) :
-		txt, under = self.__convert_mnu_text(text)
-		if accel :
-			self.root.bind(self.__convert_accel(accel), handler)
-		if item_type == "cascade" :
+	def __add_submenu_item(self, parent, item) :
+		menu = None
+		if item.text :
+			txt, under = self.__convert_mnu_text(item.text)
+		if item.accel :
+			self.root.bind(self.__convert_accel(item.accel), item.handler)
+		if isinstance(item, CascadeMnu) :
 			mnu = Menu(parent)
-			parent.add_cascade(label=text, menu=mnu)
-			for item in items :
-				self.__add_menu_item(mnu, item)
-		elif item_type in [ "radiobutton", "checkbutton" ] :
+			menu = parent.add_cascade(label=item.text, menu=mnu)
+			for i in item.items :
+				self.__menu_items[i] = self.__add_menu_item(mnu, i)
+		elif isinstance(item, RadioMnu) or isinstance(item, CheckMnu) :
 			var = StringVar()
-			parent.add(item_type, label=txt, underline=under,
-				command=partial(handler, var) if handler else None,
-				accelerator=accel, variable=var)
-		else :
-			parent.add(item_type, label=txt, underline=under,
-				command=handler, accelerator=accel)
+			item_type = "radiobutton" if isinstance(item, RadioMnu) else "checkbutton" #XXX ugly!!!
+			menu = parent.add(item_type, label=txt, underline=under,
+				command=partial(item.handler, var) if item.handler else None,
+				accelerator=item.accel, variable=var,
+				value=item.value if item.value else item.text)
+		elif isinstance(item, CmdMnu) :
+			menu = parent.add("command", label=txt, underline=under,
+				command=item.handler, accelerator=item.accel)
+			print "menu=", menu
+#		else :
+#			parent.add(item_type, label=txt, underline=under,
+#				command=handler, accelerator=accel)
+		self.__menu_items[item] = menu
+		return menu
 
 
 	def __add_top_menu(self, text, items=[]) :
@@ -1145,6 +1163,12 @@ class BlockEditorWindow(object) :
 			self.__add_menu_item(mnu, item)
 		return mnu
 
+
+	def __replace_menu(self, old, new) :
+		mnu = self.__menu_items.pop(old)
+		print((mnu))
+
+	# ----------------------------------------------------------------------------------------------------
 
 	def __set_current_file_name(self, fname) :
 		self.__fname = fname
@@ -1193,10 +1217,38 @@ class BlockEditorWindow(object) :
 		print(a[0].get())
 
 
-	def __init__(self) :
+	def __tick(self) :
+		self.work.fire_callbacks()
+#		messages = self.work.read_messages()
+#		if messages :
+#			print(messages)
+		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
+
+
+	def __workbench_status_changed(self, columns) :
+		print "workbench changed"
+		self.status_label_left.configure(text=columns[0])
+		self.status_label_right.configure(text=columns[-1])
+
+
+	def __port_list_changed(self) :
+		print "ports changed", self.work.get_port_list()
+		old = self.__port_menu
+		self.__port_menu = CascadeMnu("Serial Port",
+			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in self.work.get_port_list()])
+		self.__replace_menu(old, self.__port_menu)
+
+
+	def __init__(self, load_file=None) :
 
 		self.__fname = None
 		self.__changed = False
+
+		self.work = Workbench(lib_dir=os.path.join(os.getcwd(), "library"),
+			status_callback=self.__workbench_status_changed,
+			ports_callback=self.__port_list_changed)
+
+		self.__menu_items = {}
 
 		self.root = Tk()
 		self.root.protocol("WM_DELETE_WINDOW", self.__on_closing)
@@ -1247,69 +1299,66 @@ class BlockEditorWindow(object) :
 
 		self.bloced.changed_event = self.__changed_event
 
-		self.blockfactory = core.create_block_factory(
-			scan_dir=os.path.join(os.getcwd(), "library"))
-#		self.blockfactory.load_library(os.path.join(os.getcwd(), "library"))
-
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar
 
 		self.__add_top_menu("&File", [
-			("&New", "Ctrl+N", self.new_file),
-			("&Open...", "Ctrl+O", self.open_file),
-			("&Save", "Ctrl+S", self.save_current_file),
-			("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
+			CmdMnu("&New", "Ctrl+N", self.new_file),
+			CmdMnu("&Open...", "Ctrl+O", self.open_file),
+			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
+			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
 #			"-",
-#			("Export...", "Ctrl+E", self.__mnu_file_export),
-			"-",
-			("&Quit", "Alt+F4", self.close_window) ])
+#			CmdMnu("Export...", "Ctrl+E", self.__mnu_file_export),
+			SepMnu(),
+			CmdMnu("&Quit", "Alt+F4", self.close_window) ])
 
 		self.__add_top_menu("&Edit", [
-			("&Undo", "Ctrl+Z", self.mnu_edit_undo),
-			("&Redo", "Shift+Ctrl+Z", self.mnu_edit_redo),
-			"-",
-			("Cu&t", "Ctrl+X", self.mnu_edit_cut),
-			("&Copy", "Ctrl+C", self.mnu_edit_copy),
-			("&Paste", "Ctrl+V", self.mnu_edit_paste),
-			("&Delete", "Delete", self.mnu_edit_delete),
-			"-",
-			("Select &All", "Ctrl+A", self.mnu_edit_select_all),
-#			"-",
-#			("Co&mment Selection", "Ctrl+M", self.mnu_edit_comment),
-#			("U&ncomment Selection", "Shift+Ctrl+M", self.mnu_edit_uncomment),
-#			"-",
-#			("Pr&eferences", None, self.mnu_edit_preferences)
+			CmdMnu("&Undo", "Ctrl+Z", self.mnu_edit_undo),
+			CmdMnu("&Redo", "Shift+Ctrl+Z", self.mnu_edit_redo),
+			SepMnu(),
+			CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut),
+			CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
+			CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste),
+			CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
+			SepMnu(),
+			CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all),
+#			SepMnu(),
+#			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
 		#TODO should be explicitly sorted
-		blocks = ([ (cat, None, None, "cascade",
-			[ (proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
-				for cat, b_iter in groupby(self.blockfactory.block_list, lambda b: b.category) ])
+		blocks = ([ CascadeMnu(cat,
+			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
 		menu_blocks = self.__add_top_menu("&Insert", [
-			("&Insert last", "Ctrl+I", self.mnu_blocks_insert_last),
-			"-" ] + blocks)
+			CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last),
+			SepMnu(), ] + blocks)
+
+		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
+
+		self.__port_menu = CascadeMnu("Serial Port",
+			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports()])
 
 		self.__add_top_menu("&Model", [
-			("&Build", "F6", self.mnu_mode_build),
-			("&Run", "F5", self.mnu_mode_run),
-#			("&Stop", "Ctrl+F5", None)
-			"-",
-			("Board", None, None, "cascade",
-				[(b, None, self.__choose_board, "radiobutton") for b in build.get_board_types()]),
-			("Serial Port", None, None, "cascade",
-				[(p, None, self.__choose_port, "radiobutton") for p, desc, nfo in build.get_ports()]),
+			CmdMnu("&Build", "F6", self.mnu_mode_build),
+			CmdMnu("&Run", "F5", self.mnu_mode_run),
+#			CmdMnu("&Stop", "Ctrl+F5", None)
+			SepMnu(),
+			CascadeMnu("Board",
+				[RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards]),
+			self.__port_menu,
 			])
 
 		self.__add_top_menu("&Help", [
-			("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
-			"-",
-			("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
+			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
+			SepMnu(),
+			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
-			("Implement", None, self.implement),
-			("mkmac", None, self.mkmac),
-			("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
-			("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
+			CmdMnu("Implement", None, self.implement),
+			CmdMnu("mkmac", None, self.mkmac),
+			CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+			CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
 #		menu_debug.add_command(label="zoom",
 #			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
@@ -1324,16 +1373,37 @@ class BlockEditorWindow(object) :
 #		self.root.geometry("+%i+%i" % (self.__settings.main_left, self.__settings.main_top))
 #		self.root.geometry("%ix%i+%i+%i" % (self.__settings.main_width, self.__settings.main_height,
 #			self.__settings.main_left, self.__settings.main_top))
+#TODO
+#		thestate = window.state()
+#		window.state('normal')
+#		window.iconify()
+#		window.deiconify()
 
-		self.new_file()
+		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
+
+		if load_file :
+			self.open_this_file_new(load_file)
+		else :
+			self.new_file()
+
+	def run(self) :
+		self.root.mainloop()
 
 # ------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__" :
-	be = BlockEditorWindow()
+#	be = BlockEditorWindow()
+#	if len(sys.argv) == 2 :
+#		be.open_this_file_new(os.path.abspath(os.path.join(os.path.curdir, sys.argv[1])))
+#	be.root.mainloop()
+	f = None
 	if len(sys.argv) == 2 :
-		be.open_this_file_new(os.path.abspath(os.path.join(os.path.curdir, sys.argv[1])))
-	be.root.mainloop()
+		f = os.path.abspath(os.path.join(os.path.curdir, sys.argv[1]))
+	try :
+		BlockEditorWindow(load_file=f).run()
+	except :
+#TODO kill threads!!!
+		raise
 
 # ------------------------------------------------------------------------------------------------------------
 
