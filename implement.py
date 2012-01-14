@@ -871,6 +871,16 @@ returns results for single data type if slot_type argument set
 #	print "tmp_used_slots: id=", id(tmp), usage
 	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in slots ])
 
+
+def tmp_merge(tmp0, tmp1) :
+	tmp = dict(tmp1)
+	for t, slots in tmp0.items() :
+		if t in tmp :
+			tmp[t].extend(slots)
+		else :
+			tmp[t] = slots
+	return tmp
+
 # ------------------------------------------------------------------------------------------------------------
 
 def printg(g) :

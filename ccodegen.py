@@ -133,9 +133,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 # ------------------------------------------------------------------------------------------------------------
 
 def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
-	task_name, code, types, tmp, expd_dels, dummies = codegen(
-		g, expd_dels, meta, types, task_name=task_name)
-	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
+	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
+	return churn_code(tsk_name, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
@@ -153,7 +152,7 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, code, types, tmp, expd_dels, dummies
+	return task_name, (code, types, tmp, expd_dels, dummies)
 
 
 def merge_codegen_output(a, b) :
@@ -166,12 +165,7 @@ def merge_codegen_output(a, b) :
 	types = dict(types0)
 	types.update(types1)
 
-	tmp = dict(tmp1)
-	for k, v in tmp0.items() :
-		if k in tmp :
-			tmp[k].extend(v)
-		else :
-			tmp[k] = v
+	tmp = tmp_merge(tmp0, tmp1)
 
 	expd_dels = dict(expd_dels0)
 	expd_dels.update(expd_dels1)
@@ -181,7 +175,8 @@ def merge_codegen_output(a, b) :
 	return code, types, tmp, expd_dels, dummies
 
 
-def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
+def churn_code(task_name, cg_out) :
+	code, types, tmp, expd_dels, dummies = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
