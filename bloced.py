@@ -19,7 +19,7 @@ import autoroute
 from dfs import *
 import core
 from serializer import *
-from implement import implement_dfs, try_mkmac
+from implement import implement_dfs, try_mkmac, here
 import mathutils
 import build
 
@@ -1116,57 +1116,64 @@ class BlockEditorWindow(object) :
 		return "<" + string.join(parts, "-") + ">"
 
 
-	def __add_menu_item(self, mnu, item) :
+	def __add_menu_item(self, mnu, item, index=None) :
 		menu = None
-		if item == "-" :
+		if isinstance(item, SepMnu) :
 			menu = mnu.add_separator()
 		else :
-			menu = self.__add_submenu_item(mnu, item)
+			menu = self.__add_submenu_item(mnu, item, index=index)
 #			self.__add_submenu_item(*((mnu, )+item+(tuple() if len(item)==5 else (None,))))
 		return menu
 
 
-	def __add_submenu_item(self, parent, item) :
-		menu = None
+	def __add_submenu_item(self, parent, item, index=None) :
 		if item.text :
 			txt, under = self.__convert_mnu_text(item.text)
 		if item.accel :
 			self.root.bind(self.__convert_accel(item.accel), item.handler)
+		if index is None :
+			parent_add = parent.add
+		else :
+			parent_add = partial(parent.insert, index)
 		if isinstance(item, CascadeMnu) :
 			mnu = Menu(parent)
-			menu = parent.add_cascade(label=item.text, menu=mnu)
-			for i in item.items :
-				self.__menu_items[i] = self.__add_menu_item(mnu, i)
+			self.__menu_items[item] = (parent, index)
+			parent_add("cascade", label=item.text, menu=mnu)
+			for itm, mnu_index in zip(item.items, count()) :
+				self.__add_menu_item(mnu, itm)
+				self.__menu_items[itm] = (mnu, mnu_index)
 		elif isinstance(item, RadioMnu) or isinstance(item, CheckMnu) :
 			var = StringVar()
 			item_type = "radiobutton" if isinstance(item, RadioMnu) else "checkbutton" #XXX ugly!!!
-			menu = parent.add(item_type, label=txt, underline=under,
+			parent_add(item_type, label=txt, underline=under,
 				command=partial(item.handler, var) if item.handler else None,
 				accelerator=item.accel, variable=var,
 				value=item.value if item.value else item.text)
 		elif isinstance(item, CmdMnu) :
-			menu = parent.add("command", label=txt, underline=under,
+			parent_add("command", label=txt, underline=under,
 				command=item.handler, accelerator=item.accel)
-			print "menu=", menu
 #		else :
 #			parent.add(item_type, label=txt, underline=under,
 #				command=handler, accelerator=accel)
-		self.__menu_items[item] = menu
-		return menu
+#		self.__menu_items[item] = menu
 
 
 	def __add_top_menu(self, text, items=[]) :
 		mnu = Menu(self.__menubar)
 		txt, under = self.__convert_mnu_text(text)
 		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
-		for item in items :
-			self.__add_menu_item(mnu, item)
+		for item, i in zip(items, count()) :
+			self.__add_menu_item(mnu, item, index=i)
+			self.__menu_items[text] = (mnu, i)
 		return mnu
 
 
-	def __replace_menu(self, old, new) :
-		mnu = self.__menu_items.pop(old)
-		print((mnu))
+	def __replace_cascade(self, old, new) :
+#		print(here(), new.text, old.text)
+		mnu, index = self.__menu_items.pop(old)
+#		print(here(), mnu, index, new.text, old.text)
+		mnu.delete(index)
+		self.__add_submenu_item(mnu, new, index=index)
 
 	# ----------------------------------------------------------------------------------------------------
 
@@ -1236,7 +1243,7 @@ class BlockEditorWindow(object) :
 		old = self.__port_menu
 		self.__port_menu = CascadeMnu("Serial Port",
 			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in self.work.get_port_list()])
-		self.__replace_menu(old, self.__port_menu)
+		self.__replace_cascade(old, self.__port_menu)
 
 
 	def __init__(self, load_file=None) :
@@ -1339,7 +1346,7 @@ class BlockEditorWindow(object) :
 		self.__port_menu = CascadeMnu("Serial Port",
 			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports()])
 
-		self.__add_top_menu("&Model", [
+		self.__model_menu = self.__add_top_menu("&Model", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
 #			CmdMnu("&Stop", "Ctrl+F5", None)
@@ -1355,6 +1362,7 @@ class BlockEditorWindow(object) :
 			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
 		self.__add_top_menu("_Debu&g", [
+			CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
 			CmdMnu("Implement", None, self.implement),
 			CmdMnu("mkmac", None, self.mkmac),
 			CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
@@ -1399,9 +1407,13 @@ if __name__ == "__main__" :
 	f = None
 	if len(sys.argv) == 2 :
 		f = os.path.abspath(os.path.join(os.path.curdir, sys.argv[1]))
+	w = BlockEditorWindow(load_file=f)
 	try :
-		BlockEditorWindow(load_file=f).run()
+		w.run()
 	except :
+		print("top level except")
+		w.work.finish()
+#		w.work._Workbench__set_should_finish()
 #TODO kill threads!!!
 		raise
 
