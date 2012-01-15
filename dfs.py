@@ -1143,12 +1143,25 @@ class Workbench(object) :
 		return build.get_board_types()
 
 
+	@sync
+	def set_port(self, port) :
+		if port in { p[0] for p in self.__ports } :
+			self.__port = port
+		return self.__port
+
+
+	@sync
+	def get_port(self) :
+		return self.__port
+
+
 	def __init__(self, lib_dir=None,
 			status_callback=None,
 			ports_callback=None,
 			monitor_callback=None ) :
 
-		
+		self.__port = None
+
 		self.__callbacks = {}
 		self.__callbacks["status"] = status_callback
 		self.__callbacks["ports"] = ports_callback
@@ -1189,15 +1202,15 @@ class SepMnu(MenuItem) :
 
 
 class RadioMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
 		super(RadioMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value = text, accel, handler, value
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
 
 
 class CheckMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
 		super(CheckMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value = text, accel, handler
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
 
 
 class CmdMnu(MenuItem) :

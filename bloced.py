@@ -1143,12 +1143,18 @@ class BlockEditorWindow(object) :
 				self.__add_menu_item(mnu, itm)
 				self.__menu_items[itm] = (mnu, mnu_index)
 		elif isinstance(item, RadioMnu) or isinstance(item, CheckMnu) :
-			var = StringVar()
+			if parent in self.__menu_vars :
+				var = self.__menu_vars[parent]
+			else :
+				self.__menu_vars[parent] = var = StringVar()
 			item_type = "radiobutton" if isinstance(item, RadioMnu) else "checkbutton" #XXX ugly!!!
+			val = item.value if item.value else item.text
 			parent_add(item_type, label=txt, underline=under,
 				command=partial(item.handler, var) if item.handler else None,
 				accelerator=item.accel, variable=var,
-				value=item.value if item.value else item.text)
+				value=val)
+			if item.selected :
+				var.set(val)
 		elif isinstance(item, CmdMnu) :
 			parent_add("command", label=txt, underline=under,
 				command=item.handler, accelerator=item.accel)
@@ -1171,6 +1177,8 @@ class BlockEditorWindow(object) :
 	def __replace_cascade(self, old, new) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
+		if old in self.__menu_vars :
+			self.__menu_vars.pop(old)
 #		print(here(), mnu, index, new.text, old.text)
 		mnu.delete(index)
 		self.__add_submenu_item(mnu, new, index=index)
@@ -1217,7 +1225,8 @@ class BlockEditorWindow(object) :
 
 
 	def __choose_port(self, *a, **b) :
-		print(a[0].get())
+		print(here(), self.work.get_port(), " ->", a[0].get())
+		self.work.set_port(a[0].get())
 
 
 	def __choose_board(self, *a, **b) :
@@ -1240,9 +1249,11 @@ class BlockEditorWindow(object) :
 
 	def __port_list_changed(self) :
 		print "ports changed", self.work.get_port_list()
+		choice = self.work.get_port()
 		old = self.__port_menu
 		self.__port_menu = CascadeMnu("Serial Port",
-			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in self.work.get_port_list()])
+			[RadioMnu(p, None, self.__choose_port, selected=p==choice)
+				for p, desc, nfo in self.work.get_port_list()])
 		self.__replace_cascade(old, self.__port_menu)
 
 
@@ -1256,6 +1267,7 @@ class BlockEditorWindow(object) :
 			ports_callback=self.__port_list_changed)
 
 		self.__menu_items = {}
+		self.__menu_vars = {}
 
 		self.root = Tk()
 		self.root.protocol("WM_DELETE_WINDOW", self.__on_closing)
