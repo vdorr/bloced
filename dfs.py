@@ -997,6 +997,12 @@ from threading import Thread, Lock
 import time
 import sys
 import os
+from implement import implement_dfs
+from sys import version_info
+if version_info.major == 3 :
+	from io import StringIO
+else :
+	from StringIO import StringIO
 
 MAX_WORKERS = 1
 KNOWN_EXTENSIONS = ( ("bloced files", "*.bloc"), ("all files", "*") )
@@ -1056,17 +1062,50 @@ class Workbench(object) :
 		pass
 
 
-	def build_model(model, board_type, out_fobj) :
+#	def build(model, board_type, out_fobj) :
+	def build(self, model) :
+		board_type = self.get_board()
 	#	class DummyFile(object):
 	#		def write(self, s) :
 	#			print(s)
 	#	out_fobj = DummyFile()
-		implement_dfs(model, None, ccodegen.codegen_alt, out_fobj)
-		blob = None
-		return (True, (blob, ))
+
+		stub = os.linesep + "void main() { tsk(); }"
+
+		out_fobj = StringIO(stub)
+		implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+
+		source = out_fobj.getvalue() + stub
+
+		print(source)
+
+		blob_stream = StringIO()
+		rc, = build.build_source(board_type, source,
+			aux_src_dirs=[
+				("/usr/share/arduino/hardware/arduino/cores/arduino", False),
+				(os.path.join(os.getcwd(), "library", "arduino"), False)
+			],#TODO derive from libraries used
+			boards_txt=build.BOARDS_TXT,
+#			board_db={},
+			ignore_file=None,#"amkignore",
+			ignore_lines=[ "*.cpp", "*.hpp" ],
+#			prog_port=None,
+#			prog_driver="avrdude", # or "dfu-programmer"
+#			prog_adapter="arduino", #None for dfu-programmer
+			optimization="-Os",
+			verbose=False,
+			skip_programming=None,#False,
+#			dry_run=False,
+			blob_stream=blob_stream)
+
+		self.__blob = blob_stream.getvalue()
+		self.__blob_time = time.time()
+#		return (True, (blob, ))
 
 
-	def upload_to_board(board_type, prog_port, blob) :
+#	def upload(board_type, prog_port, blob) :
+	def upload(self) :
+		board_type, prog_port, blob = None, None, None
 		build.query_board_db(board_type, "")
 		rc = build.program("avrdude", prog_port, "arduino", prog_mcu, blob,
 			verbose=False,
@@ -1140,7 +1179,19 @@ class Workbench(object) :
 
 
 	def get_board_types(self) :
-		return build.get_board_types()
+		return self.__board_types
+
+
+	@sync
+	def set_board(self, board) :
+		if board in self.__board_types :
+			self.__board = board
+		return self.__board
+
+
+	@sync
+	def get_board(self) :
+		return self.__board
 
 
 	@sync
@@ -1161,6 +1212,11 @@ class Workbench(object) :
 			monitor_callback=None ) :
 
 		self.__port = None
+		self.__board_types = build.get_board_types()
+		self.__board = None
+
+		self.__blob = None
+		self.__blob_time = None
 
 		self.__callbacks = {}
 		self.__callbacks["status"] = status_callback

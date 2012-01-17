@@ -120,7 +120,7 @@ def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
 	numbering = sethi_ullman(g)
-	tmp = temp_init()
+	tmp = temp_init(core.KNOWN_TYPES)
 	d_stack = []
 	code = []
 	dft_alt(g,

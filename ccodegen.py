@@ -139,7 +139,7 @@ def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
 
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
-	tmp = temp_init()
+	tmp = temp_init(core.KNOWN_TYPES)
 	subtrees = {}
 	code = []
 	dummies = set()

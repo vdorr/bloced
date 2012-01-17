@@ -150,6 +150,7 @@ def build_source(board, source,
 		boards_txt=None,
 		board_db={},
 		ignore_file="amkignore",
+		ignore_lines=[],
 		prog_port=None,
 		prog_driver="avrdude", # or "dfu-programmer"
 		prog_adapter="arduino", #None for dfu-programmer
@@ -183,7 +184,7 @@ blob_stream
 		boards_txt=boards_txt,
 		board_db=board_db,
 		ignore_file=ignore_file,
-		ignore_lines = [],#XXX
+		ignore_lines = ignore_lines,
 		prog_port=prog_port,
 		prog_driver=prog_driver,
 		prog_adapter=prog_adapter,
@@ -258,15 +259,17 @@ board_db
 	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
 
 	do_ignore = lambda fn: False
+	ignores = []
 	if workdir and ignore_file :
 		ignores = __read_ignore(os.path.join(workdir, ignore_file))
-		if ignores != None :
-#			pprint(ignores)
-			ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
-			re_ignore = re.compile("("+")|(".join(ign_res)+")")
-			do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
-		else :
+		if ignores is None :
+			ignores = []
 			print("error reading ignore file '%s'" % ignore_file)
+	ignores += ignore_lines
+#	pprint(ignores)
+	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
+	re_ignore = re.compile("("+")|(".join(ign_res)+")")
+	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 
 	sources, idirs = list(aux_src_files), []
 	src_total, idir_total = 0, 0

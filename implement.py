@@ -1,6 +1,7 @@
 
-from dfs import *
+#from dfs import *
 from core import *
+#from core import DelayProto
 from collections import namedtuple
 from functools import partial
 from itertools import groupby, chain, count, islice
@@ -29,25 +30,6 @@ def here(depth=1) :
 #	- except constants
 #	- evaluation of stateless components can (should) be optimized
 
-# ------------------------------------------------------------------------------------------------------------
-
-#XXX XXX XXX
-
-#TODO fetch type informations from some "machine support package"
-
-type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
-
-#type_name : (size_in_words, size_in_bytes, priority)
-KNOWN_TYPES = {
-	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
-	"vm_char_t" : type_t(1, 1, 0), #TODO
-	"vm_word_t" : type_t(1, 2, 1),
-	"vm_dword_t" : type_t(2, 4, 2),
-	"vm_float_t" : type_t(2, 4, 3),
-	"void" : None,
-}
-
-#XXX XXX XXX
 # ------------------------------------------------------------------------------------------------------------
 
 adjs_t = namedtuple("a", [ "p", "s", ])
@@ -477,7 +459,7 @@ type of Delay is derived from initial value
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def make_dag(model, meta) :
+def make_dag(model, meta, known_types) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
@@ -501,7 +483,7 @@ def make_dag(model, meta) :
 
 	__expand_joints_new(graph)
 	__join_taps(graph)
-	types = infer_types(graph, delays, known_types=KNOWN_TYPES)
+	types = infer_types(graph, delays, known_types=known_types)
 
 	return graph, delays, types
 
@@ -811,7 +793,7 @@ def sortable_sinks(g, sinks) :
 
 #__DBG = 0
 
-def temp_init(known_types=KNOWN_TYPES) :
+def temp_init(known_types) :
 	tmp = { tp_name : []
 		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
 #	print "temp_init: id=", id(tmp), tmp
@@ -892,8 +874,8 @@ def printg(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def implement_dfs(model, meta, codegen, out_fobj) :
-	graph, delays, types = make_dag(model, meta)
+def implement_dfs(model, meta, codegen, known_types, out_fobj) :
+	graph, delays, types = make_dag(model, meta, known_types)
 	code = codegen(graph, delays, types, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
@@ -907,7 +889,7 @@ if __name__ == "__main__" :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	from serializer import unpickle_dfs_model
-	from core import create_block_factory
+	from core import create_block_factory, KNOWN_TYPES
 	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
@@ -935,7 +917,7 @@ if __name__ == "__main__" :
 			def write(self, s) :
 				print(s)
 		out_fobj = DummyFile()
-		implement_dfs(model, None, cgens[action], out_fobj)
+		implement_dfs(model, None, cgens[action], KNOWN_TYPES, out_fobj)
 		exit(0)
 	elif action == "mkmac" :
 #		try_mkmac(model)

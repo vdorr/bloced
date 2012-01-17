@@ -19,7 +19,8 @@ import autoroute
 from dfs import *
 import core
 from serializer import *
-from implement import implement_dfs, try_mkmac, here
+#from implement import implement_dfs, try_mkmac, here
+from implement import here
 import mathutils
 import build
 
@@ -1081,8 +1082,9 @@ class BlockEditorWindow(object) :
 
 
 	def implement(self) :
-		out = implement_dfs(self.bloced.get_model(), None)
-		print("out:", out)
+		pass
+#		out = implement_dfs(self.bloced.get_model(), None)
+#		print("out:", out)
 
 
 	def close_window(self, a=None) :
@@ -1205,11 +1207,12 @@ class BlockEditorWindow(object) :
 
 
 	def mnu_mode_build(self) :
-		pass
+		m = self.bloced.get_model()
+		self.work.build(m)
 
 
 	def mnu_mode_run(self) :
-		pass
+		self.work.upload()
 
 
 	def __save_user_settings(self) :
@@ -1221,7 +1224,8 @@ class BlockEditorWindow(object) :
 
 
 	def mkmac(self) :
-		try_mkmac(self.bloced.model)
+		pass
+#		try_mkmac(self.bloced.model)
 
 
 	def __choose_port(self, *a, **b) :
@@ -1230,7 +1234,8 @@ class BlockEditorWindow(object) :
 
 
 	def __choose_board(self, *a, **b) :
-		print(a[0].get())
+		print(here(), self.work.get_board(), " ->", a[0].get())
+		self.work.set_board(a[0].get())
 
 
 	def __tick(self) :
