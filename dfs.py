@@ -1073,11 +1073,15 @@ class Workbench(object) :
 		stub = os.linesep + "void main() { tsk(); }"
 
 		out_fobj = StringIO(stub)
-		implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+		try :
+			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+		except Exception as e:
+			return (False, e)
+		if out_fobj.tell() < 1 :
+			return (False, "no_code")
 
 		source = out_fobj.getvalue() + stub
-
-		print(source)
+#		print(source)
 
 		blob_stream = StringIO()
 		rc, = build.build_source(board_type, source,
@@ -1097,20 +1101,26 @@ class Workbench(object) :
 			skip_programming=None,#False,
 #			dry_run=False,
 			blob_stream=blob_stream)
+		if rc :
+			self.__blob = blob_stream.getvalue()
+			self.__blob_time = time.time()
+		else :
+			return (False, "build_failed")
 
-		self.__blob = blob_stream.getvalue()
-		self.__blob_time = time.time()
+		return (True, "ok")
 #		return (True, (blob, ))
 
 
 #	def upload(board_type, prog_port, blob) :
 	def upload(self) :
-		board_type, prog_port, blob = None, None, None
-		build.query_board_db(board_type, "")
-		rc = build.program("avrdude", prog_port, "arduino", prog_mcu, blob,
+		prog_port, blob = None, None
+		board_info = self.__board_types[self.get_board()]
+		prog_mcu = board_info["build.mcu"]
+		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
+			a_hex_blob=self.__blob,
 			verbose=False,
 			dry_run=False)
-		return (True, tuple())
+#		return (True, tuple())
 
 
 	sheets = property(lambda self: self.__sheets)

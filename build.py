@@ -32,7 +32,8 @@ def __run_external(args, workdir=None, redir=False) :
 			stdout=redir_method,
 			stderr=redir_method,
 			cwd=os.getcwd() if workdir is None else workdir )
-	except :
+	except Exception as e:
+		print e #XXX
 		return (False, None, tuple())
 	else :
 		(stdoutdata, stderrdata) = p.communicate()
@@ -358,6 +359,7 @@ board_db
 
 
 def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
 		verbose=False,
 		dry_run=False) :
 	if prog_driver == "avrdude" :
