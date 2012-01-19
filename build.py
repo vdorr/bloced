@@ -362,47 +362,79 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		a_hex_blob=None,
 		verbose=False,
 		dry_run=False) :
-	if prog_driver == "avrdude" :
-		if not prog_port :
-			print("avrdude programmer port not set!, quitting")
-			return (400, )
-		success, _, streams = run(["avrdude", "-q", ] +
-			(["-n", ] if dry_run else []) +
-			["-c"+prog_adapter,
-			"-P" + prog_port,
-			"-p" + prog_mcu,
-			"-Uflash:w:" + a_hex + ":i"])
-		if success :
-			print("succesfully uploaded")
-		else :
-			stdoutdata, stderrdata = streams
-			print("failed to run avrdude '%s'" % stderrdata.decode())
-			return (40, )
-	elif prog_driver == "dfu-programmer" :
-		if not dry_run :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
-			if not success :
-				print("failed to erase chip")
-				return (601, )
-			success, _, streams = run(["dfu-programmer",
-				prog_mcu, "flash", a_hex])
-			if not success :
-				print("failed to write flash")
-				return (602, )
-		if dry_run :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
-			if not success :
-				print("failed to reset mcu")
-				return (603, )
-		else :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
-			if not success :
-				print("failed to start mcu")
-				return (604, )
-		return (40, )
+	drivers = {
+		"avrdude" : program_avrdude,
+		"dfu-programmer" : program_dfu_programmer,
+	}
+	if prog_driver in drivers :
+		driver = prog_driver
 	else :
-		print("unknown programmer driver")
+		print("unknown programmer driver '{0}'".format(prog_driver))
 		return (40, )
+
+	if a_hex = None and a_hex_blob :
+		f = tempfile.NamedTemporaryFile(suffix=".hex")#is suffix needed?
+		filename = f.name
+	else :
+		filename = a_hex
+
+	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
+		verbose=verbose,
+		dry_run=dry_run)
+
+	if a_hex = None and a_hex_blob :
+		f.close()
+
+	return rc
+
+
+#TODO stdin input mode
+def program_avrdude(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
+		verbose=False,
+		dry_run=False) :
+	if not prog_port :
+		print("avrdude programmer port not set!, quitting")
+		return (400, )
+	success, _, streams = run(["avrdude", "-q", ] +
+		(["-n", ] if dry_run else []) +
+		["-c"+prog_adapter,
+		"-P" + prog_port,
+		"-p" + prog_mcu,
+		"-Uflash:w:" + a_hex + ":i"])
+	if success :
+		print("succesfully uploaded")
+	else :
+		stdoutdata, stderrdata = streams
+		print("failed to run avrdude '%s'" % stderrdata.decode())
+		return (40, )
+	return (0, )
+
+
+def program_dfu_programmer(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
+		verbose=False,
+		dry_run=False) :
+	if not dry_run :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
+		if not success :
+			print("failed to erase chip")
+			return (601, )
+		success, _, streams = run(["dfu-programmer",
+			prog_mcu, "flash", a_hex])
+		if not success :
+			print("failed to write flash")
+			return (602, )
+	if dry_run :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
+		if not success :
+			print("failed to reset mcu")
+			return (603, )
+	else :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
+		if not success :
+			print("failed to start mcu")
+			return (604, )
 	return (0, )
 
 # ----------------------------------------------------------------------------
