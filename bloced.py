@@ -744,7 +744,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.coords(self.selection_rect, b[0]-m, b[1]-m, b[2]+m, b[3]+m)
 
 	def create_selection_rect(self, x0, y0, x1, y1) :
-		print(x1, y1)
+#		print(x1, y1)
 		a = 4
 		c = 4
 		b = 0
@@ -843,21 +843,25 @@ class BlockEditor(Frame, GraphModelListener) :
 	# ----------------------------------------------------------------------------------------------------
 
 	@editing
-	def paste_block_on_mouse_down(self, prototype, e) :
-		b = BlockModel(prototype, self.model, left=e.x, top=e.y)
+	def paste_block_on_mouse_down(self, e) :
+		if not self.__paste_proto :
+			return None
+		b = BlockModel(self.__paste_proto, self.model, left=e.x, top=e.y)
 		self.model.add_block(b)
 		if not bool(e.state & BIT_SHIFT) :
 			self.end_paste_block()
 		self.__raise_changed_event()#XXX decorator? @editing?
 
 	def end_paste_block(self) :
+		self.__paste_proto = None
 		self.canv.config(cursor="arrow")
 		self.canv.bind("<ButtonPress-1>", self.default_mousedown)
 
 	def begin_paste_block(self, proto) :  # TODO weird, make it not weird
 		if proto :
 			self.canv.config(cursor="plus")
-			self.canv.bind("<ButtonPress-1>", partial(self.paste_block_on_mouse_down, proto))
+			self.__paste_proto = proto
+			self.canv.bind("<ButtonPress-1>", self.paste_block_on_mouse_down)
 		else :
 			self.canv.config(cursor="arrow")
 
@@ -908,11 +912,19 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.joints_index = {}
 		self.canv.config(cursor="arrow")
 
+	def cancel_action_pending(self) :
+		if self.__paste_proto is None :#self.selection_rect :
+			self.clear_selection()
+		else :
+			self.end_paste_block()
+
 	def __init__(self, parent) :
 
 #		self.__changed = False # XXX destroy
 
 		Frame.__init__(self, parent)
+
+		self.__paste_proto = None
 
 #		font = ImageFont.truetype('path/to/font.ttf', size)
 		self.font = ImageFont.load_default()
@@ -947,7 +959,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.bind("<B1-Motion>", self.default_mousemove)
 		self.canv.bind("<ButtonRelease-1>", self.default_mouseup)
 #		self.canv.bind("<Delete>", lambda a: self.delete_selection())
-		self.canv.bind("<Escape>", lambda a: self.clear_selection())
+		self.canv.bind("<Escape>", lambda a: self.cancel_action_pending())
 		self.canv.bind("<l>", lambda a: self.rotate_selection(0, 0, -90))
 		self.canv.bind("<r>", lambda a: self.rotate_selection(0, 0, 90))
 		self.canv.bind("<h>", lambda a: self.rotate_selection(0, 180, 0))
