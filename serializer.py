@@ -124,5 +124,39 @@ def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 
 	return blocks.values(), conn_list
 
-# ------------------------------------------------------------------------------------------------------------
+CONTAINER_VERSION = (0, 0, 1)
+
+def pickle_workbench(wrk, f) :
+	try :
+		pickle.dump(get_workbench_data(wrk), f)
+	except pickle.PickleError :
+		print("PickleError")
+		raise
+
+
+def get_workbench_data(w) :
+#XXX make it stable! same model -> same blob, bit by bit
+
+	global_meta = {}
+	toc = []
+	resources = []
+
+	for sheet in w.get_sheets() :
+		get_dfs_model_data(sheet)
+
+	return (CONTAINER_VERSION, global_meta, tuple(toc), tuple(resources))
+
+
+def unpickle_workbench(f, lib=None) :
+	try :
+		types, struct, meta = pickle.load(f)
+#		pprint((types, struct, meta))
+		return restore_dfs_model(types, struct, meta, lib)
+	except pickle.PickleError :
+		print("PickleError")
+		raise
+
+
+
+
 
