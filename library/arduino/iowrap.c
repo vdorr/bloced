@@ -3,6 +3,11 @@
 
 #define _VM_EXPORT_
 
+typedef int vm_word_t;
+typedef long vm_dword_t;
+
+#include "wiring.h"
+
 _VM_EXPORT_ vm_word_t d_in(vm_word_t nr);
 _VM_EXPORT_ void d_out(vm_word_t nr, vm_word_t v);
 _VM_EXPORT_ vm_word_t a_in(vm_word_t nr, vm_word_t a_ref);
@@ -15,9 +20,9 @@ _VM_EXPORT_ vm_dword_t time_us(void);
 
 /* ------------------------------------------------------------------------ */
 
-#define IF_LAZY_INIT	if
+/*#define IF_LAZY_INIT	if*/
 
-#define IF_LAZY_INIT()	if (1)
+#define IF_LAZY_INIT(x)	if (1)
 
 #define DIN_MAP(nr)	(nr)
 #define DOUT_MAP(nr)	(nr)

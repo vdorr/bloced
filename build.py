@@ -10,7 +10,7 @@ from functools import partial
 import fnmatch
 import re
 from pprint import pprint
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from itertools import islice
 import shutil
 
@@ -32,8 +32,9 @@ def __run_external(args, workdir=None, redir=False) :
 			stdout=redir_method,
 			stderr=redir_method,
 			cwd=os.getcwd() if workdir is None else workdir )
-	except :
-		return (False, None, tuple())
+	except Exception as e:
+		print e #XXX
+		return (False, None, (None, None))
 	else :
 		(stdoutdata, stderrdata) = p.communicate()
 		if p.returncode == 0 :
@@ -98,7 +99,7 @@ def __parse_boards(boards_txt) :
 	if lines == None :
 		return None
 	valid = re.compile("\s*\w+\.\S+\s*=\s*\S+")
-	board_info = {}
+	board_info = OrderedDict()
 	for line in [ ln for ln in lines if valid.match(ln) ] :
 		key, value = line.split("=")
 		dot = key.index(".")
@@ -150,6 +151,7 @@ def build_source(board, source,
 		boards_txt=None,
 		board_db={},
 		ignore_file="amkignore",
+		ignore_lines=[],
 		prog_port=None,
 		prog_driver="avrdude", # or "dfu-programmer"
 		prog_adapter="arduino", #None for dfu-programmer
@@ -183,7 +185,7 @@ blob_stream
 		boards_txt=boards_txt,
 		board_db=board_db,
 		ignore_file=ignore_file,
-		ignore_lines = [],#XXX
+		ignore_lines = ignore_lines,
 		prog_port=prog_port,
 		prog_driver=prog_driver,
 		prog_adapter=prog_adapter,
@@ -258,15 +260,17 @@ board_db
 	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
 
 	do_ignore = lambda fn: False
+	ignores = []
 	if workdir and ignore_file :
 		ignores = __read_ignore(os.path.join(workdir, ignore_file))
-		if ignores != None :
-#			pprint(ignores)
-			ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
-			re_ignore = re.compile("("+")|(".join(ign_res)+")")
-			do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
-		else :
+		if ignores is None :
+			ignores = []
 			print("error reading ignore file '%s'" % ignore_file)
+	ignores += ignore_lines
+#	pprint(ignores)
+	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
+	re_ignore = re.compile("("+")|(".join(ign_res)+")")
+	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 
 	sources, idirs = list(aux_src_files), []
 	src_total, idir_total = 0, 0
@@ -294,7 +298,6 @@ board_db
 		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total))
 
-	global run, run_loud #XXX
 	run = partial(__run_external, workdir=workdir, redir=True)
 	run_loud = partial(__run_external, workdir=workdir, redir=False)
 #	run_loud = run
@@ -355,49 +358,95 @@ board_db
 
 
 def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
 		verbose=False,
 		dry_run=False) :
-	if prog_driver == "avrdude" :
-		if not prog_port :
-			print("avrdude programmer port not set!, quitting")
-			return (400, )
-		success, _, streams = run(["avrdude", "-q", ] +
-			(["-n", ] if dry_run else []) +
-			["-c"+prog_adapter,
-			"-P" + prog_port,
-			"-p" + prog_mcu,
-			"-Uflash:w:" + a_hex + ":i"])
-		if success :
-			print("succesfully uploaded")
-		else :
-			stdoutdata, stderrdata = streams
-			print("failed to run avrdude '%s'" % stderrdata.decode())
-			return (40, )
-	elif prog_driver == "dfu-programmer" :
-		if not dry_run :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
-			if not success :
-				print("failed to erase chip")
-				return (601, )
-			success, _, streams = run(["dfu-programmer",
-				prog_mcu, "flash", a_hex])
-			if not success :
-				print("failed to write flash")
-				return (602, )
-		if dry_run :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
-			if not success :
-				print("failed to reset mcu")
-				return (603, )
-		else :
-			success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
-			if not success :
-				print("failed to start mcu")
-				return (604, )
-		return (40, )
+	drivers = {
+		"avrdude" : program_avrdude,
+		"dfu-programmer" : program_dfu_programmer,
+	}
+	if prog_driver in drivers :
+		driver = drivers[prog_driver]
 	else :
-		print("unknown programmer driver")
+		print("unknown programmer driver '{0}'".format(prog_driver))
 		return (40, )
+
+	if a_hex is None and a_hex_blob :
+		f = tempfile.NamedTemporaryFile(suffix=".hex")#is suffix needed?
+		filename = f.name
+	else :
+		filename = a_hex
+
+	print "filename=", filename
+
+	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
+		verbose=verbose,
+		dry_run=dry_run)
+
+	if a_hex is None and a_hex_blob :
+		f.close()
+
+	return rc
+
+
+#TODO stdin input mode
+def program_avrdude(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
+		verbose=False,
+		dry_run=False,
+		workdir=os.getcwd()) :
+
+#	run = partial(__run_external, workdir=workdir, redir=True)
+	run = partial(__run_external, workdir=workdir, redir=False)
+
+	if not prog_port :
+		print("avrdude programmer port not set!, quitting")
+		return (400, )
+	success, _, streams = run(["avrdude", "-q", ] +
+		(["-n", ] if dry_run else []) +
+		["-c"+prog_adapter,
+		"-P" + prog_port,
+		"-p" + prog_mcu,
+		"-Uflash:w:" + a_hex + ":i"])
+	if success :
+		print("succesfully uploaded")
+	else :
+		stdoutdata, stderrdata = streams
+		stderrstr = "None" if stderrdata is None else stderrdata.decode() 
+		print("failed to run avrdude '{0}'".format(stderrstr))
+		return (40, )
+	return (0, )
+
+
+def program_dfu_programmer(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
+		a_hex_blob=None,
+		verbose=False,
+		dry_run=False,
+		workdir=os.getcwd()) :
+
+	run = partial(__run_external, workdir=workdir, redir=True)
+#	run_loud = partial(__run_external, workdir=workdir, redir=False)
+
+	if not dry_run :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
+		if not success :
+			print("failed to erase chip")
+			return (601, )
+		success, _, streams = run(["dfu-programmer",
+			prog_mcu, "flash", a_hex])
+		if not success :
+			print("failed to write flash")
+			return (602, )
+	if dry_run :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "reset"])
+		if not success :
+			print("failed to reset mcu")
+			return (603, )
+	else :
+		success, _, streams = run(["dfu-programmer", prog_mcu, "start"])
+		if not success :
+			print("failed to start mcu")
+			return (604, )
 	return (0, )
 
 # ----------------------------------------------------------------------------

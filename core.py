@@ -4,11 +4,34 @@ import os
 import sys
 import hparser
 from collections import namedtuple
-from itertools import groupby, count
+from itertools import groupby, count, islice, dropwhile
 from pprint import pprint
 
-from implement import here, KNOWN_TYPES
+#from implement import here, KNOWN_TYPES
 
+
+def here(depth=0) :
+	pass
+
+# ------------------------------------------------------------------------------------------------------------
+
+#XXX XXX XXX
+
+#TODO fetch type informations from some "machine support package"
+
+type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
+
+#type_name : (size_in_words, size_in_bytes, priority)
+KNOWN_TYPES = {
+	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
+	"vm_char_t" : type_t(1, 1, 0), #TODO
+	"vm_word_t" : type_t(1, 2, 1),
+	"vm_dword_t" : type_t(2, 4, 2),
+	"vm_float_t" : type_t(2, 4, 3),
+	"void" : None,
+}
+
+#XXX XXX XXX
 # ------------------------------------------------------------------------------------------------------------
 
 class JointProto(BlockPrototype):
@@ -164,14 +187,6 @@ def load_macro(filename) :
 # ----------------------------------------------------------------------------
 
 VMEX_SIG = "_VM_EXPORT_"
-
-#known_types = {
-#	"vm_char_t" : (None, ), #XXX XXX XXX
-#	"vm_word_t" : (1, ),
-#	"vm_dword_t" : (2, ),
-#	"vm_float_t" : (2, ),
-#	"void" : (0, ),
-#}
 
 def is_vmex_line(s) :
 	ln = s.strip()

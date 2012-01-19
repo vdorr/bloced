@@ -1,9 +1,10 @@
 
-from dfs import *
+#from dfs import *
 from core import *
+#from core import DelayProto
 from collections import namedtuple
 from functools import partial
-from itertools import groupby, chain, count
+from itertools import groupby, chain, count, islice
 from pprint import pprint
 import sys
 import hashlib
@@ -16,7 +17,7 @@ def here(depth=1) :
 	stack = traceback.extract_stack()[:-1]
 	take = len(stack) if depth > len(stack)  else depth
 	trace = stack[(len(stack)-take):]
-	return string.join([ ("%s:%i" % (f[2], f[1])) for f in trace ], ">")
+	return "->".join([ ("%s:%i" % (f[2], f[1])) for f in trace ])
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -29,25 +30,6 @@ def here(depth=1) :
 #	- except constants
 #	- evaluation of stateless components can (should) be optimized
 
-# ------------------------------------------------------------------------------------------------------------
-
-#XXX XXX XXX
-
-#TODO fetch type informations from some "machine support package"
-
-type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
-
-#type_name : (size_in_words, size_in_bytes, priority)
-KNOWN_TYPES = {
-	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
-	"vm_char_t" : type_t(1, 1, 0), #TODO
-	"vm_word_t" : type_t(1, 2, 1),
-	"vm_dword_t" : type_t(2, 4, 2),
-	"vm_float_t" : type_t(2, 4, 3),
-	"void" : None,
-}
-
-#XXX XXX XXX
 # ------------------------------------------------------------------------------------------------------------
 
 adjs_t = namedtuple("a", [ "p", "s", ])
@@ -421,12 +403,16 @@ a, b are type names, keys in known_types dict with type_t tuples
 
 
 def __infer_block_type(block, preds, types, known_types) :
-	inherited = []
+	inferred = None
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
-			inherited.append(types[block, t, t_nr])
-	return sorted(inherited,
-		cmp=partial(compare_types, known_types))[-1]
+			inherited = types[block, t, t_nr]
+			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
+				inferred = inherited
+#	return sorted(inherited,
+#		cmp=partial(compare_types, known_types))[-1]
+
+	return inferred
 
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
@@ -473,7 +459,7 @@ type of Delay is derived from initial value
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def make_dag(model, meta) :
+def make_dag(model, meta, known_types) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
@@ -497,7 +483,7 @@ def make_dag(model, meta) :
 
 	__expand_joints_new(graph)
 	__join_taps(graph)
-	types = infer_types(graph, delays, known_types=KNOWN_TYPES)
+	types = infer_types(graph, delays, known_types=known_types)
 
 	return graph, delays, types
 
@@ -509,17 +495,18 @@ def __dft_alt_roots_sorter(g, roots) :
 		hsh = hashlib.md5()
 		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
 		for m in sorted(comp, key=lambda n: comp_loc_ids[n]) :
-			hsh.update(comp_loc_ids[m])
+			hsh.update(comp_loc_ids[m].encode())
 		comps.update({ n : hsh.hexdigest() for n in comp})
 
 	sortable = sortable_sinks(g, roots)
-
-	def comparer(a, b) :
-		per_comp = cmp(comps[a], comps[b])
-		return per_comp if per_comp else cmp(sortable[a], sortable[b])
-
 #	print(here(), "sortable=", sortable, "comps=", comps)
-	return sorted(sortable, cmp=comparer)
+
+#	def comparer(a, b) :
+#		per_comp = cmp(comps[a], comps[b])
+#		return per_comp if per_comp else cmp(sortable[a], sortable[b])
+#	return sorted(sortable, cmp=comparer)
+
+	return sorted(sortable, key=lambda x: comps[x]+"_"+sortable[x])
 
 
 def __dft_alt_term_sorter(g, block, preds) :
@@ -550,7 +537,7 @@ def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
 		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
 #	print("\t", "".join(edge))
-	hsh.update("".join(edge))
+	hsh.update("".join(edge).encode())
 
 def location_id(g, block, term=None) :
 	assert(term==None or (term!=None and len(term) == 2))
@@ -609,7 +596,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 			assert(m in visited)
 			post_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 		try :
-			nt, nt_nr, m, mt, mt_nr = it.next()
+			((nt, nt_nr, m, mt, mt_nr), ) = islice(it, 1)
 			stack[-1] = n, (nt, nt_nr, m, mt, mt_nr), it
 			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 			if not m in visited :
@@ -618,7 +605,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 #				print "\t", here(), m
 				pre_visit(m, visited, terms)
 				stack.append((m, None, terms.__iter__()))
-		except StopIteration :
+		except ValueError : #StopIteration :
 			stack.pop(-1)
 			post_visit(n, visited)
 
@@ -719,6 +706,10 @@ def graph_components(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def __su_get_number(numbering, src_blocks_tuple) :
+	t, nr, src_b, i = src_blocks_tuple
+	return numbering[src_b][0]
+
 def __su_post_visit(g, numbering, n, visited) :
 #TODO add documentation
 #TODO take into account temp variables?
@@ -727,21 +718,30 @@ commutativity comes in two flavours, it may be commutative block,
 or numbered instances of variadic terminal
 	"""
 
-#	print here(), n, visited
+#	print here(), n
 
 	p, s = g[n] # XXX s might be used to analyze spill space usage
 	src_blocks1 = [ (t, nr, src_b, i) for ((t, nr, ((src_b, src_t, src_t_nt),)), i) in zip(p, count()) ]
+	src_blocks1.sort(key=lambda sb : __su_get_number(numbering, sb))
 	if n.prototype.commutative :
-		src_grouped = ( ( None, sorted(src_blocks1, key=lambda (t, nr, src_b, i) : -numbering[src_b][0]) ), )
+#		src_grouped = [ ( None, sorted(src_blocks1, key=lambda sb : __su_get_number(numbering, sb)) ) ]
+		src_grouped = [ ( None, src_blocks1 ) ]
+#		src_grouped_old = [ ( None, sorted(src_blocks1, key=lambda (t, nr, src_b, i) : -numbering[src_b][0]) ) ]
+#		print here(), src_grouped_old == src_grouped
 	else :
-		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda (term, _0, _1, _2): term) ]
+#		print here()
+#		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda (term, _0, _1, _2): term) ]
+		src_grouped = [ (t, list(rest)) for t, rest in groupby(src_blocks1, lambda sb: sb[0]) ]
 	index = 0
 	evaluated_blocks = []
 	usages = []
 	indices = []
 	for group_term, src_blocks in src_grouped :
 		if not n.prototype.commutative and group_term.commutative:
-			src_blocks = sorted(src_blocks, key=lambda (t, nr, src_b, i) : -numbering[src_b][0])
+#			src_blocks_old = sorted(src_blocks, key=lambda (t, nr, src_b, i) : -numbering[src_b][0])
+			src_blocks.sort(key=lambda sb : __su_get_number(numbering, sb))
+#			print(here(), src_blocks_old == src_blocks)
+
 		for term, nr, src_b, i in src_blocks :
 			if not src_b in evaluated_blocks :
 #				print here(), numbering, src_b
@@ -757,6 +757,7 @@ or numbered instances of variadic terminal
 
 def sethi_ullman(g) :
 #TODO testing, is it (easily) possible to algorithmically create graph with given numbering?
+	print(here())
 	numbering = {}
 	dft_alt(g, post_visit = partial(__su_post_visit, g, numbering))
 	return numbering
@@ -792,7 +793,7 @@ def sortable_sinks(g, sinks) :
 
 #__DBG = 0
 
-def temp_init(known_types=KNOWN_TYPES) :
+def temp_init(known_types) :
 	tmp = { tp_name : []
 		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
 #	print "temp_init: id=", id(tmp), tmp
@@ -852,6 +853,16 @@ returns results for single data type if slot_type argument set
 #	print "tmp_used_slots: id=", id(tmp), usage
 	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in slots ])
 
+
+def tmp_merge(tmp0, tmp1) :
+	tmp = dict(tmp1)
+	for t, slots in tmp0.items() :
+		if t in tmp :
+			tmp[t].extend(slots)
+		else :
+			tmp[t] = slots
+	return tmp
+
 # ------------------------------------------------------------------------------------------------------------
 
 def printg(g) :
@@ -863,8 +874,8 @@ def printg(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def implement_dfs(model, meta, codegen, out_fobj) :
-	graph, delays, types = make_dag(model, meta)
+def implement_dfs(model, meta, codegen, known_types, out_fobj) :
+	graph, delays, types = make_dag(model, meta, known_types)
 	code = codegen(graph, delays, types, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
@@ -878,7 +889,7 @@ if __name__ == "__main__" :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	from serializer import unpickle_dfs_model
-	from core import create_block_factory
+	from core import create_block_factory, KNOWN_TYPES
 	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
@@ -906,7 +917,7 @@ if __name__ == "__main__" :
 			def write(self, s) :
 				print(s)
 		out_fobj = DummyFile()
-		implement_dfs(model, None, cgens[action], out_fobj)
+		implement_dfs(model, None, cgens[action], KNOWN_TYPES, out_fobj)
 		exit(0)
 	elif action == "mkmac" :
 #		try_mkmac(model)

@@ -3,7 +3,6 @@ import dfs
 from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
-import string
 from functools import partial
 from itertools import count, groupby
 from pprint import pprint
@@ -25,7 +24,7 @@ def pre_dive(code, tmp, n, nt, nt_nr, m, mt, mt_nr, visited) :
 
 # single input preparation
 def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
-	print "post_dive:", n, nt, "<-", m, mt
+#	print "post_dive:", n, nt, "<-", m, mt
 #	assert(n in visited)
 #	assert(m in visited)
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
@@ -51,16 +50,16 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 # execution
 def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 
-	print "post_visit", n, n.prototype
+#	print "post_visit", n, n.prototype
 
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
-		print 1
+#		print 1
 		if not del_out in visited :
-			print 2
+#			print 2
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("del%i to tmp%i" % (n.nr, slot))
 		code.append("to del%i" % n.nr)
@@ -112,24 +111,54 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types) :
+def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
+
+	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
+	return churn_code(tsk_name, cg_out)
+
+
+def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
 	numbering = sethi_ullman(g)
-	tmp = temp_init()
+	tmp = temp_init(core.KNOWN_TYPES)
 	d_stack = []
 	code = []
 	dft_alt(g,
-		partial(pre_visit, g, numbering),
-		partial(pre_dive, code, tmp),
-		partial(post_dive, g, code, tmp, d_stack),
-		partial(post_visit, g, code, tmp, d_stack, expd_dels),
-		partial(pre_tree, g, code, tmp, d_stack),
-		partial(post_tree, g, code, tmp, d_stack))
+		pre_visit=partial(pre_visit, g, numbering),
+		pre_dive=partial(pre_dive, code, tmp),
+		post_dive=partial(post_dive, g, code, tmp, d_stack),
+		post_visit=partial(post_visit, g, code, tmp, d_stack, expd_dels),
+		pre_tree=partial(pre_tree, g, code, tmp, d_stack),
+		post_tree=partial(post_tree, g, code, tmp, d_stack))
 
 	assert(tmp_used_slots(tmp) == 0)
 
-	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr) ]
-	output = (": tsk" + linesep +
+	return task_name, (code, types, tmp, expd_dels)
+
+
+def merge_codegen_output(a, b) :
+	code0, types0, tmp0, expd_dels0, dummies0 = a
+	code1, types1, tmp1, expd_dels1, dummies1 = b
+	code = code0 + code1
+
+	types = dict(types0)
+	types.update(types1)
+
+	tmp = tmp_merge(tmp0, tmp1)
+
+	expd_dels = dict(expd_dels0)
+	expd_dels.update(expd_dels1)
+
+	return code, types, tmp, expd_dels
+
+
+def churn_code(task_name, cg_out) :
+
+	code, types, tmp, expd_dels = cg_out
+
+#	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x,y: y.nr-x.nr) ]
+	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr, reverse=True) ]
+	output = (": " + task_name + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * tmp_max_slots_used(tmp)) + linesep +
 		("\tlocals| " + ("del%i " * len(del_init)) % tuple(range(len(del_init))) +
@@ -137,7 +166,7 @@ def codegen_alt(g, expd_dels, meta, types) :
 		if ( len(tmp) or len(del_init) ) else "")+
 		# main loop
 		"\tbegin" + linesep +
-		string.join([ "\t\t" + loc for loc in code ], linesep) + linesep +
+		linesep.join([ "\t\t" + loc for loc in code ]) + linesep +
 		"\tagain" + linesep + ";")
 
 	return output

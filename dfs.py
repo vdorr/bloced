@@ -1,6 +1,5 @@
 
 from itertools import dropwhile, islice, count
-from multiprocessing import Process, Queue, Lock
 #import traceback
 
 """
@@ -102,6 +101,9 @@ class TermModel(object) :
 	def __repr__(self) :
 		return "." + self.__name
 #		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
+
+	def __lt__(self, b) :
+		return id(self) < id(b)
 
 class In(TermModel) :
 	def __init__(self, arg_index, name, side, pos,
@@ -986,51 +988,309 @@ def try_mkmac(model) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+import core
 import build
 import ccodegen
+from Queue import Queue, Empty as QueueEmpty
+from threading import Thread, Lock
+#from multiprocessing import Process, Queue, Lock
+import time
+import sys
+import os
+from implement import implement_dfs
+from sys import version_info
+if version_info.major == 3 :
+	from io import StringIO
+else :
+	from StringIO import StringIO
 
-class Model(object) :
+MAX_WORKERS = 1
+KNOWN_EXTENSIONS = ( ("bloced files", "*.bloc"), ("all files", "*") )
+
+#def synchronized(lock):
+#	def wrap(f):
+#		def newFunction(*args, **kw):
+#			lock.acquire()
+#			try:
+#				return f(*args, **kw)
+#			finally:
+#			lock.release()
+#		return newFunction
+#	return wrap
+
+#def sync() :
+#	def wrapper(f) :
+#		a[0].lock.acquire()
+#		def wrap(*a, **b) :
+#			return f(*a, **b)
+#		a[0].lock.release()
+#	return wrapper
+
+def sync(f) :
+	def wrap(*a, **b) :
+		a[0].lock.acquire()
+		ret = f(*a, **b)
+		a[0].lock.release()
+		return ret
+	return wrap
+
+
+def catch_all(f) :
+	def wrap(*a, **b) :
+		try :
+			ret = f(*a, **b)
+		except Exception as e :
+			print(e)
+			os._exit(1)
+		else :
+			return ret
+	return wrap
+
+
+class Workbench(object) :
 
 	def __worker_thread(self, nr) :
 		pass
+
 
 	def __spawn_worker(self, nr) :
 #		return threading.start_new(self.__worker_thread, (nr,))
 		pass
 
+
 	def add_job(self) :
 		pass
 
-	def build_model(model, board_type, out_fobj) :
+
+#	def build(model, board_type, out_fobj) :
+	def build(self, model) :
+		board_type = self.get_board()
 	#	class DummyFile(object):
 	#		def write(self, s) :
 	#			print(s)
 	#	out_fobj = DummyFile()
-		implement_dfs(model, None, ccodegen.codegen_alt, out_fobj)
-		blob = None
-		return (True, (blob, ))
+
+		stub = os.linesep + "void main() { tsk(); }"
+
+		out_fobj = StringIO(stub)
+		try :
+			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+		except Exception as e:
+			return (False, e)
+		if out_fobj.tell() < 1 :
+			return (False, "no_code")
+
+		source = out_fobj.getvalue() + stub
+#		print(source)
+
+		blob_stream = StringIO()
+		rc, = build.build_source(board_type, source,
+			aux_src_dirs=[
+				("/usr/share/arduino/hardware/arduino/cores/arduino", False),
+				(os.path.join(os.getcwd(), "library", "arduino"), False)
+			],#TODO derive from libraries used
+			boards_txt=build.BOARDS_TXT,
+#			board_db={},
+			ignore_file=None,#"amkignore",
+			ignore_lines=[ "*.cpp", "*.hpp" ],
+#			prog_port=None,
+#			prog_driver="avrdude", # or "dfu-programmer"
+#			prog_adapter="arduino", #None for dfu-programmer
+			optimization="-Os",
+			verbose=False,
+			skip_programming=True,#False,
+#			dry_run=False,
+			blob_stream=blob_stream)
+		if rc :
+			self.__blob = blob_stream.getvalue()
+			self.__blob_time = time.time()
+		else :
+			return (False, "build_failed")
+
+		return (True, "ok")
+#		return (True, (blob, ))
 
 
-	def upload_to_board(board_type, prog_port, blob) :
-		build.query_board_db(board_type, "")
-		rc = build.program("avrdude", prog_port, "arduino", prog_mcu, blob,
+#	def upload(board_type, prog_port, blob) :
+	def upload(self) :
+		prog_port, blob = None, None
+		board_info = self.__board_types[self.get_board()]
+		prog_mcu = board_info["build.mcu"]
+		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
+			a_hex_blob=self.__blob,
 			verbose=False,
 			dry_run=False)
-		return (True, tuple())
+#		return (True, tuple())
+
 
 	sheets = property(lambda self: self.__sheets)
-
 	meta = property(lambda self: self.__meta)
+	state_info = property(lambda self: self.get_state_info())
 
 
-# ------------------------------------------------------------------------------------------------------------
+	def get_state_info(self) :
+		return ("", "")#left, right
 
 
-	def __init__(self) :
+	def get_state_info(self) :
+		return ("", "")#left, right
+
+
+	@sync
+	def __get_should_finish(self) :
+		return self.__should_finish
+
+
+	@sync
+	def __set_should_finish(self) :
+		self.__should_finish = True
+
+
+	@catch_all
+	def __timer_thread(self) :
+		port_check = time.time()
+		while not self.__get_should_finish() :
+			time.sleep(0.3)
+			now = time.time()
+#			self.__messages.put("hello")
+			if now - port_check >= self.__port_check_time :
+#				print ("check ports")
+				self.set_port_list(build.get_ports())
+				port_check = time.time()
+
+
+	def read_messages(self) :
+		messages = []
+		try :
+			while not self.__messages.empty() :
+				messages.append(self.__messages.get_nowait())
+		except QueueEmpty :
+			pass
+		return messages
+
+
+	def fire_callbacks(self) :
+		for msg, (aps, akw) in self.read_messages() :
+			if msg in self.__callbacks :
+				callback = self.__callbacks[msg]
+				if callback :
+					callback(*aps, **akw)
+
+	@sync
+	def get_port_list(self) :
+		return self.__ports
+
+	@sync
+	def set_port_list(self, port_list) :
+		if self.__ports != port_list :
+			self.__ports = port_list
+			self.__messages.put(("ports", ([], {})))
+#			self.__messages.put(("status", ([("ports rescanned", ":-)")], {})))
+
+
+	def get_board_types(self) :
+		return self.__board_types
+
+
+	@sync
+	def set_board(self, board) :
+		if board in self.__board_types :
+			self.__board = board
+		return self.__board
+
+
+	@sync
+	def get_board(self) :
+		return self.__board
+
+
+	@sync
+	def set_port(self, port) :
+		if port in { p[0] for p in self.__ports } :
+			self.__port = port
+		return self.__port
+
+
+	@sync
+	def get_port(self) :
+		return self.__port
+
+
+	def __init__(self, lib_dir=None,
+			status_callback=None,
+			ports_callback=None,
+			monitor_callback=None ) :
+
+		self.__port = None
+		self.__board_types = build.get_board_types()
+		self.__board = None
+
+		self.__blob = None
+		self.__blob_time = None
+
+		self.__callbacks = {}
+		self.__callbacks["status"] = status_callback
+		self.__callbacks["ports"] = ports_callback
+		self.__callbacks["monitor"] = monitor_callback
+
+		self.__port_check_time = 1.0
+
+		self.__ports = []
+
+		self.blockfactory = core.create_block_factory(
+			scan_dir=lib_dir)
+
 		self.__sheets = []
 		self.__meta = {}
+
+		self.__should_finish = False
 		self.__messages = Queue()
+		self.lock = Lock()
+		self.tmr = Thread(target=self.__timer_thread)
+		self.tmr.start()
 		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
 
+
+	def finish(self) :
+		self.__set_should_finish()
+		self.tmr.join()
+
 # ------------------------------------------------------------------------------------------------------------
+
+class MenuItem(object) :
+	def __init__(self) :
+		self.text = None
+		self.accel = None
+		self.handler = None
+
+class SepMnu(MenuItem) :
+	pass
+
+
+class RadioMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(RadioMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
+
+
+class CheckMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(CheckMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
+
+
+class CmdMnu(MenuItem) :
+	def __init__(self, text, accel, handler) :
+		super(CmdMnu, self).__init__()
+		self.text, self.accel, self.handler = text, accel, handler
+
+
+class CascadeMnu(MenuItem) :
+	def __init__(self, text, items) :
+		super(CascadeMnu, self).__init__()
+		self.text, self.items = text, items
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 

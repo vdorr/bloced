@@ -96,7 +96,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in visited :
-			print here(), del_out.type_name
+#			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("tmp{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
@@ -133,14 +133,13 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 # ------------------------------------------------------------------------------------------------------------
 
 def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
-	task_name, code, types, tmp, expd_dels, dummies = codegen(
-		g, expd_dels, meta, types, task_name=task_name)
-	return churn_code(task_name, code, types, tmp, expd_dels, dummies)
+	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
+	return churn_code(tsk_name, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
-	tmp = temp_init()
+	tmp = temp_init(core.KNOWN_TYPES)
 	subtrees = {}
 	code = []
 	dummies = set()
@@ -153,7 +152,7 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, code, types, tmp, expd_dels, dummies
+	return task_name, (code, types, tmp, expd_dels, dummies)
 
 
 def merge_codegen_output(a, b) :
@@ -166,12 +165,7 @@ def merge_codegen_output(a, b) :
 	types = dict(types0)
 	types.update(types1)
 
-	tmp = dict(tmp1)
-	for k, v in tmp0.items() :
-		if k in tmp :
-			tmp[k].extend(v)
-		else :
-			tmp[k] = v
+	tmp = tmp_merge(tmp0, tmp1)
 
 	expd_dels = dict(expd_dels0)
 	expd_dels.update(expd_dels1)
@@ -181,11 +175,14 @@ def merge_codegen_output(a, b) :
 	return code, types, tmp, expd_dels, dummies
 
 
-def churn_code(task_name, code, types, tmp, expd_dels, dummies) :
+def churn_code(task_name, cg_out) :
+	code, types, tmp, expd_dels, dummies = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
-	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
+#	print(dir(expd_dels.keys()[0]))
+	for d, i in zip(sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr), count()) :
+#	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_in = expd_dels[d][0]
 		del_type = types[del_in, del_in.terms[0], 0]
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
