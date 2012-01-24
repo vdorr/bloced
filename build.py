@@ -34,7 +34,7 @@ def __run_external(args, workdir=None, redir=False) :
 			cwd=os.getcwd() if workdir is None else workdir )
 	except Exception as e:
 		print e #XXX
-		return (False, None, tuple())
+		return (False, None, (None, None))
 	else :
 		(stdoutdata, stderrdata) = p.communicate()
 		if p.returncode == 0 :
@@ -298,7 +298,6 @@ board_db
 		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total))
 
-	global run, run_loud #XXX
 	run = partial(__run_external, workdir=workdir, redir=True)
 	run_loud = partial(__run_external, workdir=workdir, redir=False)
 #	run_loud = run
@@ -367,22 +366,24 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		"dfu-programmer" : program_dfu_programmer,
 	}
 	if prog_driver in drivers :
-		driver = prog_driver
+		driver = drivers[prog_driver]
 	else :
 		print("unknown programmer driver '{0}'".format(prog_driver))
 		return (40, )
 
-	if a_hex = None and a_hex_blob :
+	if a_hex is None and a_hex_blob :
 		f = tempfile.NamedTemporaryFile(suffix=".hex")#is suffix needed?
 		filename = f.name
 	else :
 		filename = a_hex
 
+	print "filename=", filename
+
 	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
 		verbose=verbose,
 		dry_run=dry_run)
 
-	if a_hex = None and a_hex_blob :
+	if a_hex is None and a_hex_blob :
 		f.close()
 
 	return rc
@@ -392,7 +393,12 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 def program_avrdude(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		a_hex_blob=None,
 		verbose=False,
-		dry_run=False) :
+		dry_run=False,
+		workdir=os.getcwd()) :
+
+#	run = partial(__run_external, workdir=workdir, redir=True)
+	run = partial(__run_external, workdir=workdir, redir=False)
+
 	if not prog_port :
 		print("avrdude programmer port not set!, quitting")
 		return (400, )
@@ -406,7 +412,8 @@ def program_avrdude(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		print("succesfully uploaded")
 	else :
 		stdoutdata, stderrdata = streams
-		print("failed to run avrdude '%s'" % stderrdata.decode())
+		stderrstr = "None" if stderrdata is None else stderrdata.decode() 
+		print("failed to run avrdude '{0}'".format(stderrstr))
 		return (40, )
 	return (0, )
 
@@ -414,7 +421,12 @@ def program_avrdude(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 def program_dfu_programmer(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		a_hex_blob=None,
 		verbose=False,
-		dry_run=False) :
+		dry_run=False,
+		workdir=os.getcwd()) :
+
+	run = partial(__run_external, workdir=workdir, redir=True)
+#	run_loud = partial(__run_external, workdir=workdir, redir=False)
+
 	if not dry_run :
 		success, _, streams = run(["dfu-programmer", prog_mcu, "erase"])
 		if not success :

@@ -1098,7 +1098,7 @@ class Workbench(object) :
 #			prog_adapter="arduino", #None for dfu-programmer
 			optimization="-Os",
 			verbose=False,
-			skip_programming=None,#False,
+			skip_programming=True,#False,
 #			dry_run=False,
 			blob_stream=blob_stream)
 		if rc :
