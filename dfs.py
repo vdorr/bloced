@@ -818,7 +818,7 @@ class GraphModel(object) :
 
 	connections_meta = property(lambda self: self.__connections_meta)
 
-	name = property(lambda self: "Sheet#1")#TODO
+#	name = property(lambda self: "Sheet#1")#TODO
 
 	def __init__(self) :
 
@@ -1035,7 +1035,7 @@ from threading import Thread, Lock
 import time
 import sys
 import os
-from implement import implement_dfs
+from implement import implement_dfs, here
 from sys import version_info
 if version_info.major == 3 :
 	from io import StringIO
@@ -1162,7 +1162,7 @@ class Workbench(object) :
 #		return (True, tuple())
 
 
-	sheets = property(lambda self: self.__sheets)
+	sheets = property(lambda self: self.__sheets.values())
 	state_info = property(lambda self: self.get_state_info())
 
 
@@ -1267,25 +1267,23 @@ class Workbench(object) :
 	meta = property(get_meta)
 
 
-	def add_sheet(sheet=None, name=None) :
+	def add_sheet(self, sheet=None, name=None) :
 #TODO raise event
 		if sheet is None :
 			sheet = GraphModel()
-		if sheet.name != name :
-			sheet.name = name
-		self.__sheets.append(sheet)
-		self.__changed("sheet_added", sheet)
-		print here()
+		print here(), name, sheet
+		self.__sheets[name] = sheet
+		self.__changed("sheet_added", (sheet, name))
 
 
-	def get_sheet_by_name(self, name) :
-		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
+#	def get_sheet_by_name(self, name) :
+#		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
 
 
-	def delete_sheet(sheet=None, name=None) :
-		if name != None :
-			sheet, = self.get_sheet_by_name(name)
-		self.__sheets.remove(sheet)
+	def delete_sheet(self, name=None) :
+#		if name != None :
+#			sheet, = self.get_sheet_by_name(name)
+		self.__sheets.pop(name)
 
 
 	def __changed(self, event, data) :
@@ -1298,6 +1296,8 @@ class Workbench(object) :
 #		self.__changed = True
 #		self.__set_current_file_name(self.__fname)
 		pass
+
+	MULTITHREADED = False
 
 
 	@catch_all
@@ -1330,15 +1330,14 @@ class Workbench(object) :
 		self.blockfactory = core.create_block_factory(
 			scan_dir=lib_dir)
 
-		self.__sheets = []
+		self.__sheets = {}
 		self.__meta = {}
 
 		self.__should_finish = False
 		self.__messages = Queue()
 		self.lock = Lock()
 #XXX
-		MULTITHREADED = False
-		if MULTITHREADED :
+		if Workbench.MULTITHREADED :
 			self.tmr = Thread(target=self.__timer_thread)
 			self.tmr.start()
 		else :
@@ -1350,7 +1349,8 @@ class Workbench(object) :
 
 	def finish(self) :
 		self.__set_should_finish()
-		self.tmr.join()
+		if Workbench.MULTITHREADED :
+			self.tmr.join()
 
 # ------------------------------------------------------------------------------------------------------------
 

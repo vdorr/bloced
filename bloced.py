@@ -367,6 +367,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		def decorated(*v, **w) :
 			if "editing_begin_edit_only" in w :
 				w.pop("editing_begin_edit_only")
+			print here(10)
 			v[0].model.begin_edit()
 			y = f(*v, **w)
 			if "editing_end_edit_only" in w :
@@ -1324,25 +1325,46 @@ class BlockEditorWindow(object) :
 
 	bloced = property(get_bloced)
 
+	def __select_sheet(self, name) :
 
-	def add_sheet(self, sheet) :
+#		print here(), name
 
-		bloced = BlockEditor(self.tabs, name=sheet.name)
-		self.tabs.add(self.bloced, text=sheet.name)
+#		return None
 
-		self.__sheets[sheet.name] = (sheet, bloced)#XXX
+		sheet, bloced = self.__sheets[name]
+		self.__bloced = bloced
+		self.__bloced.changed_event = self.__changed_event
+		self.tabs.select(self.__bloced)
 
+		print here(), name, self.__bloced
 
+	def add_sheet(self, sheet, name) :
+
+		bloced = BlockEditor(self.tabs)
 		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
+
+		print here(), name, sheet
+
+		bloced.set_model(None)
+		model = GraphModel()
+		bloced.set_model(model)
+#		self.__changed = False
+#		self.__set_current_file_name(None)
+
+
+		self.tabs.add(bloced, text=name)
+
+		self.__sheets[name] = (sheet, bloced)#XXX
+		self.__select_sheet(name)
 
 
 	def __change_callback(self, w, event, data) :
 		print(here(), w, event, data)
 		if event == "sheet_added" :
-			sheet = data #?
-			self.add_sheet(sheet)
+			sheet, name = data #?
+			self.add_sheet(sheet, name)
 
 
 #	@catch_all
@@ -1415,7 +1437,7 @@ class BlockEditorWindow(object) :
 
 		self.last_block_inserted = None
 
-		self.bloced.changed_event = self.__changed_event
+#		self.bloced.changed_event = self.__changed_event
 
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar
@@ -1425,7 +1447,12 @@ class BlockEditorWindow(object) :
 			CmdMnu("&Open...", "Ctrl+O", self.open_file),
 			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
 			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
-#			"-",
+			SepMnu(),
+			CmdMnu("Add Sheet", None, None),
+			CmdMnu("Import Sheet", None, None),
+			CmdMnu("Export Sheet", None, None),
+			CmdMnu("Delete Sheet", None, None),
+#			SepMnu(),
 #			CmdMnu("Export...", "Ctrl+E", self.__mnu_file_export),
 			SepMnu(),
 			CmdMnu("&Quit", "Alt+F4", self.close_window) ])
