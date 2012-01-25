@@ -124,7 +124,11 @@ def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 
 	return blocks.values(), conn_list
 
+
 CONTAINER_VERSION = (0, 0, 1)
+RES_TYPE_SHEET = "sheet"
+RES_TYPE_SHEET_VERSION = (0, 0, 1)
+
 
 def pickle_workbench(wrk, f) :
 	try :
@@ -137,24 +141,40 @@ def pickle_workbench(wrk, f) :
 def get_workbench_data(w) :
 #XXX make it stable! same model -> same blob, bit by bit
 
-	global_meta = {}
-	toc = []
-	resources = []
+	meta = w.get_meta()
+	resources = w.sheets
 
-	for sheet in w.get_sheets() :
-		get_dfs_model_data(sheet)
+	for sheet in w.sheets :
+		s = get_dfs_model_data(sheet)
+		resources.append((RES_TYPE_SHEET, RES_TYPE_SHEET_VERSION, s))
 
-	return (CONTAINER_VERSION, global_meta, tuple(toc), tuple(resources))
+	return (CONTAINER_VERSION, meta, tuple(resources))
 
 
-def unpickle_workbench(f, lib=None) :
+def unpickle_workbench(f, w, lib=None) :
 	try :
-		types, struct, meta = pickle.load(f)
-#		pprint((types, struct, meta))
-		return restore_dfs_model(types, struct, meta, lib)
-	except pickle.PickleError :
-		print("PickleError")
-		raise
+		version, meta, resources = pickle.load(f)
+	except pickle.PickleError as e :
+		return (False, "pickle_error", e)
+
+	if version != CONTAINER_VERSION :
+		return (False, "container_version_mismatch", None)
+
+	w.set_meta(meta)
+
+	for r_type, r_version, resrc in resources :
+		if r_type == RES_TYPE_SHEET :
+			if r_version == RES_TYPE_SHEET_VERSION :
+				types, struct, meta = resrc
+#				pprint((types, struct, meta))
+				m = restore_dfs_model(types, struct, meta, lib)
+				w.add_sheet(m)
+			else :
+				pass
+		else :
+			pass
+
+	return (True, "ok", w)
 
 
 

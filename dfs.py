@@ -818,6 +818,8 @@ class GraphModel(object) :
 
 	connections_meta = property(lambda self: self.__connections_meta)
 
+	name = property(lambda self: "Sheet#1")#TODO
+
 	def __init__(self) :
 
 		self.__history_frame_depth = 0 #XXX equals bool(self.__editing)
@@ -988,6 +990,42 @@ def try_mkmac(model) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+class MenuItem(object) :
+	def __init__(self) :
+		self.text = None
+		self.accel = None
+		self.handler = None
+
+class SepMnu(MenuItem) :
+	pass
+
+
+class RadioMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(RadioMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
+
+
+class CheckMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(CheckMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
+
+
+class CmdMnu(MenuItem) :
+	def __init__(self, text, accel, handler) :
+		super(CmdMnu, self).__init__()
+		self.text, self.accel, self.handler = text, accel, handler
+
+
+class CascadeMnu(MenuItem) :
+	def __init__(self, text, items) :
+		super(CascadeMnu, self).__init__()
+		self.text, self.items = text, items
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 import core
 import build
 import ccodegen
@@ -1003,6 +1041,7 @@ if version_info.major == 3 :
 	from io import StringIO
 else :
 	from StringIO import StringIO
+from pprint import pprint
 
 MAX_WORKERS = 1
 KNOWN_EXTENSIONS = ( ("bloced files", "*.bloc"), ("all files", "*") )
@@ -1124,7 +1163,6 @@ class Workbench(object) :
 
 
 	sheets = property(lambda self: self.__sheets)
-	meta = property(lambda self: self.__meta)
 	state_info = property(lambda self: self.get_state_info())
 
 
@@ -1216,10 +1254,60 @@ class Workbench(object) :
 		return self.__port
 
 
+	def get_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.__persistent }
+		return m
+
+	def set_meta(self, m) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
+
+
+	meta = property(get_meta)
+
+
+	def add_sheet(sheet=None, name=None) :
+#TODO raise event
+		if sheet is None :
+			sheet = GraphModel()
+		if sheet.name != name :
+			sheet.name = name
+		self.__sheets.append(sheet)
+		self.__changed("sheet_added", sheet)
+		print here()
+
+
+	def get_sheet_by_name(self, name) :
+		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
+
+
+	def delete_sheet(sheet=None, name=None) :
+		if name != None :
+			sheet, = self.get_sheet_by_name(name)
+		self.__sheets.remove(sheet)
+
+
+	def __changed(self, event, data) :
+		if self.__change_callback :
+			self.__change_callback(self, event, data)
+
+
+#TODO TODO TODO
+	def __sheet_changed_event(self) :
+#		self.__changed = True
+#		self.__set_current_file_name(self.__fname)
+		pass
+
+
+	@catch_all
 	def __init__(self, lib_dir=None,
 			status_callback=None,
 			ports_callback=None,
-			monitor_callback=None ) :
+			monitor_callback=None,
+			change_callback=None ) :
+
+		self.__persistent = ( "__port", "__board" )
 
 		self.__port = None
 		self.__board_types = build.get_board_types()
@@ -1232,6 +1320,8 @@ class Workbench(object) :
 		self.__callbacks["status"] = status_callback
 		self.__callbacks["ports"] = ports_callback
 		self.__callbacks["monitor"] = monitor_callback
+
+		self.__change_callback = change_callback
 
 		self.__port_check_time = 1.0
 
@@ -1246,50 +1336,21 @@ class Workbench(object) :
 		self.__should_finish = False
 		self.__messages = Queue()
 		self.lock = Lock()
-		self.tmr = Thread(target=self.__timer_thread)
-		self.tmr.start()
-		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
+#XXX
+		MULTITHREADED = False
+		if MULTITHREADED :
+			self.tmr = Thread(target=self.__timer_thread)
+			self.tmr.start()
+		else :
+			print("running single-threaded!!!")
+#		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
+
+		pprint(self.get_meta())
 
 
 	def finish(self) :
 		self.__set_should_finish()
 		self.tmr.join()
-
-# ------------------------------------------------------------------------------------------------------------
-
-class MenuItem(object) :
-	def __init__(self) :
-		self.text = None
-		self.accel = None
-		self.handler = None
-
-class SepMnu(MenuItem) :
-	pass
-
-
-class RadioMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None, selected=False) :
-		super(RadioMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
-
-
-class CheckMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None, selected=False) :
-		super(CheckMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
-
-
-class CmdMnu(MenuItem) :
-	def __init__(self, text, accel, handler) :
-		super(CmdMnu, self).__init__()
-		self.text, self.accel, self.handler = text, accel, handler
-
-
-class CascadeMnu(MenuItem) :
-	def __init__(self, text, items) :
-		super(CascadeMnu, self).__init__()
-		self.text, self.items = text, items
-
 
 # ------------------------------------------------------------------------------------------------------------
 

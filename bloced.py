@@ -981,6 +981,8 @@ class BlockEditor(Frame, GraphModelListener) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+NEW = True
+
 class BlockEditorWindow(object) :
 
 	def show_warning(self, msg) :
@@ -988,54 +990,6 @@ class BlockEditorWindow(object) :
 			tkMessageBox.showwarning(cfg.APP_NAME, msg, parent=self.root)
 		except :
 			pass
-
-
-	def new_file(self, a=None) :
-		self.bloced.set_model(None)
-		model = GraphModel()
-		self.bloced.set_model(model)
-		self.__changed = False
-		self.__set_current_file_name(None)
-
-
-	def open_file(self, a=None) :
-		fname = askopenfilename(filetypes=KNOWN_EXTENSIONS)
-		if fname :
-			self.open_this_file_new(fname)
-
-
-	def open_this_file_new(self, fname) :
-		try :
-			f = open(fname, "rb")
-			mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
-			f.close()
-			self.bloced.set_model(mdl, deserializing=True)
-			self.__set_current_file_name(fname)
-			self.bloced.changed = False
-		except IOError :
-			self.show_warning("Failed to open file '{0}'".format(fname))
-
-
-	def save_file(self, fname) :
-		if fname :
-			try :
-				f = open(fname, "wb")
-				pickle_dfs_model(self.bloced.get_model(), f)
-				f.close()
-				self.__changed = False
-				self.__set_current_file_name(fname)
-				return True
-			except IOError :
-				print("IOError")
-		return False
-
-
-	def save_file_as(self) :
-		return self.save_file(asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
-
-
-	def save_current_file(self, a=None) :
-		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
 
 
 	def mnu_edit_cut(self, a=None) :
@@ -1180,7 +1134,7 @@ class BlockEditorWindow(object) :
 #		self.__menu_items[item] = menu
 
 
-	def __add_top_menu(self, text, items=[]) :
+	def add_top_menu(self, text, items=[]) :
 		mnu = Menu(self.__menubar)
 		txt, under = self.__convert_mnu_text(text)
 		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
@@ -1190,7 +1144,7 @@ class BlockEditorWindow(object) :
 		return mnu
 
 
-	def __replace_cascade(self, old, new) :
+	def replace_cascade(self, old, new) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
 		if old in self.__menu_vars :
@@ -1218,6 +1172,94 @@ class BlockEditorWindow(object) :
 	def __changed_event(self) :
 		self.__changed = True
 		self.__set_current_file_name(self.__fname)
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+	def open_file(self, a=None) :
+		fname = askopenfilename(filetypes=KNOWN_EXTENSIONS)
+		if fname :
+			self.open_this_file_new(fname)
+
+	def save_file_as(self) :
+		return self.save_file(asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
+
+	def save_current_file(self, a=None) :
+		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
+
+
+
+	if NEW :
+		def new_file(self, a=None) :
+#			self.bloced.set_model(None)
+#			model = GraphModel()
+#			self.bloced.set_model(model)
+#			self.__changed = False
+#			self.__set_current_file_name(None)
+
+#TODO reset (or better, recreate) workbench
+			self.work.add_sheet(name="Sheet#1")
+
+		def open_this_file_new(self, fname) :
+			try :
+				f = open(fname, "rb")
+				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
+				f.close()
+				self.bloced.set_model(mdl, deserializing=True)
+				self.__set_current_file_name(fname)
+				self.bloced.changed = False
+			except IOError :
+				self.show_warning("Failed to open file '{0}'".format(fname))
+
+		def save_file(self, fname) :
+			if fname :
+				try :
+					f = open(fname, "wb")
+
+#					pickle_dfs_model(self.bloced.get_model(), f)
+					pickle_workbench(self.work, f)
+
+					f.close()
+					self.__changed = False
+					self.__set_current_file_name(fname)
+					return True
+				except IOError :
+					print("IOError")
+			return False
+	else :
+		def new_file(self, a=None) :
+			self.bloced.set_model(None)
+			model = GraphModel()
+			self.bloced.set_model(model)
+			self.__changed = False
+			self.__set_current_file_name(None)
+
+		def open_this_file_new(self, fname) :
+			try :
+				f = open(fname, "rb")
+				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
+				f.close()
+				self.bloced.set_model(mdl, deserializing=True)
+				self.__set_current_file_name(fname)
+				self.bloced.changed = False
+			except IOError :
+				self.show_warning("Failed to open file '{0}'".format(fname))
+
+		def save_file(self, fname) :
+			if fname :
+				try :
+					f = open(fname, "wb")
+					pickle_dfs_model(self.bloced.get_model(), f)
+					f.close()
+					self.__changed = False
+					self.__set_current_file_name(fname)
+					return True
+				except IOError :
+					print("IOError")
+			return False
+
+
+# ------------------------------------------------------------------------------------------------------------
 
 
 	def mnu_mode_build(self) :
@@ -1273,17 +1315,51 @@ class BlockEditorWindow(object) :
 		self.__port_menu = CascadeMnu("Serial Port",
 			[RadioMnu(p, None, self.__choose_port, selected=p==choice)
 				for p, desc, nfo in self.work.get_port_list()])
-		self.__replace_cascade(old, self.__port_menu)
+		self.replace_cascade(old, self.__port_menu)
 
 
+	def get_bloced(self) :
+		return self.__bloced
+
+
+	bloced = property(get_bloced)
+
+
+	def add_sheet(self, sheet) :
+
+		bloced = BlockEditor(self.tabs, name=sheet.name)
+		self.tabs.add(self.bloced, text=sheet.name)
+
+		self.__sheets[sheet.name] = (sheet, bloced)#XXX
+
+
+		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
+		bloced.columnconfigure(0, weight=1)
+		bloced.rowconfigure(0, weight=1)
+
+
+	def __change_callback(self, w, event, data) :
+		print(here(), w, event, data)
+		if event == "sheet_added" :
+			sheet = data #?
+			self.add_sheet(sheet)
+
+
+#	@catch_all
 	def __init__(self, load_file=None) :
+
+		self.__bloced = None
+
+		self.__sheets = {}#XXX see __change_callback
 
 		self.__fname = None
 		self.__changed = False
 
-		self.work = Workbench(lib_dir=os.path.join(os.getcwd(), "library"),
+		self.work = Workbench(
+			lib_dir=os.path.join(os.getcwd(), "library"),
 			status_callback=self.__workbench_status_changed,
-			ports_callback=self.__port_list_changed)
+			ports_callback=self.__port_list_changed,
+			change_callback=self.__change_callback)
 
 		self.__menu_items = {}
 		self.__menu_vars = {}
@@ -1307,16 +1383,20 @@ class BlockEditorWindow(object) :
 		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
 		self.tabs.columnconfigure(0, weight=1)
 		self.tabs.rowconfigure(1, weight=1)
+#		f1 = ttk.Frame(self.tabs)
 
-#ttk.Notebook
-		self.bloced = BlockEditor(self.tabs)
-		self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
-		self.bloced.columnconfigure(0, weight=1)
-		self.bloced.rowconfigure(0, weight=1)
+		if not NEW :
 
-		f1 = ttk.Frame(self.tabs)
+			self.__bloced = BlockEditor(self.tabs)
+			self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
+			self.bloced.columnconfigure(0, weight=1)
+			self.bloced.rowconfigure(0, weight=1)
+			self.tabs.add(self.bloced, text="Sheet#1")
 
-		self.tabs.add(self.bloced, text="Sheet#1")
+		else :
+			pass
+
+
 
 		self.statusbar = Frame(self.root, height=32)
 		self.statusbar.grid(column=0, row=1, sticky=(N, W, E, S))
@@ -1340,7 +1420,7 @@ class BlockEditorWindow(object) :
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar
 
-		self.__add_top_menu("&File", [
+		self.add_top_menu("&File", [
 			CmdMnu("&New", "Ctrl+N", self.new_file),
 			CmdMnu("&Open...", "Ctrl+O", self.open_file),
 			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
@@ -1350,7 +1430,7 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			CmdMnu("&Quit", "Alt+F4", self.close_window) ])
 
-		self.__add_top_menu("&Edit", [
+		self.add_top_menu("&Edit", [
 			CmdMnu("&Undo", "Ctrl+Z", self.mnu_edit_undo),
 			CmdMnu("&Redo", "Shift+Ctrl+Z", self.mnu_edit_redo),
 			SepMnu(),
@@ -1368,7 +1448,7 @@ class BlockEditorWindow(object) :
 		blocks = ([ CascadeMnu(cat,
 			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
 				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
-		menu_blocks = self.__add_top_menu("&Insert", [
+		menu_blocks = self.add_top_menu("&Insert", [
 			CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last),
 			SepMnu(), ] + blocks)
 
@@ -1377,7 +1457,7 @@ class BlockEditorWindow(object) :
 		self.__port_menu = CascadeMnu("Serial Port",
 			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports()])
 
-		self.__model_menu = self.__add_top_menu("&Model", [
+		self.__model_menu = self.add_top_menu("&Model", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
 #			CmdMnu("&Stop", "Ctrl+F5", None)
@@ -1387,12 +1467,12 @@ class BlockEditorWindow(object) :
 			self.__port_menu,
 			])
 
-		self.__add_top_menu("&Help", [
+		self.add_top_menu("&Help", [
 			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
 			SepMnu(),
 			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
-		self.__add_top_menu("_Debu&g", [
+		self.add_top_menu("_Debu&g", [
 			CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
 			CmdMnu("Implement", None, self.implement),
 			CmdMnu("mkmac", None, self.mkmac),
