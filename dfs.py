@@ -1163,7 +1163,7 @@ class Workbench(object) :
 #		return (True, tuple())
 
 
-	sheets = property(lambda self: self.__sheets.values())
+	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
 
 

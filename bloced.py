@@ -1203,12 +1203,13 @@ class BlockEditorWindow(object) :
 		if fname :
 			self.open_this_file_new(fname)
 
+
 	def save_file_as(self) :
 		return self.save_file(asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
 
+
 	def save_current_file(self, a=None) :
 		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
-
 
 
 	if NEW :
@@ -1224,12 +1225,13 @@ class BlockEditorWindow(object) :
 
 		def open_this_file_new(self, fname) :
 			try :
-				f = open(fname, "rb")
-				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
-				f.close()
-				self.bloced.set_model(mdl, deserializing=True)
-				self.__set_current_file_name(fname)
-				self.bloced.changed = False
+#				f = open(fname, "rb")
+#				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
+#				f.close()
+				with open(fname, "rb") as f :
+					unpickle_workbench(f, self.work) 
+#				self.__set_current_file_name(fname)
+#				self.bloced.changed = False
 			except IOError :
 				self.show_warning("Failed to open file '{0}'".format(fname))
 
@@ -1447,6 +1449,7 @@ class BlockEditorWindow(object) :
 			if bloced == subwin :
 				self.work.delete_sheet(name=name)
 				break
+
 
 	def __open_example(self, a=None) :
 		print(here(), a)

@@ -4,6 +4,7 @@ from itertools import count, dropwhile, islice
 import dfs
 import core
 from pprint import pprint
+from implement import here
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -142,16 +143,19 @@ def get_workbench_data(w) :
 #XXX make it stable! same model -> same blob, bit by bit
 
 	meta = w.get_meta()
-	resources = w.sheets
+	resources = []
 
-	for sheet in w.sheets :
+	for sheet_name, sheet in w.sheets.items() :
 		s = get_dfs_model_data(sheet)
-		resources.append((RES_TYPE_SHEET, RES_TYPE_SHEET_VERSION, s))
+#		print here(), s
+		resources.append((RES_TYPE_SHEET, RES_TYPE_SHEET_VERSION, sheet_name, s))
 
-	return (CONTAINER_VERSION, meta, tuple(resources))
+	x = (CONTAINER_VERSION, meta, tuple(resources))
+#	print x
+	return x
 
 
-def unpickle_workbench(f, w, lib=None) :
+def unpickle_workbench(f, w) :
 	try :
 		version, meta, resources = pickle.load(f)
 	except pickle.PickleError as e :
@@ -162,13 +166,13 @@ def unpickle_workbench(f, w, lib=None) :
 
 	w.set_meta(meta)
 
-	for r_type, r_version, resrc in resources :
+	for r_type, r_version, r_name, resrc in resources :
 		if r_type == RES_TYPE_SHEET :
 			if r_version == RES_TYPE_SHEET_VERSION :
 				types, struct, meta = resrc
 #				pprint((types, struct, meta))
-				m = restore_dfs_model(types, struct, meta, lib)
-				w.add_sheet(m)
+				m = restore_dfs_model(types, struct, meta, w.blockfactory)
+				w.add_sheet(sheet=m, name=r_name)
 			else :
 				pass
 		else :
