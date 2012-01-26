@@ -207,6 +207,15 @@ blob_stream
 	return r
 
 
+#TODO
+def compile_incforth() :
+	pass
+
+
+def compile_gcc() :
+	pass
+
+
 def build(board, workdir,
 		wdir_recurse=True,
 		aux_src_dirs=[],
@@ -311,6 +320,9 @@ board_db
 		"-DF_CPU=%s" % f_cpu, "-o", a_out ]
 	gcc_args += sources
 
+#TODO optional separate compile + link
+
+#  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
 	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
 	if success :
 		stdoutdata, stderrdata = streams
@@ -320,6 +332,24 @@ board_db
 		__print_streams("failed to execute avr-gcc", " ",
 			stdoutdata, stderrdata)
 		return (10, )
+
+
+
+
+#cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
+#	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
+#	if success :
+#		stdoutdata, stderrdata = streams
+#		__print_streams("compiled", " ", stdoutdata, stderrdata)
+#	else :
+#		stdoutdata, stderrdata = streams
+#		__print_streams("failed to execute avr-gcc", " ",
+#			stdoutdata, stderrdata)
+#		return (10, )
+
+
+
+
 
 	success, rc, streams = run(["avr-size", a_out])
 	if success :
