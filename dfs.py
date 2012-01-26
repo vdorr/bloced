@@ -1044,7 +1044,8 @@ else :
 from pprint import pprint
 
 MAX_WORKERS = 1
-KNOWN_EXTENSIONS = ( ("bloced files", "*.bloc"), ("all files", "*") )
+KNOWN_EXTENSIONS = ( ("bloced workbench", "*.w"), ("all files", "*") )
+IMPORT_EXTENSIONS = ( ("bloced sheet", "*.bloc"), ("all files", "*") )
 
 #def synchronized(lock):
 #	def wrap(f):
@@ -1283,7 +1284,8 @@ class Workbench(object) :
 	def delete_sheet(self, name=None) :
 #		if name != None :
 #			sheet, = self.get_sheet_by_name(name)
-		self.__sheets.pop(name)
+		sheet = self.__sheets.pop(name)
+		self.__changed("sheet_deleted", (sheet, name))
 
 
 	def __changed(self, event, data) :

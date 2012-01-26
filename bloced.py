@@ -36,6 +36,7 @@ else :
 	import tkMessageBox
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
+	from tkSimpleDialog import Dialog
 
 from PIL import ImageTk, Image, ImageDraw, ImageFont
 
@@ -96,7 +97,7 @@ event_t = namedtuple("event_t", ["x", "y", "state"])
 
 class textbox(Frame):
 
-	def __init__(self,parent, msg):
+	def __init__(self, parent, msg) :
 		Frame.__init__(self,parent)
 		self.g_label = Label(self,text=msg)
 		self.g_label.pack(side=LEFT,expand=False)
@@ -104,8 +105,28 @@ class textbox(Frame):
 		self.g_entry.pack(side=LEFT, fill=X, expand=True)
 		self.pack(fill=X, anchor=NW, expand=True)
 
-	def text(self):
+	def text(self) :
 		return self.gui["entry"].get()
+
+# ------------------------------------------------------------------------------------------------------------
+
+class InputDialog(Dialog) :
+
+
+	def __init__(self, parent, text) :
+		self.__text = text
+		Dialog.__init__(self, parent)
+
+	def body(self, master):
+		Label(master, text=self.__text+" ").grid(row=0)
+		self.e1 = Entry(master)
+		self.e1.grid(row=0, column=1)
+		self.value = None
+		return self.e1
+
+
+	def apply(self):
+		self.value = self.e1.get()
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1325,6 +1346,7 @@ class BlockEditorWindow(object) :
 
 	bloced = property(get_bloced)
 
+
 	def __select_sheet(self, name) :
 
 #		print here(), name
@@ -1336,27 +1358,23 @@ class BlockEditorWindow(object) :
 		self.__bloced.changed_event = self.__changed_event
 		self.tabs.select(self.__bloced)
 
-		print here(), name, self.__bloced
+		print here(), name, self.__bloced, self.tabs.select(), str(self.__bloced)
+
 
 	def add_sheet(self, sheet, name) :
-
 		bloced = BlockEditor(self.tabs)
 		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
-
 		print here(), name, sheet
-
 		bloced.set_model(None)
-		model = GraphModel()
-		bloced.set_model(model)
+		bloced.set_model(GraphModel() if sheet is None else sheet)
 #		self.__changed = False
 #		self.__set_current_file_name(None)
-
-
 		self.tabs.add(bloced, text=name)
-
 		self.__sheets[name] = (sheet, bloced)#XXX
+		self.__tab_children[str(bloced)] = bloced
+		print here(), self.__tab_children
 		self.__select_sheet(name)
 
 
@@ -1365,6 +1383,18 @@ class BlockEditorWindow(object) :
 		if event == "sheet_added" :
 			sheet, name = data #?
 			self.add_sheet(sheet, name)
+		elif event == "sheet_deleted" :
+			sheet, name = data #?
+			self.delete_sheet(sheet, name)
+
+
+	def delete_sheet(self, sheet, name) :
+		print here(), sheet, name, self.__tab_children
+		sheet, bloced = self.__sheets.pop(name)
+		self.__tab_children.pop(str(bloced))
+		self.tabs.forget(str(bloced))
+#		for name, (sheet, bloced) in self.__sheets :
+#			if str(bloced)
 
 
 	def __open_recent(self, filename) :
@@ -1382,19 +1412,27 @@ class BlockEditorWindow(object) :
 
 
 	def __import_sheet(self, filename) :
-		pass
+		title = os.path.splitext(os.path.basename(filename))[0]
+		try :
+			with open(filename, "rb") as f :
+				m = unpickle_dfs_model(f, lib=self.work.blockfactory)
+			self.work.add_sheet(sheet=m, name=title)
+		except IOError :
+			self.show_warning("Failed to import file '{0}'".format(filename))
 
 
 	def __mnu_import_sheet(self, a=None) :
-		pass
+		print here()
+		fname = askopenfilename(filetypes=IMPORT_EXTENSIONS)
+		if fname :
+			self.__import_sheet(fname)
 
 
-	def __mnu_import_sheet(self, a=None) :
-		pass
-
-
-	def __mnu_import_sheet(self, a=None) :
-		pass
+	def __mnu_add_sheet(self, a=None) :
+		d = InputDialog(self.root, "Enter name for new sheet")
+		print here(), d.value
+		if d.value :
+			self.work.add_sheet(sheet=None, name=d.value)
 
 
 	def __mnu_export_sheet(self, a=None) :
@@ -1402,8 +1440,13 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_delete_sheet(self, a=None) :
-		pass
-
+		win = self.tabs.select()
+		print win, self.tabs.index(win), 
+		subwin = self.__tab_children[win]
+		for name, (sheet, bloced) in self.__sheets.items() :
+			if bloced == subwin :
+				self.work.delete_sheet(name=name)
+				break
 
 	def __open_example(self, a=None) :
 		print(here(), a)
@@ -1415,6 +1458,8 @@ class BlockEditorWindow(object) :
 		self.__bloced = None
 
 		self.__sheets = {}#XXX see __change_callback
+
+		self.__tab_children = {}
 
 		self.__fname = None
 		self.__changed = False
@@ -1536,7 +1581,7 @@ class BlockEditorWindow(object) :
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
 #			CmdMnu("&Stop", "Ctrl+F5", None)
 			SepMnu(),
-			CmdMnu("Add sheet", None, self.__mnu_import_sheet),
+			CmdMnu("Add sheet", None, self.__mnu_add_sheet),
 			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
 			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
 			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
