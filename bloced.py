@@ -1367,6 +1367,48 @@ class BlockEditorWindow(object) :
 			self.add_sheet(sheet, name)
 
 
+	def __open_recent(self, filename) :
+		print here(), filename
+
+
+	def __list_recent_files(self, files) :
+		old = self.__recent_menu
+		self.__recent_menu = CascadeMnu("Recent files",
+			[CmdMnu("&{0} {1}".format(i+1, f), None, partial(self.__open_recent, f))
+				for f, i in zip(files, count())])
+		if not old is None :
+			self.replace_cascade(old, self.__recent_menu)
+		return self.__recent_menu
+
+
+	def __import_sheet(self, filename) :
+		pass
+
+
+	def __mnu_import_sheet(self, a=None) :
+		pass
+
+
+	def __mnu_import_sheet(self, a=None) :
+		pass
+
+
+	def __mnu_import_sheet(self, a=None) :
+		pass
+
+
+	def __mnu_export_sheet(self, a=None) :
+		pass
+
+
+	def __mnu_delete_sheet(self, a=None) :
+		pass
+
+
+	def __open_example(self, a=None) :
+		print(here(), a)
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1442,16 +1484,21 @@ class BlockEditorWindow(object) :
 		self.__menubar = Menu(self.root)
 		self.root["menu"] = self.__menubar
 
+		self.__recent_menu = None
+		self.__recent_menu = self.__list_recent_files([])#TODO
+
+		examples = []#TODO
+
 		self.add_top_menu("&File", [
 			CmdMnu("&New", "Ctrl+N", self.new_file),
 			CmdMnu("&Open...", "Ctrl+O", self.open_file),
 			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
 			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
 			SepMnu(),
-			CmdMnu("Add Sheet", None, None),
-			CmdMnu("Import Sheet", None, None),
-			CmdMnu("Export Sheet", None, None),
-			CmdMnu("Delete Sheet", None, None),
+			CascadeMnu("Examples",
+				[ CmdMnu(f, None, partial(self.__open_example, f)) for f, i in examples ]),
+			SepMnu(),
+			self.__recent_menu,
 #			SepMnu(),
 #			CmdMnu("Export...", "Ctrl+E", self.__mnu_file_export),
 			SepMnu(),
@@ -1484,10 +1531,15 @@ class BlockEditorWindow(object) :
 		self.__port_menu = CascadeMnu("Serial Port",
 			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports()])
 
-		self.__model_menu = self.add_top_menu("&Model", [
+		self.__model_menu = self.add_top_menu("&Workbench", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
 #			CmdMnu("&Stop", "Ctrl+F5", None)
+			SepMnu(),
+			CmdMnu("Add sheet", None, self.__mnu_import_sheet),
+			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
+			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
+			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
 			SepMnu(),
 			CascadeMnu("Board",
 				[RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards]),

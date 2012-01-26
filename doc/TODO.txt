@@ -21,4 +21,6 @@ serial port blocks
 portable measurement and control package (analog filter, debouncer, pid)
 timers and counters package
 platform support package (for example arduino source files + known_types + prog drivers)
-
+README.markdown
+globalize
+examples menu
