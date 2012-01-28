@@ -1251,8 +1251,6 @@ class BlockEditorWindow(object) :
 		self.__set_current_file_name(self.__fname)
 
 
-# ------------------------------------------------------------------------------------------------------------
-
 	def open_file(self, a=None) :
 		fname = askopenfilename(filetypes=KNOWN_EXTENSIONS)
 		if fname :
@@ -1267,81 +1265,42 @@ class BlockEditorWindow(object) :
 		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
 
 
-	if NEW :
-
-
-		def new_file(self, a=None) :
-			if not self.confirm_complete_clear() :
-				return None
-			self.work.clear()
-			self.work.add_sheet(name=self.work.get_free_sheet_name(seed=cfg.SHEET_NAME_SEED))
-#TODO		self.__changed = False
-			self.__set_current_file_name(None)
+	def new_file(self, a=None) :
+		if not self.confirm_complete_clear() :
+			return None
+		self.work.clear()
+		self.work.add_sheet(name=self.work.get_free_sheet_name(seed=cfg.SHEET_NAME_SEED))
+		self.__changed = False
+		self.__set_current_file_name(None)
 
 
 
-		def open_this_file_new(self, fname) :
-			if not self.confirm_complete_clear() :
-				return None
-			self.work.clear()
+	def open_this_file_new(self, fname) :
+		if not self.confirm_complete_clear() :
+			return None
+		self.work.clear()
+		try :
+			with open(fname, "rb") as f :
+				unpickle_workbench(f, self.work) 
+		except IOError :
+			self.show_warning("Failed to open file '{0}'".format(fname))
+		else :
+			self.__set_current_file_name(fname)
+			self.__changed = False
+
+
+	def save_file(self, fname) :
+		if fname :
 			try :
-				with open(fname, "rb") as f :
-					unpickle_workbench(f, self.work) 
+				with open(fname, "wb") as f :
+					pickle_workbench(self.work, f)
 			except IOError :
 				self.show_warning("Failed to open file '{0}'".format(fname))
 			else :
+				self.__changed = False
 				self.__set_current_file_name(fname)
-#TODO				self.bloced.changed = False
-
-
-		def save_file(self, fname) :
-			if fname :
-				try :
-					with open(fname, "wb") as f :
-						pickle_workbench(self.work, f)
-				except IOError :
-					self.show_warning("Failed to open file '{0}'".format(fname))
-				else :
-#TODO					self.__changed = False
-					self.__set_current_file_name(fname)
-					return True
-			return False
-
-
-	else :
-		def new_file(self, a=None) :
-			self.bloced.set_model(None)
-			model = GraphModel()
-			self.bloced.set_model(model)
-			self.__changed = False
-			self.__set_current_file_name(None)
-
-		def open_this_file_new(self, fname) :
-			try :
-				f = open(fname, "rb")
-				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
-				f.close()
-				self.bloced.set_model(mdl, deserializing=True)
-				self.__set_current_file_name(fname)
-				self.bloced.changed = False
-			except IOError :
-				self.show_warning("Failed to open file '{0}'".format(fname))
-
-		def save_file(self, fname) :
-			if fname :
-				try :
-					f = open(fname, "wb")
-					pickle_dfs_model(self.bloced.get_model(), f)
-					f.close()
-					self.__changed = False
-					self.__set_current_file_name(fname)
-					return True
-				except IOError :
-					print("IOError")
-			return False
-
-
-# ------------------------------------------------------------------------------------------------------------
+				return True
+		return False
 
 
 	def mnu_mode_build(self) :
