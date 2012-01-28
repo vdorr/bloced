@@ -990,42 +990,6 @@ def try_mkmac(model) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class MenuItem(object) :
-	def __init__(self) :
-		self.text = None
-		self.accel = None
-		self.handler = None
-
-class SepMnu(MenuItem) :
-	pass
-
-
-class RadioMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None, selected=False) :
-		super(RadioMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
-
-
-class CheckMnu(MenuItem) :
-	def __init__(self, text, accel, handler, value=None, selected=False) :
-		super(CheckMnu, self).__init__()
-		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
-
-
-class CmdMnu(MenuItem) :
-	def __init__(self, text, accel, handler) :
-		super(CmdMnu, self).__init__()
-		self.text, self.accel, self.handler = text, accel, handler
-
-
-class CascadeMnu(MenuItem) :
-	def __init__(self, text, items) :
-		super(CascadeMnu, self).__init__()
-		self.text, self.items = text, items
-
-
-# ------------------------------------------------------------------------------------------------------------
-
 import core
 import build
 import ccodegen
@@ -1190,6 +1154,7 @@ class Workbench(object) :
 		port_check = time.time()
 		while not self.__get_should_finish() :
 			time.sleep(0.3)
+#TODO TODO TODO		self.__timer_job()
 			now = time.time()
 #			self.__messages.put("hello")
 			if now - port_check >= self.__port_check_time :
@@ -1197,6 +1162,9 @@ class Workbench(object) :
 				self.set_port_list(build.get_ports())
 				port_check = time.time()
 
+	def __timer_job(self) :
+#TODO TODO TODO
+		pass
 
 	def read_messages(self) :
 		messages = []
@@ -1209,6 +1177,8 @@ class Workbench(object) :
 
 
 	def fire_callbacks(self) :
+		if not Workbench.MULTITHREADED :
+			self.__timer_job()
 		for msg, (aps, akw) in self.read_messages() :
 			if msg in self.__callbacks :
 				callback = self.__callbacks[msg]
@@ -1260,9 +1230,16 @@ class Workbench(object) :
 		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.__persistent }
 		return m
 
+
 	def set_meta(self, m) :
 		prefix = "_" + self.__class__.__name__
 		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
+
+
+	def clear_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : None for k in self.__persistent })
+		self.__changed("meta_changed", self.get_meta())
 
 
 	meta = property(get_meta)
@@ -1270,9 +1247,13 @@ class Workbench(object) :
 
 	def add_sheet(self, sheet=None, name=None) :
 #TODO raise event
+		if not self.is_valid_name(name) :
+			raise Exception("invalid_resource_name")
+		if name in self.__sheets :
+			raise Exception("resource_name_allready_used")
 		if sheet is None :
 			sheet = GraphModel()
-		print here(), name, sheet
+#		print here(), name, sheet
 		self.__sheets[name] = sheet
 		self.__changed("sheet_added", (sheet, name))
 
@@ -1293,11 +1274,41 @@ class Workbench(object) :
 			self.__change_callback(self, event, data)
 
 
+	def is_valid_name(self, a) :
+		first = set("_abcdefghijklmnopqrstuvwxyz")	
+		other = first.union("012345679")
+		s = a.lower()
+		return s and s[0] in first and all([ c in other for c in s ])
+
+
+	def get_free_sheet_name(self, seed="Sheet{0}", check_validity=True) :
+		"""
+		returns free sheet name
+		seed is format string with at least one placeholder
+		"""
+		i = 1
+		name = seed.format(i)
+		if check_validity and not self.is_valid_name(name) :
+			return None
+		print here()
+		while name in self.__sheets :
+			name = seed.format(i)
+			i += 1
+		return name
+
+
 #TODO TODO TODO
 	def __sheet_changed_event(self) :
 #		self.__changed = True
 #		self.__set_current_file_name(self.__fname)
 		pass
+
+
+	def clear(self) :
+		for name in self.__sheets.keys() :
+			self.delete_sheet(name=name)
+		self.clear_meta()
+
 
 	MULTITHREADED = False
 
@@ -1309,11 +1320,14 @@ class Workbench(object) :
 			monitor_callback=None,
 			change_callback=None ) :
 
+		"""
+		default value for ALL meta is None, stick with it
+		"""
 		self.__persistent = ( "__port", "__board" )
 
+		self.__board = None
 		self.__port = None
 		self.__board_types = build.get_board_types()
-		self.__board = None
 
 		self.__blob = None
 		self.__blob_time = None

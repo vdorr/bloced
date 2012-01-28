@@ -69,9 +69,11 @@ class Configuration(object):
 	APP_NAME = "bloced"
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
+	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
 	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
 	HELP_URL = "http://www.tinfoilhat.cz"
 	POLL_WORKERS_PERIOD = 1000
+	SHEET_NAME_SEED = "Sheet{0}"
 
 cfg = Configuration()
 
@@ -95,6 +97,42 @@ event_t = namedtuple("event_t", ["x", "y", "state"])
 
 # ------------------------------------------------------------------------------------------------------------
 
+class MenuItem(object) :
+	def __init__(self) :
+		self.text = None
+		self.accel = None
+		self.handler = None
+
+class SepMnu(MenuItem) :
+	pass
+
+
+class RadioMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(RadioMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, value, selected
+
+
+class CheckMnu(MenuItem) :
+	def __init__(self, text, accel, handler, value=None, selected=False) :
+		super(CheckMnu, self).__init__()
+		self.text, self.accel, self.handler, self.value, self.selected = text, accel, handler, selected
+
+
+class CmdMnu(MenuItem) :
+	def __init__(self, text, accel, handler) :
+		super(CmdMnu, self).__init__()
+		self.text, self.accel, self.handler = text, accel, handler
+
+
+class CascadeMnu(MenuItem) :
+	def __init__(self, text, items) :
+		super(CascadeMnu, self).__init__()
+		self.text, self.items = text, items
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 class textbox(Frame):
 
 	def __init__(self, parent, msg) :
@@ -113,13 +151,16 @@ class textbox(Frame):
 class InputDialog(Dialog) :
 
 
-	def __init__(self, parent, text) :
+	def __init__(self, parent, text, initial="") :
 		self.__text = text
+		self.__initial_value = initial
 		Dialog.__init__(self, parent)
+
 
 	def body(self, master):
 		Label(master, text=self.__text+" ").grid(row=0)
 		self.e1 = Entry(master)
+		self.e1.insert(0, self.__initial_value)
 		self.e1.grid(row=0, column=1)
 		self.value = None
 		return self.e1
@@ -1091,6 +1132,20 @@ class BlockEditorWindow(object) :
 		self.root.destroy()
 
 
+	def confirm_complete_clear(self) :
+		if self.__changed :
+			ans = tkMessageBox.askquestion(type=tkMessageBox.OKCANCEL, title=cfg.APP_NAME,
+				message=cfg.UNSAVED_DATA_WILL_BE_LOST, default=tkMessageBox.OK)
+			return ans == tkMessageBox.OK
+		return True
+#			if ans == tkMessageBox.CANCEL:
+#				return None
+#			elif ans == tkMessageBox.OK :
+#				if not self.save_current_file() :
+#					return None
+
+
+
 	def __on_closing(self) :
 		self.close_window()
 
@@ -1221,9 +1276,14 @@ class BlockEditorWindow(object) :
 #			self.__set_current_file_name(None)
 
 #TODO reset (or better, recreate) workbench
-			self.work.add_sheet(name="Sheet#1")
+			if self.confirm_complete_clear() :
+				self.work.clear()
+				self.work.add_sheet(name=self.work.get_free_sheet_name(seed=cfg.SHEET_NAME_SEED))
 
 		def open_this_file_new(self, fname) :
+			if not self.confirm_complete_clear() :
+				return None
+			self.work.clear()
 			try :
 #				f = open(fname, "rb")
 #				mdl = unpickle_dfs_model(f, lib=self.work.blockfactory)
@@ -1370,7 +1430,11 @@ class BlockEditorWindow(object) :
 		bloced.rowconfigure(0, weight=1)
 		print here(), name, sheet
 		bloced.set_model(None)
-		bloced.set_model(GraphModel() if sheet is None else sheet)
+
+		assert(not (sheet is None))
+#		bloced.set_model(GraphModel() if sheet is None else sheet)
+		bloced.set_model(sheet)
+
 #		self.__changed = False
 #		self.__set_current_file_name(None)
 		self.tabs.add(bloced, text=name)
@@ -1431,8 +1495,9 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_add_sheet(self, a=None) :
-		d = InputDialog(self.root, "Enter name for new sheet")
-		print here(), d.value
+		d = InputDialog(self.root, "Enter name for new sheet",
+			initial=self.work.get_free_sheet_name())
+#		print here(), d.value
 		if d.value :
 			self.work.add_sheet(sheet=None, name=d.value)
 
