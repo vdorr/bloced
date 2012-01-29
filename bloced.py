@@ -1370,11 +1370,9 @@ class BlockEditorWindow(object) :
 
 	def __select_sheet(self, name) :
 		sheet, bloced = self.__sheets[name]
-		self.__bloced = bloced
-		self.__bloced.changed_event = self.__changed_event
-		self.tabs.select(self.__bloced)
-		self.__bloced.focus_set()
-#		print here(), name, self.__bloced, self.tabs.select(), str(self.__bloced)
+		bloced.changed_event = self.__changed_event
+		self.tabs.select(bloced)
+#		print here(), name, bloced, self.tabs.select(), str(bloced)
 
 
 	def add_sheet(self, sheet, name) :
@@ -1475,8 +1473,6 @@ class BlockEditorWindow(object) :
 
 #	@catch_all
 	def __init__(self, load_file=None) :
-
-		self.__bloced = None
 
 		self.__sheets = {}#XXX see __change_callback
 
