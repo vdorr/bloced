@@ -1075,7 +1075,7 @@ class Workbench(object) :
 	#			print(s)
 	#	out_fobj = DummyFile()
 
-		stub = os.linesep + "void main() { tsk(); }"
+		stub = os.linesep + "void main() { init(); tsk(); }"
 
 		out_fobj = StringIO(stub)
 		try :
@@ -1121,15 +1121,18 @@ class Workbench(object) :
 
 #	def upload(board_type, prog_port, blob) :
 	def upload(self) :
-		prog_port, blob = None, None
+#		prog_port, blob = None, None
 		board_info = self.__board_types[self.get_board()]
 		prog_mcu = board_info["build.mcu"]
+		self.__jobs.put(("upload", (prog_mcu, self.__blob)))
+
+
+	def upload_job(self, prog_mcu, blob) :
+		print here()#, len(a)
 		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
-			a_hex_blob=self.__blob,
+			a_hex_blob=blob,
 			verbose=False,
 			dry_run=False)
-#		return (True, tuple())
-
 
 	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
@@ -1154,10 +1157,33 @@ class Workbench(object) :
 
 
 	@catch_all
+
 	def __timer_thread(self) :
 		port_check = time.time()
 		while not self.__get_should_finish() :
-			time.sleep(0.3)
+
+			tm = time.time()
+
+			jobs = []
+			try :
+				while not self.__jobs.empty() :
+					jobs.append(self.__jobs.get_nowait())
+			except QueueEmpty :
+				pass
+
+#			print here(), jobs
+
+			for job_type, job_args in jobs :
+				if job_type == "build" :
+					print here()
+				if job_type == "upload" :
+					print here()
+					self.upload_job(*job_args)
+#TODO put to message to signal job done
+
+			if time.time() - tm < 0.3 :
+				time.sleep(0.3)
+
 #TODO TODO TODO		self.__timer_job()
 			now = time.time()
 #			self.__messages.put("hello")
@@ -1355,6 +1381,7 @@ class Workbench(object) :
 
 		self.__should_finish = False
 		self.__messages = Queue()
+		self.__jobs = Queue()
 		self.lock = Lock()
 #XXX
 		if not passive :
