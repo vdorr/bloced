@@ -88,6 +88,7 @@ vm_word_t d_in(vm_word_t nr)
 	{
 		pinMode(nr, INPUT);
 		pin_mode[DIN_MAP(nr)] = PINMODE_DIGITAL_IN;
+		digitalWrite(nr, 1);
 	}
 	return digitalRead(nr);
 }

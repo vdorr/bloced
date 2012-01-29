@@ -403,6 +403,8 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 
 	if a_hex is None and a_hex_blob :
 		f = tempfile.NamedTemporaryFile(suffix=".hex")#is suffix needed?
+		f.write(a_hex_blob)
+		f.flush()
 		filename = f.name
 	else :
 		filename = a_hex

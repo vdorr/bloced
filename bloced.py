@@ -902,7 +902,8 @@ class BlockEditor(Frame, GraphModelListener) :
 			return None
 #		print "paste:", types, struct, meta
 #		load_to_dfs_model(self.model, types, struct, meta)
-		bm, lm = load_to_dfs_model(self.model, types, struct, meta, deserializing=True)
+		bm, lm = load_to_dfs_model(self.model, types, struct, meta,
+			self.__workbench_getter().blockfactory, deserializing=True)
 		self.create_selection_from_list([ self.block_index[b] for b in bm ],
 			[ (l, self.connection2line[l]) for l in lm ] )
 		self.__raise_changed_event()#XXX decorator?
@@ -985,13 +986,14 @@ class BlockEditor(Frame, GraphModelListener) :
 		else :
 			self.end_paste_block()
 
-	def __init__(self, parent) :
+	def __init__(self, parent, workbench_getter) :
 
 #		self.__changed = False # XXX destroy
 
 		Frame.__init__(self, parent)
 
 		self.__paste_proto = None
+		self.__workbench_getter = workbench_getter
 
 #		font = ImageFont.truetype('path/to/font.ttf', size)
 		self.font = ImageFont.load_default()
@@ -1313,8 +1315,7 @@ class BlockEditorWindow(object) :
 
 
 	def mnu_mode_build(self) :
-		m = self.bloced.get_model()
-		self.work.build(m)
+		self.work.build()
 
 
 	def mnu_mode_run(self) :
@@ -1322,11 +1323,11 @@ class BlockEditorWindow(object) :
 
 
 	def __save_user_settings(self) :
-		self.__settings.main_width, self.__settings.main_height = self.root.winfo_width(), self.root.winfo_height()
+		self.__settings.main_width = self.root.winfo_width()
+		self.__settings.main_height = self.root.winfo_height()
 #		self.__settings.main_left, self.__settings.main_top = self.root.winfo_rootx(), self.root.winfo_rooty()
-		f = open("usersettings.pickle", "wb")
-		pickle.dump(self.__settings, f)
-		f.close()
+		with open("usersettings.pickle", "wb") as f :
+			pickle.dump(self.__settings, f)
 
 
 	def mkmac(self) :
@@ -1385,7 +1386,7 @@ class BlockEditorWindow(object) :
 
 
 	def add_sheet(self, sheet, name) :
-		bloced = BlockEditor(self.tabs)
+		bloced = BlockEditor(self.tabs, self.__workbench_getter)
 		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
@@ -1504,7 +1505,6 @@ class BlockEditorWindow(object) :
 
 
 	def __select_board(self, board) :
-		print here(),  board
 #		xxx = self.__menu_items[self.__board_menu.items[0]]
 		var = self.__menu_vars[self.__menu_items[self.__board_menu.items[0]][0]]
 #		print here(), type(var)#xxx, xxx[0] in self.__menu_vars
@@ -1518,7 +1518,10 @@ class BlockEditorWindow(object) :
 		var.set(port)
 
 
-#	@catch_all
+	def __workbench_getter(self) :
+		return self.work
+
+	@catch_all
 	def __init__(self, load_file=None) :
 
 		try :
@@ -1537,6 +1540,7 @@ class BlockEditorWindow(object) :
 
 		self.work = Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
+			passive=False,
 			status_callback=self.__workbench_status_changed,
 			ports_callback=self.__port_list_changed,
 			change_callback=self.__change_callback)

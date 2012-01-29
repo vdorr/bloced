@@ -459,7 +459,7 @@ type of Delay is derived from initial value
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def make_dag(model, meta, known_types) :
+def make_dag(model, meta, known_types, do_join_taps=True) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
@@ -482,7 +482,10 @@ def make_dag(model, meta, known_types) :
 		raise Exception("make_dag: produced graph is insane")
 
 	__expand_joints_new(graph)
-	__join_taps(graph)
+
+	if do_join_taps :
+		__join_taps(graph)
+
 	types = infer_types(graph, delays, known_types=known_types)
 
 	return graph, delays, types
@@ -874,10 +877,37 @@ def printg(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+def dag_merge(l) :
+	g, d, t = {}, {}, {}
+	for graph0, delays0, types0 in l :
+		g.update(graph0)
+		d.update(delays0)
+		t.update(types0)
+	return g, d, t
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays, types = make_dag(model, meta, known_types)
-	code = codegen(graph, delays, types, types)
+	code = codegen(graph, delays, {}, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
+
+
+def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
+	"""
+	sheets = { name : sheet, ... }
+	"""
+	l = [ make_dag(s, None, known_types, do_join_taps=False)
+		for name, s in sheets.items() ]
+	graph, delays, types = dag_merge(l)
+	if len(sheets) > 1 :
+		__join_taps(graph)
+	code = codegen(graph, delays, {}, types)
+	out_fobj.write(code)#XXX pass out_fobj to codegen?
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -888,21 +918,38 @@ if __name__ == "__main__" :
 #                   help="input file")
 #	args = parser.parse_args()
 #	fname = args.file[0]
-	from serializer import unpickle_dfs_model
+	from serializer import unpickle_dfs_model, unpickle_workbench
 	from core import create_block_factory, KNOWN_TYPES
 	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
-	blockfactory = create_block_factory(
-			scan_dir=os.path.join(os.getcwd(), "library"))
-	try :
-		f = open(fname, "rb")
-		model = unpickle_dfs_model(f, lib=blockfactory)
-		f.close()
-	except :
-		print("error loading input file")
-		exit(666)
+
+	if os.path.splitext(fname)[1].lower() == ".w" :
+		w = Workbench(
+			lib_dir=os.path.join(os.getcwd(), "library"),
+			passive=True)
+		try :
+			with open(fname, "rb") as f :
+				unpickle_workbench(f, w)
+		except :
+			print("error loading workbench file")
+			raise
+#			exit(666)
+		sheets = w.sheets
+		global_meta = w.get_meta()
+	else :
+		blockfactory = create_block_factory(
+				scan_dir=os.path.join(os.getcwd(), "library"))
+		try :
+			with open(fname, "rb") as f :
+				model = unpickle_dfs_model(f, lib=blockfactory)
+		except :
+			print("error loading sheet file")
+			exit(666)
+		sheets = { "tsk" : model }
+		global_meta = {}
+
 	import ccodegen
 	import fcodegen
 #TODO use meta to set task name (that is, method name in generated code)
@@ -917,7 +964,9 @@ if __name__ == "__main__" :
 			def write(self, s) :
 				print(s)
 		out_fobj = DummyFile()
-		implement_dfs(model, None, cgens[action], KNOWN_TYPES, out_fobj)
+#		implement_dfs(model, meta, cgens[action], KNOWN_TYPES, out_fobj)
+		implement_workbench(sheets, global_meta,
+			cgens[action], KNOWN_TYPES, out_fobj)
 		exit(0)
 	elif action == "mkmac" :
 #		try_mkmac(model)

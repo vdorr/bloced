@@ -999,7 +999,7 @@ from threading import Thread, Lock
 import time
 import sys
 import os
-from implement import implement_dfs, here
+from implement import implement_dfs, implement_workbench, here
 from sys import version_info
 if version_info.major == 3 :
 	from io import StringIO
@@ -1068,7 +1068,7 @@ class Workbench(object) :
 
 
 #	def build(model, board_type, out_fobj) :
-	def build(self, model) :
+	def build(self) :
 		board_type = self.get_board()
 	#	class DummyFile(object):
 	#		def write(self, s) :
@@ -1079,9 +1079,12 @@ class Workbench(object) :
 
 		out_fobj = StringIO(stub)
 		try :
-			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+#			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+			implement_workbench(self.__sheets, self.get_meta(),
+				ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
 		except Exception as e:
-			return (False, e)
+#			return (False, e)
+			raise
 		if out_fobj.tell() < 1 :
 			return (False, "no_code")
 
@@ -1097,7 +1100,7 @@ class Workbench(object) :
 			boards_txt=build.BOARDS_TXT,
 #			board_db={},
 			ignore_file=None,#"amkignore",
-			ignore_lines=[ "*.cpp", "*.hpp" ],
+			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"
 #			prog_adapter="arduino", #None for dfu-programmer
@@ -1276,7 +1279,7 @@ class Workbench(object) :
 
 
 	def is_valid_name(self, a) :
-		first = set("_abcdefghijklmnopqrstuvwxyz")	
+		first = set("@_abcdefghijklmnopqrstuvwxyz")	
 		other = first.union("012345679")
 		s = a.lower()
 		return s and s[0] in first and all([ c in other for c in s ])
@@ -1310,11 +1313,12 @@ class Workbench(object) :
 		self.clear_meta()
 
 
-	MULTITHREADED = False
+	MULTITHREADED = True
 
 
 	@catch_all
 	def __init__(self, lib_dir=None,
+			passive=True,
 			status_callback=None,
 			ports_callback=None,
 			monitor_callback=None,
@@ -1353,15 +1357,15 @@ class Workbench(object) :
 		self.__messages = Queue()
 		self.lock = Lock()
 #XXX
-		if Workbench.MULTITHREADED :
+		if not passive :
+			self.set_port_list(build.get_ports())
+
+		if passive or not Workbench.MULTITHREADED :
+			print("running single-threaded!!!")
+		else :
 			self.tmr = Thread(target=self.__timer_thread)
 			self.tmr.start()
-		else :
-			self.set_port_list(build.get_ports())
-			print("running single-threaded!!!")
 #		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
-
-		pprint(self.get_meta())
 
 
 	def finish(self) :
