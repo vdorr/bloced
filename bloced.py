@@ -429,7 +429,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		def decorated(*v, **w) :
 			if "editing_begin_edit_only" in w :
 				w.pop("editing_begin_edit_only")
-			print here(10)
+#			print here(10)
 			v[0].model.begin_edit()
 			y = f(*v, **w)
 			if "editing_end_edit_only" in w :
@@ -913,8 +913,8 @@ class BlockEditor(Frame, GraphModelListener) :
 			return None
 		b = BlockModel(self.__paste_proto, self.model, left=e.x, top=e.y)
 		self.model.add_block(b)
-		if not bool(e.state & BIT_SHIFT) :
-			self.end_paste_block()
+#		if not bool(e.state & BIT_SHIFT) :
+#			self.end_paste_block()
 		self.__raise_changed_event()#XXX decorator? @editing?
 
 	def end_paste_block(self) :
@@ -1006,6 +1006,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
 		self.canv.columnconfigure(0, weight=1)
 		self.canv.rowconfigure(0, weight=1)
+		self.canv.focus_set()
 
 		yscroll = Scrollbar(self, orient=VERTICAL, command=self.canv.yview)
 		yscroll.grid(column=1, row=0, sticky=(N,S))
@@ -1360,24 +1361,20 @@ class BlockEditorWindow(object) :
 
 
 	def get_bloced(self) :
-		return self.__bloced
+		win = self.tabs.select()
+		return self.__tab_children[win]
 
 
 	bloced = property(get_bloced)
 
 
 	def __select_sheet(self, name) :
-
-#		print here(), name
-
-#		return None
-
 		sheet, bloced = self.__sheets[name]
 		self.__bloced = bloced
 		self.__bloced.changed_event = self.__changed_event
 		self.tabs.select(self.__bloced)
-
-		print here(), name, self.__bloced, self.tabs.select(), str(self.__bloced)
+		self.__bloced.focus_set()
+#		print here(), name, self.__bloced, self.tabs.select(), str(self.__bloced)
 
 
 	def add_sheet(self, sheet, name) :
@@ -1385,19 +1382,17 @@ class BlockEditorWindow(object) :
 		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
-		print here(), name, sheet
+#		print here(), name, sheet
 		bloced.set_model(None)
-
 		assert(not (sheet is None))
 #		bloced.set_model(GraphModel() if sheet is None else sheet)
 		bloced.set_model(sheet)
-
 #		self.__changed = False
 #		self.__set_current_file_name(None)
 		self.tabs.add(bloced, text=name)
 		self.__sheets[name] = (sheet, bloced)#XXX
 		self.__tab_children[str(bloced)] = bloced
-		print here(), self.__tab_children
+#		print here(), self.__tab_children
 		self.__select_sheet(name)
 
 
@@ -1460,6 +1455,7 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_export_sheet(self, a=None) :
+#TODO
 		pass
 
 
@@ -1517,20 +1513,8 @@ class BlockEditorWindow(object) :
 		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
 		self.tabs.columnconfigure(0, weight=1)
 		self.tabs.rowconfigure(1, weight=1)
+		self.tabs.enable_traversal()
 #		f1 = ttk.Frame(self.tabs)
-
-		if not NEW :
-
-			self.__bloced = BlockEditor(self.tabs)
-			self.bloced.grid(column=0, row=1, sticky=(W, E, N, S))
-			self.bloced.columnconfigure(0, weight=1)
-			self.bloced.rowconfigure(0, weight=1)
-			self.tabs.add(self.bloced, text="Sheet#1")
-
-		else :
-			pass
-
-
 
 		self.statusbar = Frame(self.root, height=32)
 		self.statusbar.grid(column=0, row=1, sticky=(N, W, E, S))
@@ -1592,9 +1576,9 @@ class BlockEditorWindow(object) :
 		blocks = ([ CascadeMnu(cat,
 			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
 				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
-		menu_blocks = self.add_top_menu("&Insert", [
-			CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last),
-			SepMnu(), ] + blocks)
+		menu_blocks = self.add_top_menu("&Insert",
+#			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
+			blocks)
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 
@@ -1652,7 +1636,7 @@ class BlockEditorWindow(object) :
 		if load_file :
 			self.open_this_file_new(load_file)
 		else :
-			self.new_file()
+			self.new_file()#TODO possibly set draft file name, time+date+username or so
 
 	def run(self) :
 		self.root.mainloop()
