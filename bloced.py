@@ -1188,15 +1188,18 @@ class BlockEditorWindow(object) :
 		if isinstance(item, CascadeMnu) :
 			mnu = Menu(parent)
 			self.__menu_items[item] = (parent, index)
+#			print here(), item, parent
 			parent_add("cascade", label=item.text, menu=mnu)
 			for itm, mnu_index in zip(item.items, count()) :
 				self.__add_menu_item(mnu, itm)
 				self.__menu_items[itm] = (mnu, mnu_index)
+#				print here(), itm, mnu
 		elif isinstance(item, RadioMnu) or isinstance(item, CheckMnu) :
 			if parent in self.__menu_vars :
 				var = self.__menu_vars[parent]
 			else :
 				self.__menu_vars[parent] = var = StringVar()
+#			print here(), parent, item.text
 			item_type = "radiobutton" if isinstance(item, RadioMnu) else "checkbutton" #XXX ugly!!!
 			val = item.value if item.value else item.text
 			parent_add(item_type, label=txt, underline=under,
@@ -1290,6 +1293,8 @@ class BlockEditorWindow(object) :
 			self.__set_current_file_name(fname)
 			self.__changed = False
 			self.__update_recent_files(fname)
+			self.__select_board(self.work.get_board())
+			self.__select_port(self.work.get_port())
 
 
 	def save_file(self, fname) :
@@ -1361,6 +1366,7 @@ class BlockEditorWindow(object) :
 			[RadioMnu(p, None, self.__choose_port, selected=p==choice)
 				for p, desc, nfo in self.work.get_port_list()])
 		self.replace_cascade(old, self.__port_menu)
+		self.__select_port(self.work.get_port())
 
 
 	def get_bloced(self) :
@@ -1496,6 +1502,22 @@ class BlockEditorWindow(object) :
 		result = fnmatch.filter(l, ext)
 		return result
 
+
+	def __select_board(self, board) :
+		print here(),  board
+#		xxx = self.__menu_items[self.__board_menu.items[0]]
+		var = self.__menu_vars[self.__menu_items[self.__board_menu.items[0]][0]]
+#		print here(), type(var)#xxx, xxx[0] in self.__menu_vars
+		var.set(board)
+
+
+	def __select_port(self, port) :
+		if not self.__port_menu :
+			return None
+		var = self.__menu_vars[self.__menu_items[self.__port_menu.items[0]][0]]
+		var.set(port)
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1611,7 +1633,10 @@ class BlockEditorWindow(object) :
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 
 		self.__port_menu = CascadeMnu("Serial Port",
-			[RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports()])
+			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])
+
+		self.__board_menu = CascadeMnu("Board",
+			[ RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards ])
 
 		self.__model_menu = self.add_top_menu("&Workbench", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
@@ -1623,8 +1648,7 @@ class BlockEditorWindow(object) :
 			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
 			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
 			SepMnu(),
-			CascadeMnu("Board",
-				[RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards]),
+			self.__board_menu,
 			self.__port_menu,
 			])
 

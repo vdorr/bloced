@@ -1291,7 +1291,6 @@ class Workbench(object) :
 		name = seed.format(i)
 		if check_validity and not self.is_valid_name(name) :
 			return None
-		print here()
 		while name in self.__sheets :
 			name = seed.format(i)
 			i += 1
@@ -1358,6 +1357,7 @@ class Workbench(object) :
 			self.tmr = Thread(target=self.__timer_thread)
 			self.tmr.start()
 		else :
+			self.set_port_list(build.get_ports())
 			print("running single-threaded!!!")
 #		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
 
