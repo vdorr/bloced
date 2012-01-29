@@ -10,6 +10,7 @@ import traceback
 import os
 import string
 import pickle
+import fnmatch
 
 import pyperclip
 
@@ -86,6 +87,7 @@ class UserSettings(object) :
 		self.main_height = 600
 		self.main_left = 127
 		self.main_top = 127
+		self.recent_files = []
 
 	def __init__(self) :
 		self.set_defaults()
@@ -1275,7 +1277,6 @@ class BlockEditorWindow(object) :
 		self.__set_current_file_name(None)
 
 
-
 	def open_this_file_new(self, fname) :
 		if not self.confirm_complete_clear() :
 			return None
@@ -1288,6 +1289,7 @@ class BlockEditorWindow(object) :
 		else :
 			self.__set_current_file_name(fname)
 			self.__changed = False
+			self.__update_recent_files(fname)
 
 
 	def save_file(self, fname) :
@@ -1300,6 +1302,7 @@ class BlockEditorWindow(object) :
 			else :
 				self.__changed = False
 				self.__set_current_file_name(fname)
+				self.__update_recent_files(fname)
 				return True
 		return False
 
@@ -1413,18 +1416,29 @@ class BlockEditorWindow(object) :
 #			if str(bloced)
 
 
-	def __open_recent(self, filename) :
-		print here(), filename
+	def __open_recent(self, fname) :
+		self.open_this_file_new(fname)
 
 
 	def __list_recent_files(self, files) :
 		old = self.__recent_menu
+		mnu_item = lambda f : CmdMnu("&{0}. {1}".format(i+1, os.path.basename(f)),
+			None, partial(self.__open_recent, f))
 		self.__recent_menu = CascadeMnu("Recent files",
-			[CmdMnu("&{0} {1}".format(i+1, f), None, partial(self.__open_recent, f))
-				for f, i in zip(files, count())])
+			[ mnu_item(f) for f, i in zip(files, count()) ])
 		if not old is None :
 			self.replace_cascade(old, self.__recent_menu)
 		return self.__recent_menu
+
+
+	def __update_recent_files(self, fname) :
+		f = os.path.abspath(fname)
+		try :
+			self.__settings.recent_files.remove(f)
+		except ValueError :
+			pass
+		self.__settings.recent_files.insert(0, f)
+		self.__list_recent_files(self.__settings.recent_files)
 
 
 	def __import_sheet(self, filename) :
@@ -1468,11 +1482,29 @@ class BlockEditorWindow(object) :
 
 
 	def __open_example(self, a=None) :
-		print(here(), a)
+		self.open_this_file_new(a)
 
+
+	def __list_examples(self) :
+		workdir = os.path.join(os.getcwd(), "examples")
+		tree = os.walk(workdir)
+		l = []
+		#don't recurse
+		for root, dirs, files in islice(tree, 1) : #tree if recurse else islice(tree, 1) :
+			l += [ os.path.join(workdir, root, fn) for fn in files ]
+		_, ext = WORKBENCH_EXTENSION
+		result = fnmatch.filter(l, ext)
+		return result
 
 #	@catch_all
 	def __init__(self, load_file=None) :
+
+		try :
+			with open("usersettings.pickle", "rb") as f :
+				self.__settings = pickle.load(f)
+		except :
+			self.__settings = UserSettings()
+			print("failed to load user setting, defaults loaded")
 
 		self.__sheets = {}#XXX see __change_callback
 
@@ -1535,9 +1567,9 @@ class BlockEditorWindow(object) :
 		self.root["menu"] = self.__menubar
 
 		self.__recent_menu = None
-		self.__recent_menu = self.__list_recent_files([])#TODO
+		self.__recent_menu = self.__list_recent_files(self.__settings.recent_files)
 
-		examples = []#TODO
+		examples = self.__list_examples()
 
 		self.add_top_menu("&File", [
 			CmdMnu("&New", "Ctrl+N", self.new_file),
@@ -1546,7 +1578,7 @@ class BlockEditorWindow(object) :
 			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
 			SepMnu(),
 			CascadeMnu("Examples",
-				[ CmdMnu(f, None, partial(self.__open_example, f)) for f, i in examples ]),
+				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in examples ]),
 			SepMnu(),
 			self.__recent_menu,
 #			SepMnu(),
@@ -1610,13 +1642,6 @@ class BlockEditorWindow(object) :
 #		menu_debug.add_command(label="zoom",
 #			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
-		try :
-			f = open("usersettings.pickle", "rb")
-			self.__settings = pickle.load(f)
-			f.close()
-		except :
-			self.__settings = UserSettings()
-			print("failed to load user setting, defaults loaded")
 		self.root.geometry("%ix%i" % (self.__settings.main_width, self.__settings.main_height))
 #		self.root.geometry("+%i+%i" % (self.__settings.main_left, self.__settings.main_top))
 #		self.root.geometry("%ix%i+%i+%i" % (self.__settings.main_width, self.__settings.main_height,

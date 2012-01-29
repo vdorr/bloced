@@ -1008,7 +1008,8 @@ else :
 from pprint import pprint
 
 MAX_WORKERS = 1
-KNOWN_EXTENSIONS = ( ("bloced workbench", "*.w"), ("all files", "*") )
+WORKBENCH_EXTENSION = ("bloced workbench", "*.w")
+KNOWN_EXTENSIONS = ( WORKBENCH_EXTENSION, ("all files", "*") )
 IMPORT_EXTENSIONS = ( ("bloced sheet", "*.bloc"), ("all files", "*") )
 
 #def synchronized(lock):
