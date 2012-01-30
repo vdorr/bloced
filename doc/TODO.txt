@@ -24,3 +24,5 @@ platform support package (for example arduino source files + known_types + prog 
 README.markdown
 globalize
 examples menu
+arduino (stk500) simulator
+runtime editable consts
