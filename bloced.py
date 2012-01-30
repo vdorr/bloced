@@ -1319,6 +1319,8 @@ class BlockEditorWindow(object) :
 
 
 	def mnu_mode_run(self) :
+		if not self.work.have_blob() :
+			self.work.build()
 		self.work.upload()
 
 
@@ -1357,17 +1359,6 @@ class BlockEditorWindow(object) :
 		print "workbench changed"
 		self.status_label_left.configure(text=columns[0])
 		self.status_label_right.configure(text=columns[-1])
-
-
-	def __port_list_changed(self) :
-		print "ports changed", self.work.get_port_list()
-		choice = self.work.get_port()
-		old = self.__port_menu
-		self.__port_menu = CascadeMnu("Serial Port",
-			[RadioMnu(p, None, self.__choose_port, selected=p==choice)
-				for p, desc, nfo in self.work.get_port_list()])
-		self.replace_cascade(old, self.__port_menu)
-		self.__select_port(self.work.get_port())
 
 
 	def get_bloced(self) :
@@ -1521,7 +1512,29 @@ class BlockEditorWindow(object) :
 	def __workbench_getter(self) :
 		return self.work
 
-	@catch_all
+
+	def __port_list_changed(self) :
+#		print "ports changed", self.work.get_port_list()
+		choice = self.work.get_port()
+		old = self.__port_menu
+		self.__port_menu = CascadeMnu("Serial Port",
+			[ CmdMnu("&Rescan", None, self.__mnu_rescan_ports), SepMnu() ] +
+			[ RadioMnu(p, None, self.__choose_port, selected=p==choice)
+				for p, desc, nfo in self.work.get_port_list()])
+		self.replace_cascade(old, self.__port_menu)
+		self.__select_port(self.work.get_port())
+
+
+	def rescan_ports(self) :
+		self.work.rescan_ports()
+		self.__port_list_changed()
+
+
+	def __mnu_rescan_ports(self, a=None) :
+		self.rescan_ports()
+
+
+#	@catch_all
 	def __init__(self, load_file=None) :
 
 		try :
@@ -1544,6 +1557,7 @@ class BlockEditorWindow(object) :
 			status_callback=self.__workbench_status_changed,
 			ports_callback=self.__port_list_changed,
 			change_callback=self.__change_callback)
+		self.work.rescan_ports()
 
 		self.__menu_items = {}
 		self.__menu_vars = {}
@@ -1636,8 +1650,9 @@ class BlockEditorWindow(object) :
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 
-		self.__port_menu = CascadeMnu("Serial Port",
-			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])
+#		self.__port_menu = CascadeMnu("Serial Port",
+#			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])
+		self.__port_menu = CascadeMnu("(scanning)", [])
 
 		self.__board_menu = CascadeMnu("Board",
 			[ RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards ])
@@ -1655,6 +1670,7 @@ class BlockEditorWindow(object) :
 			self.__board_menu,
 			self.__port_menu,
 			])
+		self.rescan_ports()
 
 		self.add_top_menu("&Help", [
 			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),

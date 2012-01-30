@@ -1133,6 +1133,11 @@ class Workbench(object) :
 			a_hex_blob=blob,
 			verbose=False,
 			dry_run=False)
+		if rc[0] :
+			print("programming failed ({0})".format(rc[0]))
+		else :
+			print("programming succeeded")
+
 
 	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
@@ -1159,7 +1164,7 @@ class Workbench(object) :
 	@catch_all
 
 	def __timer_thread(self) :
-		port_check = time.time()
+#		port_check = time.time()
 		while not self.__get_should_finish() :
 
 			tm = time.time()
@@ -1183,14 +1188,18 @@ class Workbench(object) :
 
 			if time.time() - tm < 0.3 :
 				time.sleep(0.3)
-
 #TODO TODO TODO		self.__timer_job()
 			now = time.time()
-#			self.__messages.put("hello")
-			if now - port_check >= self.__port_check_time :
-#				print ("check ports")
-				self.set_port_list(build.get_ports())
-				port_check = time.time()
+
+#			if now - port_check >= self.__port_check_time :
+##				print ("check ports")
+#				self.rescan_ports()
+#				port_check = time.time()
+
+
+	#sync
+	def rescan_ports(self) :
+		self.set_port_list(build.get_ports())
 
 	def __timer_job(self) :
 #TODO TODO TODO
@@ -1340,6 +1349,16 @@ class Workbench(object) :
 
 
 	MULTITHREADED = True
+
+
+	@sync
+	def have_blob(self) :
+		return not self.__blob is None
+
+
+	@sync
+	def blob_time(self) :
+		return self.__blob_time
 
 
 	@catch_all
