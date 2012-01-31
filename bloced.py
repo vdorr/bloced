@@ -27,19 +27,18 @@ import build
 
 if version_info.major == 3 :
 	from tkinter import * #TODO this is not good
-	from tkinter import font as tkFont #XXX ?!?!?!?
 	import tkinter.messagebox as tkMessageBox
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
 else :
 	from Tkinter import * #TODO this is not good
-	import tkFont
 	import tkMessageBox
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
 	from tkSimpleDialog import Dialog
 
-from PIL import ImageTk, Image, ImageDraw, ImageFont
+#from PIL import ImageTk, Image, ImageDraw, ImageFont
+import cairo
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -270,6 +269,21 @@ class Block(Canvas, BlockBase) :
 				self.__images.pop(name)
 				self.delete(obj)
 
+
+
+#		font_info_t = namedtuple("font_info", ("face", "size"))
+#		self.font = font_info_t("Sans", 8)
+#		self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+#		self.context = cairo.Context(self.surface)
+#		self.context.select_font_face(self.font.face)
+#		self.context.set_font_size(self.font.size)
+
+#		self.editor.surface
+		self.editor.context
+
+
+
+
 		fnt = self.editor.font
 		size = fnt.getsize(text)
 		im = Image.new("RGBA", size, (0, 0, 0, 0))
@@ -360,7 +374,7 @@ class Block(Canvas, BlockBase) :
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
 #			txt_width = fnt.measure(term_label)
-			txt_width, _ = self.editor.font.getsize(term_label)
+			txt_width, _ = 24#XXX self.editor.font.getsize(term_label)
 #XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
@@ -995,13 +1009,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
 
-#		font = ImageFont.truetype('path/to/font.ttf', size)
-		self.font = ImageFont.load_default()
-#		self.font_h = tkFont.nametofont("TkDefaultFont")
-#		self.font_v = tkFont.nametofont("TkDefaultFont")
-#		self.txt_height = self.font_h.metrics("linespace")
-		_, self.txt_height = self.font.getsize("jJ")
-
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
@@ -1046,6 +1053,16 @@ class BlockEditor(Frame, GraphModelListener) :
 		#XXX cursor: select, shift+cursor: move ?
 		
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
+
+		font_info_t = namedtuple("font_info", ("face", "size"))
+		self.font = font_info_t("Sans", 8)
+		self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+		self.context = cairo.Context(self.surface)
+		self.context.select_font_face(self.font.face)
+		self.context.set_font_size(self.font.size)
+#		x_b, y_b, width, height, x_adv, y_adv = self.context.text_extents("jJ")
+#		print here(), width, height
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1564,8 +1581,6 @@ class BlockEditorWindow(object) :
 
 		self.root = Tk()
 		self.root.protocol("WM_DELETE_WINDOW", self.__on_closing)
-#		print (tkFont.Font().actual())
-#		print tkFont.families()
 
 		self.root.title(cfg.APP_NAME)
 		self.root.option_add("*tearOff", FALSE)

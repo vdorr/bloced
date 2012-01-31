@@ -1348,7 +1348,7 @@ class Workbench(object) :
 		self.clear_meta()
 
 
-	MULTITHREADED = True
+	MULTITHREADED = False
 
 
 	@sync
