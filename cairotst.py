@@ -13,24 +13,18 @@ import Tkinter
 #		tmp.append(blend)
 #	return(tuple(tmp))
 
-def convert(data, width, height):
-	col = []
-	rows = []
-#	for i in range(0, len(data), 4) :
+
+def __argb2tkput_it(data, width, height) :
 	for y in range(height) :
-		rows.append("{")
+		yield "{"
 		for i in range(y * 4 * height, (y+1) * 4 * height, 4) :
-			rows.append("#{0:02x}{1:02x}{2:02x}".format(
-				ord(data[i+2]),
-				ord(data[i+1]),
-				ord(data[i+0])))
-#			if len(col) == width :
-##				print(((i*4) % width))
-#				rows.append("".join(("{ ", " ".join(col), " } ")))
-#				col = []
-		rows.append("}")
-	print " ".join(rows)
-	return " ".join(rows)
+			yield "#{0:02x}{1:02x}{2:02x}".format(
+				ord(data[i+2]), ord(data[i+1]), ord(data[i+0]))
+		yield "}"
+
+
+def argb2tkput(data, width, height):
+	return " ".join(__argb2tkput_it(data, width, height))
 
 
 def main() :
@@ -62,7 +56,7 @@ def main() :
 	root = Tkinter.Tk()
 
 	image1 = Tkinter.PhotoImage(width=width, height=height)
-	data = convert(surface.get_data(), width, height)
+	data = argb2tkput(surface.get_data(), width, height)
 	image1.put(data)
 
 	panel1 = Tkinter.Label(root, image=image1)
