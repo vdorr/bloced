@@ -2,92 +2,35 @@
 import cairo
 import math
 import Tkinter
-#import tkinter as Tkinter
-import Image
-import ImageTk
-from os import linesep
 
-def make_xbm(w, h, data) :
-	octets = []
-	byte = 0
-	bit = 0
-	octet = 0
-	state = False
-	dots = 0
-	for i in range(len(data)/4) :
-		pixel = [ ord(data[i*4+j]) for j in range(4) ]
-		state = 0 if all([ 255==p for p in pixel ]) else 1
-		if state :
-			print pixel
-		octet |= state << (bit)
-		if bit == 7 :
-			octets.append(hex(octet))
-			octet = 0
-			bit = 0
-		else :
-			bit += 1
+tstdata ="""{ #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #fbfbfb #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #d7d7d7 #1c1c1c #e0e0e0 #ffffff #808080 #575757 #ffffff #ffffff #c6c6c6 #585858 } { #2e2e2e #727272 #e2e2e2 #ffffff #ffffff #000000 #818181 #434343 #949494 #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #a2a2a2 } { #373737 #b9b9b9 #262626 #f1f1f1 #ffffff #fefefe #1e1e1e #c5c5c5 #fcfcfc #808080 #606060 #ffffff #ffffff #000000 #8e8e8e #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #5f5f5f #090909 #cccccc #ffffff #ffffff #c6c6c6 #333333 #ffffff #ffffff #ebebeb #131313 #fafafa #ffffff #000000 #e7e7e7 #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #f9f9f9 #343434 #191919 #b5b5b5 #ffffff #ffffff #c6c6c6 #333333 #ffffff #ffffff #ebebeb } { #131313 #f9f9f9 #ffffff #000000 #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #6e6e6e #676767 #d4d4d4 } { #1d1d1d #e3e3e3 #ffffff #fefefe #1e1e1e #c1c1c1 #fbfbfb #7f7f7f #606060 #ffffff #ffffff #000000 #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #afafaf #2e2e2e #f7f7f7 #ffffff #9c9c9c #3c3c3c #fbfbfb #ffffff #c6c6c6 #575757 #2b2b2b #717171 #e2e2e2 #ffffff #ffffff #000000 #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff } { #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff #ffffff }"""
 
-#	for x in data :
-#		p = ord(x[0])
-#		if p == 0 :
-##			print p, "!!!!!!!"
-#			dots =+ 1
-##		if byte % 2 == 0 :
-##			state |= p != 0
-#		if byte % 4 == 0 :
-
-#			state |= p == 0
-
-#			octet |= (1 if state else 0) << bit
-#			if bit == 7 :
-#				octets.append(hex(octet))
-#				octet = 0
-#				bit = 0
-#			bit += 1
-#			state = False
-#		byte += 1
-
-#	print(len(data), len(octets), byte, "dots=", dots)#, len(data) / len(octets))
-
-	s = ("#define test_width %i" % w + linesep +
-	"#define test_height %i" % h + linesep +
-	"static char test_bits[] = {" + linesep +
-	",".join(octets) + linesep +
-	"};")
-
-	return s
+#def _alpha_blending(rgba, back):
+#	"Return a rgb tuple composed from a rgba and back(ground) tuple/list."
+#	paired = zip(rgba[:-1], back)
+#	alpha = rgba[-1]
+#	tmp = list()
+#	for upper, lower in paired:
+#		blend = (((255 - alpha) * lower) + (alpha * upper)) / 255
+#		tmp.append(blend)
+#	return(tuple(tmp))
 
 
-def make_pgm(w, h, data) :
-	s = ("P2"+ linesep +
-	"{0} {0}".format(w, h) + linesep +
-	"255" + linesep)
+def __argb2tkput_it(data, width, height) :
+	for y in range(height) :
+		yield "{"
+		for i in range(y * 4 * width, (y+1) * 4 * width, 4) :
+			yield "#{0:02x}{1:02x}{2:02x}".format(
+				ord(data[i+2]), ord(data[i+1]), ord(data[i+0]))
+		yield "}"
 
-	octets = []
-	byte = 0
-	bit = 0
-	octet = 0
-	state = False
-	dots = 0
 
-	rows = []
-	l = []
-	col=0
+def argb2tkput(data, width, height):
+	return " ".join(__argb2tkput_it(data, width, height))
 
-	for i in range(len(data)/4) :
-		pixel = [ ord(data[i*4+j]) for j in range(4) ]
-		l.append(str(pixel[2]))
-#		print str(pixel[2])
-		col += 1
-		if col == w :
-			col = 0
-			rows.append(" ".join(l))
-			l = []
-
-	return s + linesep.join(rows)
 
 def main() :
-	width, height = 64, 64
+	width, height = 64, 70
 
 	surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width, height)
 	ctx = cairo.Context(surface)
@@ -101,10 +44,10 @@ def main() :
 	ctx.select_font_face("Sans")
 	ctx.set_font_size(11)
 #	print(ctx.get_font_matrix())
-	mat = ctx.get_font_matrix()
-	mat.rotate(math.pi*0.5)
-	ctx.set_font_matrix(mat)
-#	print(mat)
+
+#	mat = ctx.get_font_matrix()
+#	mat.rotate(math.pi*0.5)
+#	ctx.set_font_matrix(mat)
 
 	text = "Xx"
 	x_bearing, y_bearing, w, h, x_advance, y_advance = ctx.text_extents(text)
@@ -112,23 +55,11 @@ def main() :
 	ctx.move_to (20,20)
 	ctx.show_text(text)
 
-	surface.write_to_png('test.png')
-
-	data = make_pgm(width, height, surface.get_data())
-	print data
-#	ci = CairoImage()
-
-#	return None
-
 	root = Tkinter.Tk()
 
-	img = Image.open("test.png")
-#	print img
-#	image1 = ImageTk.PhotoImage(img)
-#	image1 = RawImage(surface.get_data(), width, height)
-
-#	image1 = Tkinter.PhotoImage(data=data)
-	image1 = Tkinter.PhotoImage(file = "balloons.pgm")
+	image1 = Tkinter.PhotoImage(width=width, height=height)
+	data = argb2tkput(surface.get_data(), width, height)
+	image1.put(data)
 
 	panel1 = Tkinter.Label(root, image=image1)
 	panel1.pack(side='top', fill='both', expand='yes')

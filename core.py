@@ -333,8 +333,10 @@ class BasicBlocksFactory(object) :
 
 	def load_library(self, basedir) :
 #		print basedir
+
 		try :
-			dirname, dirnames, filenames = os.walk(basedir).next()
+			((dirname, dirnames, filenames),) = islice(os.walk(basedir), 1)
+#			dirname, dirnames, filenames = os.walk(basedir).next()
 		except :
 			print("load_library: failed to scan ", basedir)
 			return (False, )
