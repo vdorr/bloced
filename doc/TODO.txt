@@ -26,3 +26,4 @@ globalize
 examples menu
 arduino (stk500) simulator
 runtime editable consts
+measure speed in tests
