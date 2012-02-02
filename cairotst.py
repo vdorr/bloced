@@ -14,56 +14,23 @@ import Tkinter
 #	return(tuple(tmp))
 
 def convert(data, width, height):
-#	"Convert bgra buffer to photoimage put"
-#	idx = 0
-#	end = len(bgra_buffer)
-
 	col = []
 	rows = []
-
-#	while idx < end:
-	for i in range(0, len(data), 4) :
-#		linebreak = i % width
-#		if linebreak == 0 :
-#			if l :
-#				l.append("}")
-#			l.append("{")
-
-#		rgba = (ord(bgra_buffer[idx + 2]),
-#		ord(bgra_buffer[idx + 1]),
-#		ord(bgra_buffer[idx + 0]),
-#		ord(bgra_buffer[idx + 3]))
-#		back = (255, 255, 255)
-#		rgb = _alpha_blending(rgba, back)
-
-#		rgb = (ord(data[i+2]),
-#			ord(data[i+1]),
-#			ord(data[i+0]))
-
-#		arguments += rgb
-
-		col.append("#{0:02x}{1:02x}{2:02x}".format(
-			ord(data[i+2]),
-			ord(data[i+1]),
-			ord(data[i+0])))
-
-		if len(col) == width :
-			rows.append("".join(("{", " ".join(col), "}")))
-			col = []
-		
-
-#	l.append("}")
-#	return ' '.join(l)
-
-#	template = ' '.join(height *['{%s}' % (' '.join(width*["#%02x%02x%02x"]))])
-#	template = ' '.join(height *['{%s}' % (' '.join(width*["%s"]))])
-#	s=(template % tuple(arguments))
-
-#	template = ' '.join(height *['{%s}'])
-#	s=(template % tuple(l))
-	s = " ".join(rows)
-	print s
-	return s
+#	for i in range(0, len(data), 4) :
+	for y in range(height) :
+		rows.append("{")
+		for i in range(y * 4 * height, (y+1) * 4 * height, 4) :
+			rows.append("#{0:02x}{1:02x}{2:02x}".format(
+				ord(data[i+2]),
+				ord(data[i+1]),
+				ord(data[i+0])))
+#			if len(col) == width :
+##				print(((i*4) % width))
+#				rows.append("".join(("{ ", " ".join(col), " } ")))
+#				col = []
+		rows.append("}")
+	print " ".join(rows)
+	return " ".join(rows)
 
 
 def main() :
