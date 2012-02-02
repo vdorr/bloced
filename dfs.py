@@ -993,7 +993,6 @@ def try_mkmac(model) :
 import core
 import build
 import ccodegen
-from Queue import Queue, Empty as QueueEmpty
 from threading import Thread, Lock
 #from multiprocessing import Process, Queue, Lock
 import time
@@ -1003,8 +1002,10 @@ from implement import implement_dfs, implement_workbench, here
 from sys import version_info
 if version_info.major == 3 :
 	from io import StringIO
+	from queue import Queue, Empty as QueueEmpty
 else :
 	from StringIO import StringIO
+	from Queue import Queue, Empty as QueueEmpty
 from pprint import pprint
 
 MAX_WORKERS = 1
@@ -1128,7 +1129,7 @@ class Workbench(object) :
 
 
 	def upload_job(self, prog_mcu, blob) :
-		print here()#, len(a)
+		print(here())#, len(a))
 		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
 			a_hex_blob=blob,
 			verbose=False,
@@ -1180,9 +1181,9 @@ class Workbench(object) :
 
 			for job_type, job_args in jobs :
 				if job_type == "build" :
-					print here()
+					print(here())
 				if job_type == "upload" :
-					print here()
+					print(here())
 					self.upload_job(*job_args)
 #TODO put to message to signal job done
 
@@ -1343,7 +1344,7 @@ class Workbench(object) :
 
 
 	def clear(self) :
-		for name in self.__sheets.keys() :
+		for name in list(self.__sheets.keys()) :
 			self.delete_sheet(name=name)
 		self.clear_meta()
 
@@ -1394,6 +1395,7 @@ class Workbench(object) :
 
 		self.blockfactory = core.create_block_factory(
 			scan_dir=lib_dir)
+#		print(here(), lib_dir)
 
 		self.__sheets = {}
 		self.__meta = {}

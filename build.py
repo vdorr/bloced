@@ -33,7 +33,7 @@ def __run_external(args, workdir=None, redir=False) :
 			stderr=redir_method,
 			cwd=os.getcwd() if workdir is None else workdir )
 	except Exception as e:
-		print e #XXX
+		print(e) #XXX
 		return (False, None, (None, None))
 	else :
 		(stdoutdata, stderrdata) = p.communicate()
@@ -409,7 +409,7 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 	else :
 		filename = a_hex
 
-	print "filename=", filename
+	print("filename=", filename)#XXX
 
 	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
 		verbose=verbose,

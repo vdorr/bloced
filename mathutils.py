@@ -45,12 +45,16 @@ def make_rect(x, y, w, h) :
 	return [ (x, y), (x+w, y), (x+w, y+h), (x, y+h) ]
 
 def bounding_rect(points) :
-	(l, t, r, b) = reduce(lambda (l0, t0, r0, b0), (l1, t1, r1, b1): (
-		l1 if l1 < l0 else l0,
-		t1 if t1 < t0 else t0,
-		r1 if r1 > r0 else r0,
-		b1 if b1 > b0 else b0),
-			[ (x, y, x, y) for x, y in points ], 
+
+	def compare(a, b) :
+		(l0, t0, r0, b0), (l1, t1, r1, b1) = a, b
+		return (l1 if l1 < l0 else l0,
+			t1 if t1 < t0 else t0,
+			r1 if r1 > r0 else r0,
+			b1 if b1 > b0 else b0)
+
+	(l, t, r, b) = reduce(compare,
+		[ (x, y, x, y) for x, y in points ], 
 		(1000000, 1000000, -1000000, -1000000))
 	return l, t, r - l, b - t
 

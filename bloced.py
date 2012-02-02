@@ -30,6 +30,7 @@ if version_info.major == 3 :
 	import tkinter.messagebox as tkMessageBox
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
+	from tkinter.simpledialog import Dialog
 else :
 	from Tkinter import * #TODO this is not good
 	import tkMessageBox
@@ -37,7 +38,6 @@ else :
 	import ttk
 	from tkSimpleDialog import Dialog
 
-#from PIL import ImageTk, Image, ImageDraw, ImageFont
 import cairo
 
 # ------------------------------------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ class Configuration(object):
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
 	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
-	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	APP_INFO = os.linesep.join((APP_NAME, "graphical programming toy"))
 	HELP_URL = "http://www.tinfoilhat.cz"
 	POLL_WORKERS_PERIOD = 1000
 	SHEET_NAME_SEED = "Sheet{0}"
@@ -213,6 +213,25 @@ class BlockBase(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+def __argb2tkput_it(data, width, height) :
+	for y in range(height) :
+		yield "{"
+		for i in range(y * 4 * width, (y+1) * 4 * width, 4) :
+			if (i >= (4 * width * height)) :
+				print (y, i, width, height)
+			assert(i < (4 * width * height))
+			yield "#{0:02x}{1:02x}{2:02x}".format(
+				ord(data[i+2]), ord(data[i+1]), ord(data[i+0]))
+		yield "}"
+
+
+def argb2tkput(data, width, height):
+#	print len(data), width, height
+	assert(len(data) == (4 * width * height))
+	return " ".join(__argb2tkput_it(data, width, height))
+
+
 class Block(Canvas, BlockBase) :
 
 	def term_onMouseDown(self, e) :
@@ -279,30 +298,66 @@ class Block(Canvas, BlockBase) :
 #		self.context.set_font_size(self.font.size)
 
 #		self.editor.surface
-		self.editor.context
+		x_b, y_b, txtw, txth, x_adv, y_adv = self.editor.context.text_extents(text)
+		w, h = int(txtw), int(txth-y_b)
+
+		surf = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
+		ctx = cairo.Context(surf)
+
+		ctx.set_source_rgb (1, 1, 1)
+		ctx.set_operator (cairo.OPERATOR_SOURCE)
+		ctx.rectangle(0, 0, w, h)
+		ctx.fill()
+
+		ctx.set_source_rgb (0, 0, 0)
+		ctx.set_operator (cairo.OPERATOR_SOURCE)
+		ctx.rectangle(0, 0, w, h)
+		ctx.stroke()
+
+		ctx.set_source_rgb (0, 0, 0)
+		ctx.select_font_face(self.editor.font.face)
+		ctx.set_font_size(self.editor.font.size)
+	#	print(ctx.get_font_matrix())
+
+	#	mat = ctx.get_font_matrix()
+	#	mat.rotate(math.pi*0.5)
+	#	ctx.set_font_matrix(mat)
+
+		ctx.move_to (0, txth+2)
+		ctx.show_text(text)
+
+#		print here(), text, ctx.text_extents(text)
+
+#		surf.write_to_png("666.png")
+
+		img = PhotoImage(width=w, height=h)
+		data = argb2tkput(surf.get_data(), w, h)
+#		print data
+		img.put(data)
 
 
 
 
-		fnt = self.editor.font
-		size = fnt.getsize(text)
-		im = Image.new("RGBA", size, (0, 0, 0, 0))
-		draw = ImageDraw.Draw(im)
+#		im = Image.new("RGBA", size, (0, 0, 0, 0))
+#		draw = ImageDraw.Draw(im)
+
 
 		flipv, fliph, rot = self.model.orientation
 		if name == "caption_lbl" :
-			lbl_x, lbl_y = self.model.get_label_pos(*size)
-			pos = lbl_x, lbl_y
+			lbl_x, lbl_y = self.model.get_label_pos(w, h)
+#			pos = lbl_x, lbl_y
 		else :
-			lbl_x, lbl_y = pos
-#		print self.model.prototype.type_name, (lbl_x, lbl_y)
-#		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
-		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
-		img = ImageTk.PhotoImage(
-			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
+			lbl_x, lbl_y = w, h
+
+#		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+#		img = ImageTk.PhotoImage(
+#			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
+
+
 		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-		self.__images[name] = (img, text, pos, i)
+		self.__images[name] = (img, text, (w, h), i)
 		return i
+
 
 	def __init__(self, editor, model) :
 		self.editor = editor
@@ -374,7 +429,10 @@ class Block(Canvas, BlockBase) :
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
 #			txt_width = fnt.measure(term_label)
-			txt_width, _ = 24#XXX self.editor.font.getsize(term_label)
+
+			x_b, y_b, txtw, txth, x_adv, y_adv = self.editor.context.text_extents(term_label)
+			txt_width = int(txtw)
+#			txt_width, _ = 24#XXX self.editor.font.getsize(term_label)
 #XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
@@ -1055,12 +1113,13 @@ class BlockEditor(Frame, GraphModelListener) :
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
 
 		font_info_t = namedtuple("font_info", ("face", "size"))
-		self.font = font_info_t("Sans", 8)
+		self.font = font_info_t("Sans", 11)
 		self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
 		self.context = cairo.Context(self.surface)
 		self.context.select_font_face(self.font.face)
 		self.context.set_font_size(self.font.size)
-#		x_b, y_b, width, height, x_adv, y_adv = self.context.text_extents("jJ")
+		x_b, y_b, width, height, x_adv, y_adv = self.context.text_extents("jJ")
+		self.txt_height = int(height)
 #		print here(), width, height
 
 
@@ -1182,7 +1241,7 @@ class BlockEditorWindow(object) :
 	def __convert_accel(self, accel) :
 		parts = accel.replace("Ctrl", "Control").split("+")
 		parts[-1] = parts[-1].lower() if len(parts[-1]) == 1 else parts[-1]
-		return "<" + string.join(parts, "-") + ">"
+		return "<" + "-".join(parts) + ">"
 
 
 	def __add_menu_item(self, mnu, item, index=None) :
@@ -1373,7 +1432,7 @@ class BlockEditorWindow(object) :
 
 
 	def __workbench_status_changed(self, columns) :
-		print "workbench changed"
+		print("workbench changed")
 		self.status_label_left.configure(text=columns[0])
 		self.status_label_right.configure(text=columns[-1])
 
@@ -1423,7 +1482,7 @@ class BlockEditorWindow(object) :
 
 
 	def delete_sheet(self, sheet, name) :
-		print here(), sheet, name, self.__tab_children
+		print(here(), sheet, name, self.__tab_children)
 		sheet, bloced = self.__sheets.pop(name)
 		self.__tab_children.pop(str(bloced))
 		self.tabs.forget(str(bloced))
@@ -1437,10 +1496,10 @@ class BlockEditorWindow(object) :
 
 	def __list_recent_files(self, files) :
 		old = self.__recent_menu
-		mnu_item = lambda f : CmdMnu("&{0}. {1}".format(i+1, os.path.basename(f)),
+		mnu_item = lambda f, i : CmdMnu("&{0}. {1}".format(i+1, os.path.basename(f)),
 			None, partial(self.__open_recent, f))
 		self.__recent_menu = CascadeMnu("Recent files",
-			[ mnu_item(f) for f, i in zip(files, count()) ])
+			[ mnu_item(f, i) for f, i in zip(files, count()) ])
 		if not old is None :
 			self.replace_cascade(old, self.__recent_menu)
 		return self.__recent_menu
@@ -1467,7 +1526,6 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_import_sheet(self, a=None) :
-		print here()
 		fname = askopenfilename(filetypes=IMPORT_EXTENSIONS)
 		if fname :
 			self.__import_sheet(fname)
@@ -1488,7 +1546,7 @@ class BlockEditorWindow(object) :
 
 	def __mnu_delete_sheet(self, a=None) :
 		win = self.tabs.select()
-		print win, self.tabs.index(win), 
+#		print(win, self.tabs.index(win))
 		subwin = self.__tab_children[win]
 		for name, (sheet, bloced) in self.__sheets.items() :
 			if bloced == subwin :
@@ -1520,6 +1578,7 @@ class BlockEditorWindow(object) :
 
 
 	def __select_port(self, port) :
+		return None
 		if not self.__port_menu :
 			return None
 		var = self.__menu_vars[self.__menu_items[self.__port_menu.items[0]][0]]
