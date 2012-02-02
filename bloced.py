@@ -1581,8 +1581,10 @@ class BlockEditorWindow(object) :
 		return None
 		if not self.__port_menu :
 			return None
-		var = self.__menu_vars[self.__menu_items[self.__port_menu.items[0]][0]]
-		var.set(port)
+		mnu_item = self.__menu_items[self.__port_menu.items[0]][0]
+		if mnu_item in self.__menu_vars :
+			var = self.__menu_vars[mnu_item]
+			var.set(port)
 
 
 	def __workbench_getter(self) :
