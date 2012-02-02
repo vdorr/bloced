@@ -86,6 +86,40 @@ def make_pgm(w, h, data) :
 
 	return s + linesep.join(rows)
 
+def _alpha_blending(rgba, back):
+	"Return a rgb tuple composed from a rgba and back(ground) tuple/list."
+	paired = zip(rgba[:-1], back)
+	alpha = rgba[-1]
+	tmp = list()
+	for upper, lower in paired:
+		blend = (((255 - alpha) * lower) + (alpha * upper)) / 255
+		tmp.append(blend)
+	return(tuple(tmp))
+
+def convert(bgra_buffer, width, height):
+	"Convert bgra buffer to photoimage put"
+	idx = 0
+	end = len(bgra_buffer)
+	arguments = list()
+
+	while idx < end:
+#		rgba = (ord(bgra_buffer[idx + 2]),
+#		ord(bgra_buffer[idx + 1]),
+#		ord(bgra_buffer[idx + 0]),
+#		ord(bgra_buffer[idx + 3]))
+#		back = (255, 255, 255)
+#		rgb = _alpha_blending(rgba, back)
+		rgb = (ord(bgra_buffer[idx + 2]),
+			ord(bgra_buffer[idx + 1]),
+			ord(bgra_buffer[idx + 0]))
+		arguments += rgb
+		idx += 4
+
+	template = ' '.join(height *['{%s}' % (' '.join(width*["#%02x%02x%02x"]))])
+
+	return(template % tuple(arguments))
+
+
 def main() :
 	width, height = 64, 64
 
@@ -112,23 +146,26 @@ def main() :
 	ctx.move_to (20,20)
 	ctx.show_text(text)
 
-	surface.write_to_png('test.png')
+#	surface.write_to_png('test.png')
 
-	data = make_pgm(width, height, surface.get_data())
-	print data
+#	data = make_pgm(width, height, surface.get_data())
+#	print data
 #	ci = CairoImage()
 
 #	return None
 
 	root = Tkinter.Tk()
 
-	img = Image.open("test.png")
-#	print img
+#	img = Image.open("test.png")
 #	image1 = ImageTk.PhotoImage(img)
-#	image1 = RawImage(surface.get_data(), width, height)
 
+#	image1 = RawImage(surface.get_data(), width, height)
 #	image1 = Tkinter.PhotoImage(data=data)
-	image1 = Tkinter.PhotoImage(file = "balloons.pgm")
+#	image1 = Tkinter.PhotoImage(file = "balloons.pgm")
+
+	image1 = Tkinter.PhotoImage(width=width, height=height)
+	data = convert(surface.get_data(), width, height)
+	image1.put(data)
 
 	panel1 = Tkinter.Label(root, image=image1)
 	panel1.pack(side='top', fill='both', expand='yes')
