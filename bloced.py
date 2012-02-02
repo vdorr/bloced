@@ -1536,6 +1536,15 @@ class BlockEditorWindow(object) :
 		self.rescan_ports()
 
 
+	def __mnu_rename_sheet(self) :
+#		d = InputDialog(self.root, "Enter new sheet name",
+#			initial="???")
+##		print here(), d.value
+#		if d.value :
+#			self.work.add_sheet(sheet=None, name=d.value)
+		pass
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1665,6 +1674,7 @@ class BlockEditorWindow(object) :
 #			CmdMnu("&Stop", "Ctrl+F5", None)
 			SepMnu(),
 			CmdMnu("Add sheet", None, self.__mnu_add_sheet),
+			CmdMnu("Rename sheet", None, self.__mnu_rename_sheet),
 			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
 			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
 			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
