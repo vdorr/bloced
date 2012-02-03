@@ -26,3 +26,5 @@ globalize
 examples menu
 arduino (stk500) simulator
 runtime editable consts
+nondestructive grap editing (like return (pop_this, update_that))
+throw away separate delay dictionary
