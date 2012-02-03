@@ -472,8 +472,10 @@ class BlockModel(object) :
 			newtxt = str(self.value)
 		elif self.prototype.__class__.__name__ == "DelayProto" :
 			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
-		elif self.prototype.__class__.__name__ in ("TapProto", "TapEndProto") :
-			newtxt = str(self.value) if self.value != None else "None"
+		elif self.prototype.__class__.__name__ == "TapProto" :
+			newtxt = "Tap (%s)" % (str(self.value) if self.value != None else "None")
+		elif self.prototype.__class__.__name__ == "TapEndProto" :
+			newtxt = "TapEnd (%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "InputProto" :
 			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "OutputProto" :
