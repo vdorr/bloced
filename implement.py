@@ -1,3 +1,4 @@
+#! /usr/bin/python
 
 #from dfs import *
 from core import *
@@ -248,15 +249,15 @@ def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy) :
 		(d, (i, o)) = __expddel(d, nr)
 		expd_delays.update(d=(i, o))
 		tap_pred = (o, o.terms[0], 0)
-		succs = [ (i, i.terms[0], 0) ]
+		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
 		snippet_in = {
-			i : adjs_t([], [])#?!?!
+			i : adjs_t([(i.terms[0], 0, [])], [])#?!?!
 #			i : adjs_t([ (i.terms[0], 0, [ (pb, pt, pt_nr)]) ], []),
 		}
 		snippet_out = {
 #			i : adjs_t([ (i.terms[0], 0, [ (pb, pt, pt_nr)]) ], []),
 #			o : adjs_t([], [ (o.terms[0], 0, [ (pb, pt, pt_nr)]) ])
-			o : adjs_t([], [])#?!?!
+			o : adjs_t([], [(o.terms[0], 0, [])])#?!?!
 		}
 	else :
 		raise Exception("unknown tap joining policy")
@@ -269,12 +270,14 @@ def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy) :
 		map_out = { (out_term, out_term_nr) : tap_pred
 			for out_term, out_term_nr, _ in tap_end_succs }
 
+		print here(), tap_end, snippet_out, {}, map_out
 		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
 
 		assert(not tap_end in g)
 
 	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
 
+	print here(), tap, snippet_in, map_in
 	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
 
 
@@ -310,7 +313,7 @@ def join_taps(g, expd_delays, policies={}) :
 		tap_end = tap_ends.pop(tap.value) #TODO do not pop
 		policy = policies[tap] if tap in policies else "wire"
 		__join_one_tap(g, tap_end, tap, expd_delays, policy)
-	pprint(tap_ends)
+#	pprint(tap_ends)
 #	assert(len(tap_ends)==0)
 
 
@@ -961,37 +964,70 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
+def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :
 	"""
 	sheets = { name : sheet, ... }
 	"""
 #TODO assert rules for special sheets
 #TODO not taps leading to @init
 
-	special_sheets = { "@init" } #TODO interrupts; would be dict better?
+	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
 	unknown = [ name for name in special if not name in special_sheets ]
 	if unknown :
 		raise Exception("Unknown special sheet name(s) " + unknown)
-	for name, s in special.items() :
-		if name == "@init" :
+
+	join_taps_policies={}
+
+#	for name, s in special.items() :
+#		if name == "@setup" :
+#			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
+#			has_tap_ends = bool(len(get_tap_ends(g)))
+#			if has_tap_ends :
+#				raise Exception("TapEnd not allowed in " + str(name))
+#			taps = get_taps(g)
+#			join_taps(g, d)
+#			print here(), taps, d
+
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sheets.items() if not name in special ]
+#	graph, delays, types = dag_merge(l)
+
+	contexts = []
+	l =[]
+	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
+		if name == "@setup" :
 			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
 			has_tap_ends = bool(len(get_tap_ends(g)))
 			if has_tap_ends :
 				raise Exception("TapEnd not allowed in " + str(name))
-			taps = get_taps(g)
-			join_taps(g, d)
-			print here(), taps, d
+			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
+			join_taps_policies.update(taps)
+#			print here(), taps, d
+			l.append((g, d, t))
+			contexts.append((name, g.keys()))
+		else :
+			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
+			l.append((g, d, t))
+			contexts.append((name, g.keys()))
 
-	l = [ make_dag(s, None, known_types, do_join_taps=False)
-		for name, s in sheets.items() if not name in special ]
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sheets.items() if not name in special ]
 	graph, delays, types = dag_merge(l)
 
-	join_taps(graph, delays)
 
-	code = codegen(graph, delays, {}, types)#XXX partial evaluation?
+	join_taps(graph, delays, policies=join_taps_policies)
 
-	out_fobj.write(code)#XXX pass out_fobj to codegen?
+#	contexts = [ (ctx, v) for ctx, v in ... ]
+	contexts.sort(key=lambda x: x[0])
+
+	for ctx, blocks in contexts :
+		tsk_name = ctx.strip("@")
+		g = { k : v for k, v in graph.items() if k in blocks }
+		code = codegen(g, delays, {}, types, task_name=tsk_name)
+		out_fobj.write(code)#XXX pass out_fobj to codegen?
+
+	out_fobj.write(stub)
 
 
 # ------------------------------------------------------------------------------------------------------------
