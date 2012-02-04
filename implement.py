@@ -18,7 +18,7 @@ def here(depth=1) :
 	stack = traceback.extract_stack()[:-1]
 	take = len(stack) if depth > len(stack)  else depth
 	trace = stack[(len(stack)-take):]
-	return "->".join([ ("%s:%i" % (f[2], f[1])) for f in trace ])
+	return "->".join([ "{0}:{1}".format(f[2], f[1]) for f in trace ])
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -230,7 +230,7 @@ def __expand_joints_new(g) :
 #		 s=[ ]), ...
 
 
-def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy) :
+def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
 	"""
 	replaces one Tap and corresponding TapEnds with snippet according to policies
 	"""
@@ -247,18 +247,16 @@ def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy) :
 		d =  BlockModel(DelayProto(), None)
 		nr = d.nr = del_seed + 1
 		(d, (i, o)) = __expddel(d, nr)
-		expd_delays.update(d=(i, o))
+		expd_delays[d] = (i, o)
 		tap_pred = (o, o.terms[0], 0)
 		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
 		snippet_in = {
-			i : adjs_t([(i.terms[0], 0, [])], [])#?!?!
-#			i : adjs_t([ (i.terms[0], 0, [ (pb, pt, pt_nr)]) ], []),
-		}
+			i : adjs_t([(i.terms[0], 0, [])], [])
+		}#TODO make function to generate this
 		snippet_out = {
-#			i : adjs_t([ (i.terms[0], 0, [ (pb, pt, pt_nr)]) ], []),
-#			o : adjs_t([], [ (o.terms[0], 0, [ (pb, pt, pt_nr)]) ])
-			o : adjs_t([], [(o.terms[0], 0, [])])#?!?!
+			o : adjs_t([], [(o.terms[0], 0, [])])
 		}
+		additions[tap] = [ i ]
 	else :
 		raise Exception("unknown tap joining policy")
 
@@ -266,6 +264,11 @@ def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy) :
 		_, tap_end_succs = g[tap_end]
 		if policy == "wire" :
 			succs += tap_end_succs
+		elif policy == "delay" :
+			if tap_end in additions :
+				additions[tap_end].append(o)
+			else :
+				additions[tap_end] = o
 
 		map_out = { (out_term, out_term_nr) : tap_pred
 			for out_term, out_term_nr, _ in tap_end_succs }
@@ -304,17 +307,20 @@ def get_tap_ends(g) :
 def join_taps(g, expd_delays, policies={}) :
 	"""
 	policies = { tap : "<policy>", ... }
+	return { tap_replaced : [ replacement, ... ], ...}
 	"""
 	known_policies = { "wire", "delay" }#, "snippet" }
 	assert(all([v in known_policies for v in policies.values()]))
 	taps = get_taps(g)
 	tap_ends = get_tap_ends(g)
+	additions={}
 	for tap_name, tap in taps.items() :
 		tap_end = tap_ends.pop(tap.value) #TODO do not pop
 		policy = policies[tap] if tap in policies else "wire"
-		__join_one_tap(g, tap_end, tap, expd_delays, policy)
+		__join_one_tap(g, tap_end, tap, expd_delays, policy, additions)
 #	pprint(tap_ends)
 #	assert(len(tap_ends)==0)
+	return (additions, )
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -554,9 +560,7 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	if do_join_taps :
 		join_taps(graph, delays)
 
-	types = infer_types(graph, delays, known_types=known_types)
-
-	return graph, delays, types
+	return graph, delays
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -947,19 +951,19 @@ def printg(g) :
 
 
 def dag_merge(l) :
-	g, d, t = {}, {}, {}
-	for graph0, delays0, types0 in l :
+	g, d = {}, {}
+	for graph0, delays0 in l :
 		g.update(graph0)
 		d.update(delays0)
-		t.update(types0)
-	return g, d, t
+	return g, d
 
 
 # ------------------------------------------------------------------------------------------------------------
 
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
-	graph, delays, types = make_dag(model, meta, known_types)
+	graph, delays = make_dag(model, meta, known_types)
+	types = infer_types(graph, delays, known_types=known_types)
 	code = codegen(graph, delays, {}, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
@@ -997,26 +1001,30 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	l =[]
 	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
-			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
+			g, d = make_dag(s, None, known_types, do_join_taps=False)
 			has_tap_ends = bool(len(get_tap_ends(g)))
 			if has_tap_ends :
 				raise Exception("TapEnd not allowed in " + str(name))
 			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
 			join_taps_policies.update(taps)
 #			print here(), taps, d
-			l.append((g, d, t))
+			l.append((g, d))
 			contexts.append((name, g.keys()))
 		else :
-			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
-			l.append((g, d, t))
+			g, d = make_dag(s, None, known_types, do_join_taps=False)
+			l.append((g, d))
 			contexts.append((name, g.keys()))
 
 #	l = [ make_dag(s, None, known_types, do_join_taps=False)
 #		for name, s in sheets.items() if not name in special ]
-	graph, delays, types = dag_merge(l)
+	graph, delays = dag_merge(l)
 
 
-	join_taps(graph, delays, policies=join_taps_policies)
+	additions, = join_taps(graph, delays, policies=join_taps_policies)
+	print here(), delays
+
+	types = infer_types(graph, delays, known_types=known_types)
+
 
 #	contexts = [ (ctx, v) for ctx, v in ... ]
 	contexts.sort(key=lambda x: x[0])
@@ -1024,6 +1032,13 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	for ctx, blocks in contexts :
 		tsk_name = ctx.strip("@")
 		g = { k : v for k, v in graph.items() if k in blocks }
+		for block, added in additions.items() :
+			print here(), block, added, block in blocks
+			if block in blocks :
+#				g.pop(block)#should not matter
+				for v in added :
+					g[v] = graph[v]
+		pprint(g)
 		code = codegen(g, delays, {}, types, task_name=tsk_name)
 		out_fobj.write(code)#XXX pass out_fobj to codegen?
 
