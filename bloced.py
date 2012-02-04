@@ -1537,12 +1537,21 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_rename_sheet(self) :
-#		d = InputDialog(self.root, "Enter new sheet name",
-#			initial="???")
-##		print here(), d.value
-#		if d.value :
-#			self.work.add_sheet(sheet=None, name=d.value)
-		pass
+		win = self.tabs.select()
+		if not win in self.__tab_children :
+			return None
+		subwin = self.__tab_children[win]
+		sheet_name = None
+		for name, (sheet, bloced) in self.__sheets.items() :
+			if bloced == subwin :
+				sheet_name = name
+				break
+		if sheet_name is None :
+			return None
+		d = InputDialog(self.root, "Enter new sheet name",
+			initial=sheet_name)
+		if d.value :
+			self.work.rename_sheet(name=sheet_name, new_name=d.value)
 
 
 #	@catch_all

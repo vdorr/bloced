@@ -1308,6 +1308,7 @@ class Workbench(object) :
 #			sheet, = self.get_sheet_by_name(name)
 		sheet = self.__sheets.pop(name)
 		self.__changed("sheet_deleted", (sheet, name))
+		return (sheet, name)
 
 
 	def __changed(self, event, data) :
@@ -1361,6 +1362,12 @@ class Workbench(object) :
 	@sync
 	def blob_time(self) :
 		return self.__blob_time
+
+
+	@sync
+	def rename_sheet(self, name=None, new_name=None) :
+		sheet, name = self.delete_sheet(name=name)
+		self.add_sheet(sheet=sheet, name=new_name)
 
 
 	@catch_all
