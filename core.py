@@ -34,43 +34,56 @@ KNOWN_TYPES = {
 #XXX XXX XXX
 # ------------------------------------------------------------------------------------------------------------
 
+
 class JointProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Joint",
 			[ Out(0, "y", C, 0, variadic=True), In(0, "x", C, 0) ],
 			default_size=(8,8), category="Special")
 
+
 class ConstProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
 			[ Out(0, "y", E, 0.5, type_name="<inferred>") ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Value", None)])
+
 
 class DelayProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Delay", [ In(0, "x", E, 0.5), Out(0, "y", W, 0.5) ],
-			category="Special")
+			category="Special",
+			values=[("Default", None)])
 		self.loop_break = True
+
 
 class ProbeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", W, 0.5) ],
 			default_size=(96,28), category="Special", exe_name="probe")
 
+
 class TapProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Tap", [ In(0, "x", W, 0.5) ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
 
 class TapEndProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "y", E, 0.5) ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
 
 class NoteProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Note", [ ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Text", "")])
+
 
 class DelayInProto(BlockPrototype):
 
@@ -81,6 +94,7 @@ class DelayInProto(BlockPrototype):
 		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", W, 0.5) ])
 #		self.nr = -1
 
+
 class DelayOutProto(BlockPrototype):
 
 #	def __repr__(self) :
@@ -90,10 +104,12 @@ class DelayOutProto(BlockPrototype):
 		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", E, 0.5) ])
 #		self.nr = -1
 
+
 class SignalProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", E, 0.5) ],
 			default_size=(48,48), category="Special")
+
 
 class SysRqProto(BlockPrototype):
 	def __init__(self) :
@@ -107,15 +123,34 @@ class SysRqProto(BlockPrototype):
 			exe_name="sysrq",
 			default_size=(64,80), category="Special")
 
+
 class InputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Input", [ Out(0, "x", E, 0.5) ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
 
 class OutputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Output", [ In(0, "y", W, 0.5) ],
-			default_size=(96,28), category="Special")
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
+
+class PipeProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "Pipe", [ In(0, "x", W, 0.5) ],
+			default_size=(96,28), category="Special",
+			values=[("Name", None), ("Default", None)])
+
+
+class PipeEndProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "PipeEnd", [ Out(0, "y", E, 0.5) ],
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
 
 # ------------------------------------------------------------------------------------------------------------
 

@@ -238,12 +238,14 @@ class Block(Canvas, BlockBase) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
 
-	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
-		core.InputProto, core.OutputProto)
+#	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
+#		core.InputProto, core.OutputProto)
 
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
-		if type(self.model.prototype) in Block.editables :
+#		if type(self.model.prototype) in Block.editables :
+#		print here(), self.model.prototype, self.model.prototype.values
+		if self.model.prototype.values :
 			entry = Entry(self)
 			entry.insert(0, str(self.model.value))
 			w = self.create_window(0, 0, window=entry, anchor=NW)

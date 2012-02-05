@@ -860,12 +860,15 @@ class BlockPrototype(object) :
 
 	pure = property(lambda self: self.__pure)
 
+	values = property(lambda self: self.__values)
+
 	def __init__(self, type_name, terms,
-			exe_name = None,
-			default_size = (64,64),
-			category = "all",
-			commutative = False,
-			pure = False) :
+			exe_name=None,
+			default_size=(64,64),
+			category="all",
+			commutative=False,
+			pure=False,
+			values=None) :
 		self.__category = category
 		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
@@ -874,6 +877,7 @@ class BlockPrototype(object) :
 		self.__exe_name = exe_name
 		self.__commutative = commutative
 		self.__pure = pure
+		self.__values = values
 
 # ------------------------------------------------------------------------------------------------------------
 
