@@ -168,7 +168,7 @@ class InputDialog(Dialog) :
 		for (text, initial), row in zip(self.__items, count()) :
 			Label(master, text=text+" ").grid(row=row)
 			e1 = Entry(master)
-			e1.insert(0, initial)
+			e1.insert(0, str(initial))
 			e1.grid(row=row, column=1)
 			self.__entries.append(e1)
 			
@@ -246,23 +246,31 @@ class Block(Canvas, BlockBase) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here(), self.model.prototype, self.model.prototype.values
 		if self.model.prototype.values :
-			entry = Entry(self)
-			entry.insert(0, str(self.model.value))
-			w = self.create_window(0, 0, window=entry, anchor=NW)
-			entry.bind("<Return>", lambda e: self.close_editor(True, w, entry))
-			entry.bind("<Escape>", lambda e: self.close_editor(False, w, entry))
-			entry.bind("<FocusOut>", lambda e: self.close_editor(False, w, entry))
-			entry.pack(side=LEFT, fill=X)
-			entry.focus()
+			items = self.model.prototype.values
+#			items = [ name, val for (name, _), val
+#				in zip(self.model.prototype.values, self.model.value)]#TODO TODO TODO
+			d = InputDialog(self, items=items)
+			if d.value :
+#				print here(), d.value
+				self.model.value = d.value
+				self.update_text()
+#			entry = Entry(self)
+#			entry.insert(0, str(self.model.value))
+#			w = self.create_window(0, 0, window=entry, anchor=NW)
+#			entry.bind("<Return>", lambda e: self.close_editor(True, w, entry))
+#			entry.bind("<Escape>", lambda e: self.close_editor(False, w, entry))
+#			entry.bind("<FocusOut>", lambda e: self.close_editor(False, w, entry))
+#			entry.pack(side=LEFT, fill=X)
+#			entry.focus()
 
-	def close_editor(self, accept, w, entry) :
-		if accept :
-			self.model.value = str(entry.get())
-			self.update_text()
-		self.delete(w)
-		entry.destroy()
-		self.config(width=self.model.width, height=self.model.height, bg="white",
-			borderwidth=0, highlightthickness=0)
+#	def close_editor(self, accept, w, entry) :
+#		if accept :
+#			self.model.value = str(entry.get())
+#			self.update_text()
+#		self.delete(w)
+#		entry.destroy()
+#		self.config(width=self.model.width, height=self.model.height, bg="white",
+#			borderwidth=0, highlightthickness=0)
 
 	def update_text(self) :
 		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
