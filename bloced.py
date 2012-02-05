@@ -153,23 +153,33 @@ class textbox(Frame):
 class InputDialog(Dialog) :
 
 
-	def __init__(self, parent, text, initial="") :
-		self.__text = text
-		self.__initial_value = initial
+	def __init__(self, parent, text="", initial="", items=None) :
+#		self.__text = text
+#		self.__initial_value = initial
+		self.__items = items if items else [ (text, initial) ]
+		self.__one_value = not items
 		Dialog.__init__(self, parent)
 
 
 	def body(self, master):
-		Label(master, text=self.__text+" ").grid(row=0)
-		self.e1 = Entry(master)
-		self.e1.insert(0, self.__initial_value)
-		self.e1.grid(row=0, column=1)
+		self.__entries = []
+#		self.value = (None, ) * len(self.__items)
 		self.value = None
-		return self.e1
+		for (text, initial), row in zip(self.__items, count()) :
+			Label(master, text=text+" ").grid(row=row)
+			e1 = Entry(master)
+			e1.insert(0, initial)
+			e1.grid(row=row, column=1)
+			self.__entries.append(e1)
+			
+		return self.__entries[0]
 
 
 	def apply(self):
-		self.value = self.e1.get()
+		if self.__one_value :
+			self.value = self.__entries[0].get()
+		else :
+			self.value = tuple(e1.get() for e1 in self.__entries)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1550,8 +1560,9 @@ class BlockEditorWindow(object) :
 			return None
 		d = InputDialog(self.root, "Enter new sheet name",
 			initial=sheet_name)
+		new_name = d.value
 		if d.value :
-			self.work.rename_sheet(name=sheet_name, new_name=d.value)
+			self.work.rename_sheet(name=sheet_name, new_name=new_name)
 
 
 #	@catch_all
