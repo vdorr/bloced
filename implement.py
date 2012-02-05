@@ -1,3 +1,4 @@
+#! /usr/bin/python
 
 #from dfs import *
 from core import *
@@ -17,7 +18,7 @@ def here(depth=1) :
 	stack = traceback.extract_stack()[:-1]
 	take = len(stack) if depth > len(stack)  else depth
 	trace = stack[(len(stack)-take):]
-	return "->".join([ ("%s:%i" % (f[2], f[1])) for f in trace ])
+	return "->".join([ "{0}:{1}".format(f[2], f[1]) for f in trace ])
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -202,30 +203,125 @@ def __expand_joints_new(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def __join_tap(g, tap_ends, tap) :
-	p, s = g[tap]
-	tap_ends_lst = tap_ends.pop(tap.value)
-	((_, _, ((pb, pt, pt_nr),)),) = p
-	succs = []
-	for tap_end in tap_ends_lst :
-		tap_end_preds, tap_end_succs = g[tap_end]
-		succs += tap_end_succs
-		map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr)
-			for out_term, out_term_nr, _ in tap_end_succs }
-		__replace_block_with_subgraph(g, tap_end, {}, {}, map_out)
-		assert(not tap_end in g)
-	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
-	__replace_block_with_subgraph(g, tap, {}, map_in, {})
 
-def __join_taps(g) :
+#def __tap_replacement(g, tap_ends_lst, tap, policy) :
+#	return (snippet, map_in)
+
+
+#def __tap_end_replacement(tap, tap_pred, tap_end_succs, del_seed, policy) :
+#	if policy == "wire" :
+#		pred = tap_pred
+#	elif policy == "delay" :
+#		d =  BlockModel(DelayProto(), None)
+#		d.nr = del_seed + 1
+#		pred = (,,)
+
+#	map_out = { (out_term, out_term_nr) : pred
+#		for out_term, out_term_nr, _ in tap_end_succs }
+#	snippet_out = {}
+#	delays = {}
+##	del_seed
+
+#	return (snippet, map_out, delays)
+
+#	blockA :
+#		(p=[ (blockA->term, blockA->term->term_number,
+#			[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+#		 s=[ ]), ...
+
+
+def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
+	"""
+	replaces one Tap and corresponding TapEnds with snippet according to policies
+	"""
+	p, s = g[tap]
+	((_, _, ((pb, pt, pt_nr),)),) = p
+
+	if policy == "wire" :
+		tap_pred = (pb, pt, pt_nr)
+		snippet_out = {}
+		succs = []
+		snippet_in = {}
+	elif policy == "delay" :
+		del_seed = max([ d.nr for d in expd_delays ]) if expd_delays else 0
+		d =  BlockModel(DelayProto(), None)
+		nr = d.nr = del_seed + 1
+		(d, (i, o)) = __expddel(d, nr)
+		expd_delays[d] = (i, o)
+		tap_pred = (o, o.terms[0], 0)
+		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
+		snippet_in = {
+			i : adjs_t([(i.terms[0], 0, [])], [])
+		}#TODO make function to generate this
+		snippet_out = {
+			o : adjs_t([], [(o.terms[0], 0, [])])
+		}
+		additions[tap] = [ i ]
+	else :
+		raise Exception("unknown tap joining policy")
+
+	for tap_end in tap_ends_lst :
+		_, tap_end_succs = g[tap_end]
+		if policy == "wire" :
+			succs += tap_end_succs
+		elif policy == "delay" :
+			if tap_end in additions :
+				additions[tap_end].append(o)
+			else :
+				additions[tap_end] = o
+
+		map_out = { (out_term, out_term_nr) : tap_pred
+			for out_term, out_term_nr, _ in tap_end_succs }
+
+		print here(), tap_end, snippet_out, {}, map_out
+		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
+
+		assert(not tap_end in g)
+
+	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
+
+	print here(), tap, snippet_in, map_in
+	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
+
+
+def get_taps(g) :
+	"""
+	return { tap_name : tap, ... }
+	"""
 	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, TapProto) ]
 	taps = { b.value : b for b in tap_list }
 	assert(len(tap_list)==len(taps))
+	return taps
+
+
+def get_tap_ends(g) :
+	"""
+	return { tap_name : [ tap_end1, ...], ... }
+	"""
 	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, TapEndProto) }
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
+	assert( len(tap_ends_list) == sum([len(v) for v in tap_ends.values()]) )
+	return tap_ends
+
+
+def join_taps(g, expd_delays, policies={}) :
+	"""
+	policies = { tap : "<policy>", ... }
+	return { tap_replaced : [ replacement, ... ], ...}
+	"""
+	known_policies = { "wire", "delay" }#, "snippet" }
+	assert(all([v in known_policies for v in policies.values()]))
+	taps = get_taps(g)
+	tap_ends = get_tap_ends(g)
+	additions={}
 	for tap_name, tap in taps.items() :
-		__join_tap(g, tap_ends, tap)
-	assert(len(tap_ends)==0)
+		tap_end = tap_ends.pop(tap.value) #TODO do not pop
+		policy = policies[tap] if tap in policies else "wire"
+		__join_one_tap(g, tap_end, tap, expd_delays, policy, additions)
+#	pprint(tap_ends)
+#	assert(len(tap_ends)==0)
+	return (additions, )
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -261,23 +357,20 @@ def __expand_macroes(g, library) :
 def t_unpack(term) :
 	return term if isinstance(term, tuple) else (term, 0) # XXX XXX use 0 instead of None?
 
+
+def __expddel(d, nr) :
+	i = BlockModel(DelayInProto(), None)
+	o = BlockModel(DelayOutProto(), None)
+	i.nr = o.nr = nr
+	i.delay = o.delay = d
+	return (d, (i, o)) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
+
+
 def __expand_delays(blocks, conns) :
 
 	delays = { b for b in blocks if isinstance(b.prototype, DelayProto) }
 
-#	expddel_t = namedtuple("expddel_t", ["i", "o"])
-	def expddel(d, nr) :
-		i = BlockModel(DelayInProto(), None)
-		o = BlockModel(DelayOutProto(), None)
-		i.nr = o.nr = nr
-		i.delay = o.delay = d
-		return (d, (i, o)) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
-
-	expd = dict([ expddel(delay, nr) for delay, nr in zip(delays, count()) ])
-#	print expd
-
-#def dict_map(d, k_map, v_map, item_filter=lambda k,v: True) :
-#	return { k_map(*i): v_map(*i) for i in d.items() if item_filter(*i) }
+	expd = dict([ __expddel(delay, nr) for delay, nr in zip(delays, count()) ])
 
 	def mkvert(src, io) :
 		b, t = src
@@ -286,29 +379,10 @@ def __expand_delays(blocks, conns) :
 			else (b, t) )
 		return (block, ) + t_unpack(term)
 
-#	def mkdest(dst) :
-#		b, t = dst
-#		block, term = ( (expd[b].i, expd[b].i.terms[0])
-#			if isinstance(b.prototype, DelayProto)
-#			else (b, t) )
-#		return (block, ) + t_unpack(term)
-
 	conns2 = { mkvert(s, 1) : [ mkvert(d, 0) for d in dests ] for s, dests in conns.items() }
 
-#	conns2 = dict_map(conns,
-#		lambda k, v: (
-#			(expd[k[0]].o, t_unpack(expd[k[0]].o.terms[0]))
-#			if isinstance(k[0].prototype, DelayProto)
-#			else (k[0], t_unpack(k[1]))
-#		),
-#		lambda k, values: [
-#			(expd[b].i, t_unpack(expd[b].i.terms[0]))
-#			if isinstance(b.prototype, DelayProto)
-#			else (b, t_unpack(t))
-#				for b, t in values
-#		])
-
 	return list((set(blocks)-delays).union(chain(*expd.values()))), conns2, expd
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -484,11 +558,9 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	__expand_joints_new(graph)
 
 	if do_join_taps :
-		__join_taps(graph)
+		join_taps(graph, delays)
 
-	types = infer_types(graph, delays, known_types=known_types)
-
-	return graph, delays, types
+	return graph, delays
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -879,34 +951,98 @@ def printg(g) :
 
 
 def dag_merge(l) :
-	g, d, t = {}, {}, {}
-	for graph0, delays0, types0 in l :
+	g, d = {}, {}
+	for graph0, delays0 in l :
 		g.update(graph0)
 		d.update(delays0)
-		t.update(types0)
-	return g, d, t
+	return g, d
 
 
 # ------------------------------------------------------------------------------------------------------------
 
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
-	graph, delays, types = make_dag(model, meta, known_types)
+	graph, delays = make_dag(model, meta, known_types)
+	types = infer_types(graph, delays, known_types=known_types)
 	code = codegen(graph, delays, {}, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
+def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :
 	"""
 	sheets = { name : sheet, ... }
 	"""
-	l = [ make_dag(s, None, known_types, do_join_taps=False)
-		for name, s in sheets.items() ]
-	graph, delays, types = dag_merge(l)
-	if len(sheets) > 1 :
-		__join_taps(graph)
-	code = codegen(graph, delays, {}, types)
-	out_fobj.write(code)#XXX pass out_fobj to codegen?
+#TODO assert rules for special sheets
+#TODO not taps leading to @init
+
+	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
+	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
+	unknown = [ name for name in special if not name in special_sheets ]
+	if unknown :
+		raise Exception("Unknown special sheet name(s) " + unknown)
+
+	join_taps_policies={}
+
+#	for name, s in special.items() :
+#		if name == "@setup" :
+#			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
+#			has_tap_ends = bool(len(get_tap_ends(g)))
+#			if has_tap_ends :
+#				raise Exception("TapEnd not allowed in " + str(name))
+#			taps = get_taps(g)
+#			join_taps(g, d)
+#			print here(), taps, d
+
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sheets.items() if not name in special ]
+#	graph, delays, types = dag_merge(l)
+
+	contexts = []
+	l =[]
+	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
+		if name == "@setup" :
+			g, d = make_dag(s, None, known_types, do_join_taps=False)
+			has_tap_ends = bool(len(get_tap_ends(g)))
+			if has_tap_ends :
+				raise Exception("TapEnd not allowed in " + str(name))
+			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
+			join_taps_policies.update(taps)
+#			print here(), taps, d
+			l.append((g, d))
+			contexts.append((name, g.keys()))
+		else :
+			g, d = make_dag(s, None, known_types, do_join_taps=False)
+			l.append((g, d))
+			contexts.append((name, g.keys()))
+
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sheets.items() if not name in special ]
+	graph, delays = dag_merge(l)
+
+
+	additions, = join_taps(graph, delays, policies=join_taps_policies)
+	print here(), delays
+
+	types = infer_types(graph, delays, known_types=known_types)
+
+
+#	contexts = [ (ctx, v) for ctx, v in ... ]
+	contexts.sort(key=lambda x: x[0])
+
+	for ctx, blocks in contexts :
+		tsk_name = ctx.strip("@")
+		g = { k : v for k, v in graph.items() if k in blocks }
+		for block, added in additions.items() :
+			print here(), block, added, block in blocks
+			if block in blocks :
+#				g.pop(block)#should not matter
+				for v in added :
+					g[v] = graph[v]
+		pprint(g)
+		code = codegen(g, delays, {}, types, task_name=tsk_name)
+		out_fobj.write(code)#XXX pass out_fobj to codegen?
+
+	out_fobj.write(stub)
 
 
 # ------------------------------------------------------------------------------------------------------------

@@ -472,8 +472,10 @@ class BlockModel(object) :
 			newtxt = str(self.value)
 		elif self.prototype.__class__.__name__ == "DelayProto" :
 			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
-		elif self.prototype.__class__.__name__ in ("TapProto", "TapEndProto") :
-			newtxt = str(self.value) if self.value != None else "None"
+		elif self.prototype.__class__.__name__ == "TapProto" :
+			newtxt = "Tap (%s)" % (str(self.value) if self.value != None else "None")
+		elif self.prototype.__class__.__name__ == "TapEndProto" :
+			newtxt = "TapEnd (%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "InputProto" :
 			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
 		elif self.prototype.__class__.__name__ == "OutputProto" :
@@ -858,12 +860,15 @@ class BlockPrototype(object) :
 
 	pure = property(lambda self: self.__pure)
 
+	values = property(lambda self: self.__values)
+
 	def __init__(self, type_name, terms,
-			exe_name = None,
-			default_size = (64,64),
-			category = "all",
-			commutative = False,
-			pure = False) :
+			exe_name=None,
+			default_size=(64,64),
+			category="all",
+			commutative=False,
+			pure=False,
+			values=None) :
 		self.__category = category
 		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
@@ -872,6 +877,7 @@ class BlockPrototype(object) :
 		self.__exe_name = exe_name
 		self.__commutative = commutative
 		self.__pure = pure
+		self.__values = values
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1307,6 +1313,7 @@ class Workbench(object) :
 #			sheet, = self.get_sheet_by_name(name)
 		sheet = self.__sheets.pop(name)
 		self.__changed("sheet_deleted", (sheet, name))
+		return (sheet, name)
 
 
 	def __changed(self, event, data) :
@@ -1360,6 +1367,12 @@ class Workbench(object) :
 	@sync
 	def blob_time(self) :
 		return self.__blob_time
+
+
+	@sync
+	def rename_sheet(self, name=None, new_name=None) :
+		sheet, name = self.delete_sheet(name=name)
+		self.add_sheet(sheet=sheet, name=new_name)
 
 
 	@catch_all

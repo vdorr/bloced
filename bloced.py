@@ -152,23 +152,33 @@ class textbox(Frame):
 class InputDialog(Dialog) :
 
 
-	def __init__(self, parent, text, initial="") :
-		self.__text = text
-		self.__initial_value = initial
+	def __init__(self, parent, text="", initial="", items=None) :
+#		self.__text = text
+#		self.__initial_value = initial
+		self.__items = items if items else [ (text, initial) ]
+		self.__one_value = not items
 		Dialog.__init__(self, parent)
 
 
 	def body(self, master):
-		Label(master, text=self.__text+" ").grid(row=0)
-		self.e1 = Entry(master)
-		self.e1.insert(0, self.__initial_value)
-		self.e1.grid(row=0, column=1)
+		self.__entries = []
+#		self.value = (None, ) * len(self.__items)
 		self.value = None
-		return self.e1
+		for (text, initial), row in zip(self.__items, count()) :
+			Label(master, text=text+" ").grid(row=row)
+			e1 = Entry(master)
+			e1.insert(0, str(initial))
+			e1.grid(row=row, column=1)
+			self.__entries.append(e1)
+			
+		return self.__entries[0]
 
 
 	def apply(self):
-		self.value = self.e1.get()
+		if self.__one_value :
+			self.value = self.__entries[0].get()
+		else :
+			self.value = tuple(e1.get() for e1 in self.__entries)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -246,29 +256,39 @@ class Block(Canvas, BlockBase) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
 
-	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
-		core.InputProto, core.OutputProto)
+#	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
+#		core.InputProto, core.OutputProto)
 
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
-		if type(self.model.prototype) in Block.editables :
-			entry = Entry(self)
-			entry.insert(0, str(self.model.value))
-			w = self.create_window(0, 0, window=entry, anchor=NW)
-			entry.bind("<Return>", lambda e: self.close_editor(True, w, entry))
-			entry.bind("<Escape>", lambda e: self.close_editor(False, w, entry))
-			entry.bind("<FocusOut>", lambda e: self.close_editor(False, w, entry))
-			entry.pack(side=LEFT, fill=X)
-			entry.focus()
+#		if type(self.model.prototype) in Block.editables :
+#		print here(), self.model.prototype, self.model.prototype.values
+		if self.model.prototype.values :
+			items = self.model.prototype.values
+#			items = [ name, val for (name, _), val
+#				in zip(self.model.prototype.values, self.model.value)]#TODO TODO TODO
+			d = InputDialog(self, items=items)
+			if d.value :
+#				print here(), d.value
+				self.model.value = d.value
+				self.update_text()
+#			entry = Entry(self)
+#			entry.insert(0, str(self.model.value))
+#			w = self.create_window(0, 0, window=entry, anchor=NW)
+#			entry.bind("<Return>", lambda e: self.close_editor(True, w, entry))
+#			entry.bind("<Escape>", lambda e: self.close_editor(False, w, entry))
+#			entry.bind("<FocusOut>", lambda e: self.close_editor(False, w, entry))
+#			entry.pack(side=LEFT, fill=X)
+#			entry.focus()
 
-	def close_editor(self, accept, w, entry) :
-		if accept :
-			self.model.value = str(entry.get())
-			self.update_text()
-		self.delete(w)
-		entry.destroy()
-		self.config(width=self.model.width, height=self.model.height, bg="white",
-			borderwidth=0, highlightthickness=0)
+#	def close_editor(self, accept, w, entry) :
+#		if accept :
+#			self.model.value = str(entry.get())
+#			self.update_text()
+#		self.delete(w)
+#		entry.destroy()
+#		self.config(width=self.model.width, height=self.model.height, bg="white",
+#			borderwidth=0, highlightthickness=0)
 
 	def update_text(self) :
 		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
@@ -1612,6 +1632,25 @@ class BlockEditorWindow(object) :
 		self.rescan_ports()
 
 
+	def __mnu_rename_sheet(self) :
+		win = self.tabs.select()
+		if not win in self.__tab_children :
+			return None
+		subwin = self.__tab_children[win]
+		sheet_name = None
+		for name, (sheet, bloced) in self.__sheets.items() :
+			if bloced == subwin :
+				sheet_name = name
+				break
+		if sheet_name is None :
+			return None
+		d = InputDialog(self.root, "Enter new sheet name",
+			initial=sheet_name)
+		new_name = d.value
+		if d.value :
+			self.work.rename_sheet(name=sheet_name, new_name=new_name)
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1739,6 +1778,7 @@ class BlockEditorWindow(object) :
 #			CmdMnu("&Stop", "Ctrl+F5", None)
 			SepMnu(),
 			CmdMnu("Add sheet", None, self.__mnu_add_sheet),
+			CmdMnu("Rename sheet", None, self.__mnu_rename_sheet),
 			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
 			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
 			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),

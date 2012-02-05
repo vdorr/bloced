@@ -15,7 +15,7 @@ export as picture (and maybe <img src="data:image/gif;base64,)
 TESTS!!!!!!!!
 argparse for build.py
 direct AVR machine code generation (for use without gcc)
-optional logging package
+optional runtime logging package
 build.py c++ sources handling
 serial port blocks
 portable measurement and control package (analog filter, debouncer, pid)
@@ -23,7 +23,13 @@ timers and counters package
 platform support package (for example arduino source files + known_types + prog drivers)
 README.markdown
 globalize
-examples menu
+DONE - examples menu
 arduino (stk500) simulator
 runtime editable consts
 measure speed in tests
+nondestructive graph editing (like return (pop_this, update_that))
+reconsider separate delay dictionary
+remove dependency of implement.py on dfs.py
+workbench @unsynced thread access check decorator
+sane graph rewriting function
+move foreign blocks handling from core.py to separate module
