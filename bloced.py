@@ -31,6 +31,7 @@ if version_info.major == 3 :
 	import tkinter.messagebox as tkMessageBox
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
+	from tkinter.simpledialog import Dialog
 else :
 	from Tkinter import * #TODO this is not good
 	import tkFont
@@ -38,8 +39,6 @@ else :
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
 	from tkSimpleDialog import Dialog
-
-from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -71,7 +70,7 @@ class Configuration(object):
 	NONE_FILE = "<unsaved file>"
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
 	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
-	APP_INFO = string.join((APP_NAME, "graphical programming toy"), os.linesep)
+	APP_INFO = os.linesep.join((APP_NAME, "graphical programming toy"))
 	HELP_URL = "http://www.tinfoilhat.cz"
 	POLL_WORKERS_PERIOD = 1000
 	SHEET_NAME_SEED = "Sheet{0}"
@@ -224,6 +223,54 @@ class BlockBase(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+if 0 :
+	from PIL import ImageTk, Image, ImageDraw, ImageFont
+
+	class ImageLabel(object) :
+
+		def __init__(self, parent_block, name, text, pos) :
+			if not hasattr(ImageLabel, "font") :
+				ImageLabel.font = ImageFont.load_default()
+				_, ImageLabel.txt_height = ImageLabel.font.getsize("jJ")
+			fnt = ImageLabel.font
+			size = fnt.getsize(text)
+			im = Image.new("RGBA", size, (0, 0, 0, 0))
+			draw = ImageDraw.Draw(im)
+			flipv, fliph, rot = parent_block.model.orientation
+			if name == "caption_lbl" :
+				lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
+				pos = lbl_x, lbl_y
+			else :
+				lbl_x, lbl_y = pos
+			draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+			img = ImageTk.PhotoImage(
+				im if not parent_block.model.orientation[2] % 180 else im.rotate(90, expand=True))
+			i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+			self.__data = (img, text, pos, i)
+			self.canvas_item = i
+			self.text = text
+			self.pos = pos
+
+else :
+
+	class ImageLabel(object) :
+
+		def __init__(self, parent_block, name, text, pos) :
+			txt_width = parent_block.editor.font.measure(text)
+			size = (txt_width, parent_block.editor.txt_height)
+			flipv, fliph, rot = parent_block.model.orientation
+			if name == "caption_lbl" :
+				lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
+				pos = lbl_x, lbl_y
+			else :
+				lbl_x, lbl_y = pos
+			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=NW)
+			self.__data = (None, text, pos, i)
+			self.canvas_item = i
+			self.text = text
+			self.pos = pos
+
+
 class Block(Canvas, BlockBase) :
 
 	def term_onMouseDown(self, e) :
@@ -279,42 +326,22 @@ class Block(Canvas, BlockBase) :
 		self.editor.select_next()
 
 	def __update_label(self, name, pos, text) :
-
-#		print "__update_label:", name, pos, text
-
-		if name in self.__images :
-			bmp, txt, lbl_pos, obj = self.__images[name]
-			if txt == text and lbl_pos == pos :
-				return obj
+		if name in self.__labels :
+			l = self.__labels[name]
+			if l.text == text and l.pos == pos :
+				return l.canvas_item
 			else :
-				self.__images.pop(name)
-				self.delete(obj)
-
-		fnt = self.editor.font
-		size = fnt.getsize(text)
-		im = Image.new("RGBA", size, (0, 0, 0, 0))
-		draw = ImageDraw.Draw(im)
-
-		flipv, fliph, rot = self.model.orientation
-		if name == "caption_lbl" :
-			lbl_x, lbl_y = self.model.get_label_pos(*size)
-			pos = lbl_x, lbl_y
-		else :
-			lbl_x, lbl_y = pos
-#		print self.model.prototype.type_name, (lbl_x, lbl_y)
-#		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
-		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
-		img = ImageTk.PhotoImage(
-			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
-		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-		self.__images[name] = (img, text, pos, i)
-		return i
+				self.__labels.pop(name)
+				self.delete(l.canvas_item)
+		lbl = ImageLabel(self, name, text, pos)
+		self.__labels[name] = lbl
+		return lbl.canvas_item
 
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
 		self.model = model
-		self.__images = {}
+		self.__labels = {}
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -380,7 +407,8 @@ class Block(Canvas, BlockBase) :
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
 #			txt_width = fnt.measure(term_label)
-			txt_width, _ = self.editor.font.getsize(term_label)
+#			txt_width, _ = self.editor.font.getsize(term_label)
+			txt_width = self.editor.font.measure(term_label)
 #XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
@@ -392,13 +420,7 @@ class Block(Canvas, BlockBase) :
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
-#			w = self.create_line(*poly, tags=term_tag)
-
-
 			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
-#			txt = self.__update_label(term_tag, (txtx, txty), term_label)
-#			self.bind_as_term(txt)#TODO
-#			self.window2term[txt] = t
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
@@ -673,7 +695,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		bump1x, bump1y = bumps[tt.get_side(tb)]
 		t = autoroute.pnt(int(tA[0]+bump1x), int(tA[1]+bump1y))
-		
+
 		route = None
 		if fullroute :
 			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if st.get_side(sb) != C
@@ -683,7 +705,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			bbox = autoroute.choose_bbox(r1, r2,
 				autoroute.rct(*self.canvas_scrollregion), bump + 1)
 			route = autoroute.mtroute_simple(s, t, bbox, r1, r2)
-		
+
 		if route :
 			linecoords = reduce(lambda w, p: w + [ p[0], p[1] ],
 				route, list(s0)) + [ tA[0], tA[1] ]
@@ -700,7 +722,7 @@ class BlockEditor(Frame, GraphModelListener) :
 	
 	def get_nearest(self, x, y, ssz = 4) :
 		o = self.canv.find_overlapping(x-ssz, y-ssz, x+ssz, y+ssz)
-		filtered_old = ((o, filter(lambda v: o[0] == v[1][0], self.connection2line.items()))
+		filtered_old = ((o, list(filter(lambda v: o[0] == v[1][0], self.connection2line.items())))
 			if o else (None, None))
 		filtered = ((o, [ v for v in self.connection2line.items() if o[0] == v[1][0] ])
 			if o else (None, None))
@@ -721,7 +743,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		if item :
 			route = item[0][1][1] # XXX XXX XXX fuckoff!!!
 			kneebonus = 4
-			indices = xrange(0, len(route)-2, 2)
+			indices = range(0, len(route)-2, 2)
 
 			dist = ([ ((i, 2), mathutils.pldist(*(route[i:i+4]+[e.x, e.y]))) for i in indices ] +
 				[ ((i, 1), mathutils.ppdist(*(route[i:i+2]+[e.x, e.y]))-kneebonus) for i in indices ])
@@ -751,7 +773,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		if self.manipulating == "connection" :
 			diffX, diffY = (e.x - self.move_start.x), (e.y - self.move_start.y)
 			self.move_start = e
-			indices = xrange(self.mdata2[0], self.mdata2[0]+(self.mdata2[1]*2), 2)
+			indices = range(self.mdata2[0], self.mdata2[0]+(self.mdata2[1]*2), 2)
 			for i in indices :
 				if i > 0 and (i+2)<len(self.mdata[1][1]) :
 					self.mdata[1][1][i] += diffX
@@ -1015,13 +1037,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
 
-#		font = ImageFont.truetype('path/to/font.ttf', size)
-		self.font = ImageFont.load_default()
-#		self.font_h = tkFont.nametofont("TkDefaultFont")
-#		self.font_v = tkFont.nametofont("TkDefaultFont")
-#		self.txt_height = self.font_h.metrics("linespace")
-		_, self.txt_height = self.font.getsize("jJ")
-
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
@@ -1066,6 +1081,10 @@ class BlockEditor(Frame, GraphModelListener) :
 		#XXX cursor: select, shift+cursor: move ?
 		
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
+
+		self.font = tkFont.nametofont("TkDefaultFont")
+#		self.font_v = tkFont.nametofont("TkDefaultFont")
+		self.txt_height = self.font.metrics("linespace")
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1185,7 +1204,7 @@ class BlockEditorWindow(object) :
 	def __convert_accel(self, accel) :
 		parts = accel.replace("Ctrl", "Control").split("+")
 		parts[-1] = parts[-1].lower() if len(parts[-1]) == 1 else parts[-1]
-		return "<" + string.join(parts, "-") + ">"
+		return "<" + "-".join(parts) + ">"
 
 
 	def __add_menu_item(self, mnu, item, index=None) :
@@ -1376,7 +1395,7 @@ class BlockEditorWindow(object) :
 
 
 	def __workbench_status_changed(self, columns) :
-		print "workbench changed"
+		print("workbench changed")
 		self.status_label_left.configure(text=columns[0])
 		self.status_label_right.configure(text=columns[-1])
 
@@ -1426,7 +1445,7 @@ class BlockEditorWindow(object) :
 
 
 	def delete_sheet(self, sheet, name) :
-		print here(), sheet, name, self.__tab_children
+		print(here(), sheet, name, self.__tab_children)
 		sheet, bloced = self.__sheets.pop(name)
 		self.__tab_children.pop(str(bloced))
 		self.tabs.forget(str(bloced))
@@ -1440,10 +1459,10 @@ class BlockEditorWindow(object) :
 
 	def __list_recent_files(self, files) :
 		old = self.__recent_menu
-		mnu_item = lambda f : CmdMnu("&{0}. {1}".format(i+1, os.path.basename(f)),
+		mnu_item = lambda f, i : CmdMnu("&{0}. {1}".format(i+1, os.path.basename(f)),
 			None, partial(self.__open_recent, f))
 		self.__recent_menu = CascadeMnu("Recent files",
-			[ mnu_item(f) for f, i in zip(files, count()) ])
+			[ mnu_item(f, i) for f, i in zip(files, count()) ])
 		if not old is None :
 			self.replace_cascade(old, self.__recent_menu)
 		return self.__recent_menu
@@ -1470,7 +1489,7 @@ class BlockEditorWindow(object) :
 
 
 	def __mnu_import_sheet(self, a=None) :
-		print here()
+		print(here())
 		fname = askopenfilename(filetypes=IMPORT_EXTENSIONS)
 		if fname :
 			self.__import_sheet(fname)
@@ -1491,7 +1510,7 @@ class BlockEditorWindow(object) :
 
 	def __mnu_delete_sheet(self, a=None) :
 		win = self.tabs.select()
-		print win, self.tabs.index(win), 
+		print(win, self.tabs.index(win))
 		subwin = self.__tab_children[win]
 		for name, (sheet, bloced) in self.__sheets.items() :
 			if bloced == subwin :
