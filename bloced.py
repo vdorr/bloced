@@ -39,7 +39,7 @@ else :
 	import ttk
 	from tkSimpleDialog import Dialog
 
-from PIL import ImageTk, Image, ImageDraw, ImageFont
+#from PIL import ImageTk, Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -214,6 +214,44 @@ class BlockBase(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+from PIL import ImageTk, Image, ImageDraw, ImageFont
+
+class ImageLabel(object) :
+
+	def __init__(self, parent_block, name, text, pos) :
+
+		if not hasattr(ImageLabel, "font") :
+#			font = ImageFont.truetype('path/to/font.ttf', size)
+			ImageLabel.font = ImageFont.load_default()
+#			self.font_h = tkFont.nametofont("TkDefaultFont")
+#			self.font_v = tkFont.nametofont("TkDefaultFont")
+#			self.txt_height = self.font_h.metrics("linespace")
+			_, ImageLabel.txt_height = ImageLabel.font.getsize("jJ")
+
+		fnt = ImageLabel.font
+		size = fnt.getsize(text)
+		im = Image.new("RGBA", size, (0, 0, 0, 0))
+		draw = ImageDraw.Draw(im)
+
+		flipv, fliph, rot = parent_block.model.orientation
+		if name == "caption_lbl" :
+			lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
+			pos = lbl_x, lbl_y
+		else :
+			lbl_x, lbl_y = pos
+		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+		img = ImageTk.PhotoImage(
+			im if not parent_block.model.orientation[2] % 180 else im.rotate(90, expand=True))
+		i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+		self.__data = (img, text, pos, i)
+		self.canvas_item = i
+		self.text = text
+		self.pos = pos
+
+
+
+
 class Block(Canvas, BlockBase) :
 
 	def term_onMouseDown(self, e) :
@@ -262,39 +300,51 @@ class Block(Canvas, BlockBase) :
 
 #		print "__update_label:", name, pos, text
 
-		if name in self.__images :
-			bmp, txt, lbl_pos, obj = self.__images[name]
-			if txt == text and lbl_pos == pos :
-				return obj
+		if name in self.__labels :
+			l = self.__labels[name]
+			if l.text == text and l.pos == pos :
+				return l.canvas_item
 			else :
-				self.__images.pop(name)
-				self.delete(obj)
+				self.__labels.pop(name)
+				self.delete(l.canvas_item)
 
-		fnt = self.editor.font
-		size = fnt.getsize(text)
-		im = Image.new("RGBA", size, (0, 0, 0, 0))
-		draw = ImageDraw.Draw(im)
+		lbl = ImageLabel(self, name, text, pos)
+		self.__labels[name] = lbl
+		return lbl.canvas_item
 
-		flipv, fliph, rot = self.model.orientation
-		if name == "caption_lbl" :
-			lbl_x, lbl_y = self.model.get_label_pos(*size)
-			pos = lbl_x, lbl_y
-		else :
-			lbl_x, lbl_y = pos
-#		print self.model.prototype.type_name, (lbl_x, lbl_y)
-#		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
-		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
-		img = ImageTk.PhotoImage(
-			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
-		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-		self.__images[name] = (img, text, pos, i)
-		return i
+#		if name in self.__images :
+#			bmp, txt, lbl_pos, obj = self.__images[name]
+#			if txt == text and lbl_pos == pos :
+#				return obj
+#			else :
+#				self.__images.pop(name)
+#				self.delete(obj)
+
+#		fnt = self.editor.font
+#		size = fnt.getsize(text)
+#		im = Image.new("RGBA", size, (0, 0, 0, 0))
+#		draw = ImageDraw.Draw(im)
+
+#		flipv, fliph, rot = self.model.orientation
+#		if name == "caption_lbl" :
+#			lbl_x, lbl_y = self.model.get_label_pos(*size)
+#			pos = lbl_x, lbl_y
+#		else :
+#			lbl_x, lbl_y = pos
+##		print self.model.prototype.type_name, (lbl_x, lbl_y)
+##		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
+#		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+#		img = ImageTk.PhotoImage(
+#			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
+#		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+#		self.__images[name] = (img, text, pos, i)
+#		return i
 
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
 		self.model = model
-		self.__images = {}
+		self.__labels = {}
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -342,7 +392,8 @@ class Block(Canvas, BlockBase) :
 
 	def regenerate_terms(self) :
 
-		txt_height = self.editor.txt_height
+#TODO TODO TODO use create_text get width
+		txt_height = 10#self.editor.txt_height
 
 		for t in self.model.terms :
 			self.delete(t.name)
@@ -360,7 +411,8 @@ class Block(Canvas, BlockBase) :
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
 #			txt_width = fnt.measure(term_label)
-			txt_width, _ = self.editor.font.getsize(term_label)
+#			txt_width, _ = self.editor.font.getsize(term_label)
+			txt_width = self.editor.font.measure(term_label)
 #XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
@@ -372,13 +424,7 @@ class Block(Canvas, BlockBase) :
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
-#			w = self.create_line(*poly, tags=term_tag)
-
-
 			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
-#			txt = self.__update_label(term_tag, (txtx, txty), term_label)
-#			self.bind_as_term(txt)#TODO
-#			self.window2term[txt] = t
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
@@ -995,13 +1041,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
 
-#		font = ImageFont.truetype('path/to/font.ttf', size)
-		self.font = ImageFont.load_default()
-#		self.font_h = tkFont.nametofont("TkDefaultFont")
-#		self.font_v = tkFont.nametofont("TkDefaultFont")
-#		self.txt_height = self.font_h.metrics("linespace")
-		_, self.txt_height = self.font.getsize("jJ")
-
 		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
@@ -1046,6 +1085,10 @@ class BlockEditor(Frame, GraphModelListener) :
 		#XXX cursor: select, shift+cursor: move ?
 		
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
+
+		self.font = tkFont.nametofont("TkDefaultFont")
+#		self.font_v = tkFont.nametofont("TkDefaultFont")
+		self.txt_height = self.font.metrics("linespace")
 
 # ------------------------------------------------------------------------------------------------------------
 
