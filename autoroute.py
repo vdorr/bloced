@@ -3,7 +3,7 @@ from sys import version_info
 if version_info.major == 3 :
 	from itertools import product, zip_longest
 else :
-	from itertools import product, izip_longest
+	from itertools import product, izip_longest as zip_longest
 from collections import namedtuple
 from pprint import pprint
 
@@ -66,16 +66,16 @@ def trial_line(p, angle, b, r1, r2) :
 # ------------------------------------------------------------------------------------------------------------
 
 def my_lvl1_trlines(hl, vl, cut, g, b, r1, r2) :
-	lns = izip_longest(
+	lns = zip_longest(
 		map(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
-			xrange(cut.x - g + 1, hl[1], -g)),
+			range(cut.x - g + 1, hl[1], -g)),
 		map(lambda p : trial_line(pnt(p, hl.y), 90, b, r1, r2),
-			xrange(cut.x + g, hl[2], g)),
+			range(cut.x + g, hl[2], g)),
 		map(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
-			xrange(vl[1], cut.y - g, g)),#XXX
+			range(vl[1], cut.y - g, g)),#XXX
 			#xrange(cut.y - g - 1, vl[1], g)),
 		map(lambda p : trial_line(pnt(vl.x, p), 0, b, r1, r2),
-			xrange(cut.y + g, vl[2], g)),
+			range(cut.y + g, vl[2], g)),
 		fillvalue = None)
 	for tup in lns :
 		for ln in filter(None, tup) :
@@ -95,10 +95,14 @@ def mtroute_simple(s, t, b, r1, r2) :
 		     
 	#print("trln_s", trln_s)	print("trln_t", trln_t)
 
-	x = filter(None, map(lambda p: intersect(p[0], p[1]),
-		product(trln_t[0], trln_s[0])))
+#	x = filter(None, map(lambda p: intersect(p[0], p[1]),
+#		product(trln_t[0], trln_s[0])))
+	intersections = (intersect(p[0], p[1]) for p in product(trln_t[0], trln_s[0]))
+	x = [ p for p in intersections if p != None ]
 	if x :
-		is_simple = filter(lambda cr: type(cr[0]) != pnt, x)
+		is_simple = not all(type(cr[0]) == pnt for cr in x)
+#		is_simple_old = filter(lambda cr: type(cr[0]) != pnt, x)
+#		assert(bool(is_simple_old)==bool(is_simple))
 		return [ s ] + ([] if is_simple else [ x[0][0] ]) + [ t ]
 
 	tr_it_s = my_lvl1_trlines(trln_s[0][0], trln_s[0][1],
@@ -120,7 +124,9 @@ def mtroute_simple(s, t, b, r1, r2) :
 		trit, trit2, trln, trln2 = trit2, trit, trln2, trln
 
 		for lvl in trln : #TODO use dropwhile
-			x = filter(None, map(lambda p: intersect(next_trln, p), lvl))
+			intersections = (intersect(next_trln, p) for p in lvl)
+			x = [ p for p in intersections if p != None ]
+#			x = filter(None, map(lambda p: intersect(next_trln, p), lvl))
 			if x :
 				crossing, (next_trln, l2) = x[0]
 
@@ -129,10 +135,12 @@ def mtroute_simple(s, t, b, r1, r2) :
 				# $crossing
 				# if $l2 have level 1 - crossing of $l2 and trial line of level 0 from $trln
 
-				q = filter(None, map(lambda p: intersect(next_trln, p), trln2[0]))
+#				q = filter(None, map(lambda p: intersect(next_trln, p), trln2[0]))
+				q = [ i for i in (intersect(next_trln, p) for p in trln2[0]) if i != None ]
 				solution = [ q[0][0], crossing ]
 				if l2 in trln[1] :
-					w = filter(None, map(lambda p: intersect(l2, p), trln[0]))
+#					w = filter(None, map(lambda p: intersect(l2, p), trln[0]))
+					w = [ i for i in (intersect(l2, p) for p in trln[0]) if i != None ]
 					solution.append(w[0][0])
 				if trln == trln_s :
 					solution.reverse()
