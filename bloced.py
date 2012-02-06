@@ -214,41 +214,58 @@ class BlockBase(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+if 0 :
+	from PIL import ImageTk, Image, ImageDraw, ImageFont
 
-from PIL import ImageTk, Image, ImageDraw, ImageFont
+	class ImageLabel(object) :
 
-class ImageLabel(object) :
+		def __init__(self, parent_block, name, text, pos) :
 
-	def __init__(self, parent_block, name, text, pos) :
+			if not hasattr(ImageLabel, "font") :
+				ImageLabel.font = ImageFont.load_default()
+				_, ImageLabel.txt_height = ImageLabel.font.getsize("jJ")
 
-		if not hasattr(ImageLabel, "font") :
-#			font = ImageFont.truetype('path/to/font.ttf', size)
-			ImageLabel.font = ImageFont.load_default()
-#			self.font_h = tkFont.nametofont("TkDefaultFont")
-#			self.font_v = tkFont.nametofont("TkDefaultFont")
-#			self.txt_height = self.font_h.metrics("linespace")
-			_, ImageLabel.txt_height = ImageLabel.font.getsize("jJ")
+			fnt = ImageLabel.font
+			size = fnt.getsize(text)
+			im = Image.new("RGBA", size, (0, 0, 0, 0))
+			draw = ImageDraw.Draw(im)
 
-		fnt = ImageLabel.font
-		size = fnt.getsize(text)
-		im = Image.new("RGBA", size, (0, 0, 0, 0))
-		draw = ImageDraw.Draw(im)
+			flipv, fliph, rot = parent_block.model.orientation
+			if name == "caption_lbl" :
+				lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
+				pos = lbl_x, lbl_y
+			else :
+				lbl_x, lbl_y = pos
+			draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
+			img = ImageTk.PhotoImage(
+				im if not parent_block.model.orientation[2] % 180 else im.rotate(90, expand=True))
+			i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+			self.__data = (img, text, pos, i)
+			self.canvas_item = i
+			self.text = text
+			self.pos = pos
 
-		flipv, fliph, rot = parent_block.model.orientation
-		if name == "caption_lbl" :
-			lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
-			pos = lbl_x, lbl_y
-		else :
-			lbl_x, lbl_y = pos
-		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
-		img = ImageTk.PhotoImage(
-			im if not parent_block.model.orientation[2] % 180 else im.rotate(90, expand=True))
-		i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-		self.__data = (img, text, pos, i)
-		self.canvas_item = i
-		self.text = text
-		self.pos = pos
+else :
 
+	class ImageLabel(object) :
+
+		def __init__(self, parent_block, name, text, pos) :
+
+			txt_width = parent_block.editor.font.measure(text)
+			size = (txt_width, parent_block.editor.txt_height)
+
+			flipv, fliph, rot = parent_block.model.orientation
+			if name == "caption_lbl" :
+				lbl_x, lbl_y = parent_block.model.get_label_pos(*size)
+				pos = lbl_x, lbl_y
+			else :
+				lbl_x, lbl_y = pos
+
+			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=NW)
+			self.__data = (None, text, pos, i)
+			self.canvas_item = i
+			self.text = text
+			self.pos = pos
 
 
 
