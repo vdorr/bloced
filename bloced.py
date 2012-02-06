@@ -39,8 +39,6 @@ else :
 	import ttk
 	from tkSimpleDialog import Dialog
 
-#from PIL import ImageTk, Image, ImageDraw, ImageFont
-
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO map from model to presentation: { dfs.JointProto : Joint, BlockModel:
@@ -307,9 +305,6 @@ class Block(Canvas, BlockBase) :
 		self.editor.select_next()
 
 	def __update_label(self, name, pos, text) :
-
-#		print "__update_label:", name, pos, text
-
 		if name in self.__labels :
 			l = self.__labels[name]
 			if l.text == text and l.pos == pos :
@@ -317,38 +312,9 @@ class Block(Canvas, BlockBase) :
 			else :
 				self.__labels.pop(name)
 				self.delete(l.canvas_item)
-
 		lbl = ImageLabel(self, name, text, pos)
 		self.__labels[name] = lbl
 		return lbl.canvas_item
-
-#		if name in self.__images :
-#			bmp, txt, lbl_pos, obj = self.__images[name]
-#			if txt == text and lbl_pos == pos :
-#				return obj
-#			else :
-#				self.__images.pop(name)
-#				self.delete(obj)
-
-#		fnt = self.editor.font
-#		size = fnt.getsize(text)
-#		im = Image.new("RGBA", size, (0, 0, 0, 0))
-#		draw = ImageDraw.Draw(im)
-
-#		flipv, fliph, rot = self.model.orientation
-#		if name == "caption_lbl" :
-#			lbl_x, lbl_y = self.model.get_label_pos(*size)
-#			pos = lbl_x, lbl_y
-#		else :
-#			lbl_x, lbl_y = pos
-##		print self.model.prototype.type_name, (lbl_x, lbl_y)
-##		draw.rectangle((0, 0, size[0], size[1]), fill=(0,0,0))
-#		draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
-#		img = ImageTk.PhotoImage(
-#			im if not self.model.orientation[2] % 180 else im.rotate(90, expand=True))
-#		i = self.create_image((lbl_x, lbl_y), image=img, anchor=NW)
-#		self.__images[name] = (img, text, pos, i)
-#		return i
 
 	def __init__(self, editor, model) :
 		self.editor = editor
@@ -402,8 +368,7 @@ class Block(Canvas, BlockBase) :
 
 	def regenerate_terms(self) :
 
-#TODO TODO TODO use create_text get width
-		txt_height = 10#self.editor.txt_height
+		txt_height = self.editor.txt_height
 
 		for t in self.model.terms :
 			self.delete(t.name)
