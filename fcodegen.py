@@ -30,7 +30,8 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
 	if isinstance(m.prototype, core.ConstProto) :
 		assert(m.value != None)
-		code.append(str(m.value))
+		assert(len(m.value) == 1)
+		code.append(str(m.value[0]))
 #		print "post_dive:", n, nt, "<-", m, mt, "code:", str(m.value)
 	elif (m, mt, mt_nr) in d_stack : #XXX or (n, nt) == d_stack[-1] ??!?!? nope, it is equal
 		d_stack.remove((m, mt, mt_nr))
@@ -157,13 +158,13 @@ def churn_code(task_name, cg_out) :
 	code, types, tmp, expd_dels = cg_out
 
 #	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x,y: y.nr-x.nr) ]
-	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr, reverse=True) ]
+	del_init = [ "%i " % int(d.value[0]) for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr, reverse=True) ]
 	output = (": " + task_name + linesep +
 		# locals and delays
 		("\t" + "".join(del_init) + ("0 " * tmp_max_slots_used(tmp)) + linesep +
 		("\tlocals| " + ("del%i " * len(del_init)) % tuple(range(len(del_init))) +
 		("tmp%i " * tmp_max_slots_used(tmp)) % tuple(range(tmp_max_slots_used(tmp))) + "|" + linesep)
-		if ( len(tmp) or len(del_init) ) else "")+
+		if ( tmp_max_slots_used(tmp) or len(del_init) ) else "")+
 		# main loop
 		"\tbegin" + linesep +
 		linesep.join([ "\t\t" + loc for loc in code ]) + linesep +
