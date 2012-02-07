@@ -16,7 +16,7 @@ from implement import here
 
 def pickle_dfs_model(m, f) :
 	try :
-		pickle.dump(get_dfs_model_data(m), f, 2)
+		pickle.dump(get_dfs_model_data(m), f, 0)
 	except pickle.PickleError :
 		print("PickleError")
 		raise
@@ -62,6 +62,7 @@ def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 		{ n[b] : dfs.BlockModel.get_meta(b) for b in blocks },
 		conn_meta
 	)
+	pprint(meta)
 	return types, struct, meta
 
 # ------------------------------------------------------------------------------------------------------------
@@ -133,7 +134,7 @@ RES_TYPE_SHEET_VERSION = (0, 0, 1)
 
 def pickle_workbench(wrk, f) :
 	try :
-		pickle.dump(get_workbench_data(wrk), f, 2)
+		pickle.dump(get_workbench_data(wrk), f, 0)
 	except pickle.PickleError :
 		print("PickleError")
 		raise

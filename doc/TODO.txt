@@ -33,3 +33,5 @@ remove dependency of implement.py on dfs.py
 workbench @unsynced thread access check decorator
 sane graph rewriting function
 move foreign blocks handling from core.py to separate module
+menu with known special sheets
+editor context menu

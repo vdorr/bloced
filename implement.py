@@ -273,14 +273,14 @@ def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
 		map_out = { (out_term, out_term_nr) : tap_pred
 			for out_term, out_term_nr, _ in tap_end_succs }
 
-		print here(), tap_end, snippet_out, {}, map_out
+		print(here(), tap_end, snippet_out, {}, map_out)
 		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
 
 		assert(not tap_end in g)
 
 	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
 
-	print here(), tap, snippet_in, map_in
+	print(here(), tap, snippet_in, map_in)
 	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
 
 
@@ -1021,7 +1021,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 
 
 	additions, = join_taps(graph, delays, policies=join_taps_policies)
-	print here(), delays
+	print(here(), delays)
 
 	types = infer_types(graph, delays, known_types=known_types)
 
@@ -1033,7 +1033,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 		tsk_name = ctx.strip("@")
 		g = { k : v for k, v in graph.items() if k in blocks }
 		for block, added in additions.items() :
-			print here(), block, added, block in blocks
+			print(here(), block, added, block in blocks)
 			if block in blocks :
 #				g.pop(block)#should not matter
 				for v in added :

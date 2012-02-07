@@ -1,7 +1,10 @@
 
 DEPENDENCIES
-- xclip
-
+	xclip
+	python3
+	python3-tk
+	arduino (installs avr-gcc and avrdude)
+	python-serial
 WHY
 
 blocks are not "configurable"
