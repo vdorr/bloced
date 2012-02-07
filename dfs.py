@@ -405,39 +405,39 @@ class BlockModel(object) :
 		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
 		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 
-	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,
-			t_nr, text_width, txt_height, center=True) :
+#	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,
+#			t_nr, text_width, txt_height, center=True) :
 
-		t_size = term_size
-		shift = t_size/2 if center else 0
-#XXX XXX XXX
-		index = term_index if is_variadic else 1
-		c = (index - 1) * term_size if is_variadic else 0
-#XXX XXX XXX
-		p = term_pos
-		tw = text_width
-		side = term_side
+#		t_size = term_size
+#		shift = t_size/2 if center else 0
+##XXX XXX XXX
+#		index = term_index if is_variadic else 1
+#		c = (index - 1) * term_size if is_variadic else 0
+##XXX XXX XXX
+#		p = term_pos
+#		tw = text_width
+#		side = term_side
 
-		if is_variadic :
-			w, h = self.width, self.height
-		else :
-			w, h = self.default_size
+#		if is_variadic :
+#			w, h = self.width, self.height
+#		else :
+#			w, h = self.default_size
 
-		if side == N :
-			pos = ((w*p-shift+c, 0),		(0, t_size))
-		elif side == S :
-			pos = ((w*p-shift+c, h-1),	(0, -t_size))
-		elif side == W :
-			pos = ((0, h*p-shift+c),		(t_size, 0))
-		elif side == E :
-			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
-		elif side == C :
-			pos = ((w/2, h/2),			(0, 0))
-		else :
-			raise Exception()
+#		if side == N :
+#			pos = ((w*p-shift+c, 0),		(0, t_size))
+#		elif side == S :
+#			pos = ((w*p-shift+c, h-1),	(0, -t_size))
+#		elif side == W :
+#			pos = ((0, h*p-shift+c),		(t_size, 0))
+#		elif side == E :
+#			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
+#		elif side == C :
+#			pos = ((w/2, h/2),			(0, 0))
+#		else :
+#			raise Exception()
 
-		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
-		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
+#		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
+#		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 
 
 	def get_label_pos(self, txt_width, txt_height) :
@@ -534,7 +534,7 @@ class BlockModel(object) :
 		self.__model = model
 		self.__can_move = True
 		self.__prototype = None
-		self.__value = tuple(dv for name, dv in values)
+		self.__value = tuple(dv for name, dv in values) if values else None
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 	def __init__(self, prototype, model, left = 0, top = 0) :
