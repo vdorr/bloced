@@ -31,17 +31,30 @@ __operators = {
 }
 
 
-def __implement(n, args, outs) :
+def __implement(n, args, outs, pipe_vars) :
 #	print here(2), n, args, outs
+#	print(here(), n.prototype.type_name)
 	if n.prototype.type_name in __operators :
 		assert(len(args) >= 2)
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
 		return __operators[n.prototype.type_name](n, args)
+	elif n.prototype.__class__ == core.PipeProto :
+		assert(len(args) == 1)
+		assert(not outs)
+		pipe_name = block_value_by_name(n, "Name")
+		assert(not pipe_name in pipe_vars)
+		i, = max(pipe_vars.values(), key=lambda x: x[0]) if pipe_vars else (0, )
+		pipe_vars[pipe_name] = (i + 1, )
+		return "global{0} = {1}".format(i + 1, args[0])
+	elif n.prototype.__class__ == core.PipeEndProto :
+		pipe_name = block_value_by_name(n, "Name")
+		return "global{0}".format(pipe_vars[pipe_name])
 	else :
+		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, pipe_vars, n, visited) :
 #	print "__post_visit:", n.to_string()
 
 	if isinstance(n.prototype, core.ConstProto) :
@@ -57,7 +70,12 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 
 	for out_term, out_t_nr, succs in outputs :
 		if out_term.type_name == "<inferred>" :
-			term_type = types[n, out_term, out_t_nr]
+			if n.prototype.__class__ == core.PipeEndProto :
+				pipe_name = block_value_by_name(n, "Name")
+				pipe_index, pipe_type = pipe_vars[pipe_name]
+				term_type = pipe_type
+			else :
+				term_type = types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name
 #		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
@@ -111,9 +129,17 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 			expr = "tmp%i" % slot
 		else :
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
+#	elif n.prototype.__class__ == core.PipeProto :
+#		print(here(), )
+#		slot = add_tmp_ref(global_vars, [], slot_type="vm_word_t")
+#		code.append("global{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
+
+#	elif n.prototype.__class__ == core.PipeEndProto :
+#		print(here(), )
+##		slot = add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
 	else :
-		assert(n.prototype.exe_name != None)
-		expr = __implement(n, args, outs)
+		print(here(), n.prototype.type_name)
+		expr = __implement(n, args, outs, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
 #	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
@@ -146,20 +172,51 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 	dummies = set()
 	state_var_prefix = task_name + "_"
 
-	dft_alt(g, post_visit = partial(__post_visit,
-		g, code, tmp, subtrees, expd_dels, types,
-		dummies, state_var_prefix))
+#	global_vars = temp_init(core.KNOWN_TYPES)
+
+	pipes = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeProto ]
+	pipe_ends = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeEndProto ]
+
+	pipe_vars = {}
+
+#	for n, (p, s) in pipes :
+
+
+
+
+#	pipe_index = {}
+
+#	for n, (p, s) in pipe_ends :
+#		assert(not p)
+#		pipe_name = block_value_by_name(n, "Name")
+##		pipe_index[pipe_name]
+
+#		slot_type #based on pipe default value and pipe preds
+
+#		slot = add_tmp_ref(global_vars, s, slot_type=slot_type) 
+
+#block_value_by_name(n, "Name")
+
+#	add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
+
+
+
+
+	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
+		expd_dels, types, dummies, state_var_prefix, pipe_vars)
+
+	dft_alt(g, post_visit=post_visit_callback)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, (code, types, tmp, expd_dels, dummies)
+	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies)
 
 
 def merge_codegen_output(a, b) :
 
-	code0, types0, tmp0, expd_dels0, dummies0 = a
-	code1, types1, tmp1, expd_dels1, dummies1 = b
+	code0, types0, tmp0, expd_dels0, global_vars0, dummies0 = a
+	code1, types1, tmp1, expd_dels1, global_vars1, dummies1 = b
 
 	code = code0 + code1
 
@@ -173,11 +230,13 @@ def merge_codegen_output(a, b) :
 
 	dummies = dummies0.union(dummies1)
 
-	return code, types, tmp, expd_dels, dummies
+	global_vars = None#TODO
+
+	return code, types, tmp, expd_dels, global_vars, dummies
 
 
 def churn_code(task_name, cg_out) :
-	code, types, tmp, expd_dels, dummies = cg_out
+	code, types, tmp, expd_dels, global_vars, dummies = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []

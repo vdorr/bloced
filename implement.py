@@ -471,12 +471,13 @@ def parse_literal(s, known_types=None, variables={}) :
 
 def compare_types(known_types, a, b) :
 	"""
-a, b are type names, keys in known_types dict with type_t tuples
+	a, b are type names, keys in known_types dict with type_t tuples
 	"""
 	return known_types[a].priority - known_types[b].priority
 
 
 def __infer_block_type(block, preds, types, known_types) :
+#	print here(), block
 	inferred = None
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
@@ -490,8 +491,8 @@ def __infer_block_type(block, preds, types, known_types) :
 
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
-#	print n, nt, nt_nr, "<-", m, mt, mt_nr
 	mt_type_name = mt.type_name
+	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
 	if mt_type_name == "<inferred>"	:
 		if m.prototype.__class__ == DelayOutProto :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
@@ -499,7 +500,10 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 		elif m.prototype.__class__ == ConstProto :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-#			print here(), mt_type_name
+		elif m.prototype.__class__ == PipeEndProto :
+			print here(), "!!!!!!!!!!!"
+		elif m.prototype.__class__ == PipeProto :
+			print here(), "!!!!!!!!!!!"
 		else :
 			types[m, mt, mt_nr] = mt_type_name = __infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
@@ -508,6 +512,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 
 def __infer_types_post_visit(g, types, known_types, n, visited) :
 	p, s = g[n]
+	print(here(), n, s)
 	for t, t_nr, succs in s :
 		if not succs :
 			types[n, t, t_nr] = __infer_block_type(n, p, types, known_types)
@@ -515,11 +520,12 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 
 def infer_types(g, expd_dels, known_types) :
 	"""
-types of outputs are inferred from types of inferred (in fact, inherited) inputs
-block with inferred output type must have at least one inferred input type
-if block have more than one inferred input type, highest priority type is used for all outputs
-type of Delay is derived from initial value
+	types of outputs are inferred from types of inferred (in fact, inherited) inputs
+	block with inferred output type must have at least one inferred input type
+	if block have more than one inferred input type, highest priority type is used for all outputs
+	type of Delay is derived from initial value
 	"""
+	print here()
 	delays = {}
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value[0]
@@ -960,6 +966,10 @@ def dag_merge(l) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def block_value_by_name(n, value_name) :
+	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
+
+# ------------------------------------------------------------------------------------------------------------
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
@@ -972,77 +982,100 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	"""
 	sheets = { name : sheet, ... }
 	"""
-#TODO assert rules for special sheets
-#TODO not taps leading to @init
 
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
 	unknown = [ name for name in special if not name in special_sheets ]
 	if unknown :
-		raise Exception("Unknown special sheet name(s) " + unknown)
+		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
-	join_taps_policies={}
 
-#	for name, s in special.items() :
+	for name, s in sorted(special.items(), key=lambda x: x[0]) :
+		if name == "@setup" :
+			tsk_name = name.strip("@")
+			g, d = make_dag(s, None, known_types, do_join_taps=True)
+			join_taps(g, d)
+			types = infer_types(g, d, known_types=known_types)
+			code = codegen(g, d, {}, types, task_name=tsk_name)
+			out_fobj.write(code)
+		else :
+			raise Exception("impossible exception")
+
+
+	l = [ make_dag(s, None, known_types, do_join_taps=False)
+		for name, s in sorted(sheets.items(), key=lambda x: x[0])
+		if not name in special ]
+	graph, delays = dag_merge(l)
+	join_taps(graph, delays)
+	types = infer_types(graph, delays, known_types=known_types)
+	tsk_name = "tsk0"#XXX ?!?!
+	code = codegen(graph, delays, {}, types, task_name=tsk_name)
+	out_fobj.write(code)
+
+
+	out_fobj.write(stub)
+
+
+
+#def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :
+#	"""
+#	sheets = { name : sheet, ... }
+#	"""
+
+#	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
+#	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
+#	unknown = [ name for name in special if not name in special_sheets ]
+#	if unknown :
+#		raise Exception("Unknown special sheet name(s) " + unknown)
+
+#	join_taps_policies={}
+
+#	contexts = []
+#	l =[]
+#	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
 #		if name == "@setup" :
-#			g, d, t = make_dag(s, None, known_types, do_join_taps=False)
+#			g, d = make_dag(s, None, known_types, do_join_taps=False)
 #			has_tap_ends = bool(len(get_tap_ends(g)))
 #			if has_tap_ends :
 #				raise Exception("TapEnd not allowed in " + str(name))
-#			taps = get_taps(g)
-#			join_taps(g, d)
-#			print here(), taps, d
+#			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
+#			join_taps_policies.update(taps)
+##			print here(), taps, d
+#			l.append((g, d))
+#			contexts.append((name, g.keys()))
+#		else :
+#			g, d = make_dag(s, None, known_types, do_join_taps=False)
+#			l.append((g, d))
+#			contexts.append((name, g.keys()))
 
-#	l = [ make_dag(s, None, known_types, do_join_taps=False)
-#		for name, s in sheets.items() if not name in special ]
-#	graph, delays, types = dag_merge(l)
-
-	contexts = []
-	l =[]
-	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
-		if name == "@setup" :
-			g, d = make_dag(s, None, known_types, do_join_taps=False)
-			has_tap_ends = bool(len(get_tap_ends(g)))
-			if has_tap_ends :
-				raise Exception("TapEnd not allowed in " + str(name))
-			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
-			join_taps_policies.update(taps)
-#			print here(), taps, d
-			l.append((g, d))
-			contexts.append((name, g.keys()))
-		else :
-			g, d = make_dag(s, None, known_types, do_join_taps=False)
-			l.append((g, d))
-			contexts.append((name, g.keys()))
-
-#	l = [ make_dag(s, None, known_types, do_join_taps=False)
-#		for name, s in sheets.items() if not name in special ]
-	graph, delays = dag_merge(l)
+##	l = [ make_dag(s, None, known_types, do_join_taps=False)
+##		for name, s in sheets.items() if not name in special ]
+#	graph, delays = dag_merge(l)
 
 
-	additions, = join_taps(graph, delays, policies=join_taps_policies)
-	print(here(), delays)
+#	additions, = join_taps(graph, delays, policies=join_taps_policies)
+#	print(here(), delays)
 
-	types = infer_types(graph, delays, known_types=known_types)
+#	types = infer_types(graph, delays, known_types=known_types)
 
 
-#	contexts = [ (ctx, v) for ctx, v in ... ]
-	contexts.sort(key=lambda x: x[0])
+##	contexts = [ (ctx, v) for ctx, v in ... ]
+#	contexts.sort(key=lambda x: x[0])
 
-	for ctx, blocks in contexts :
-		tsk_name = ctx.strip("@")
-		g = { k : v for k, v in graph.items() if k in blocks }
-		for block, added in additions.items() :
-			print(here(), block, added, block in blocks)
-			if block in blocks :
-#				g.pop(block)#should not matter
-				for v in added :
-					g[v] = graph[v]
-		pprint(g)
-		code = codegen(g, delays, {}, types, task_name=tsk_name)
-		out_fobj.write(code)#XXX pass out_fobj to codegen?
+#	for ctx, blocks in contexts :
+#		tsk_name = ctx.strip("@")
+#		g = { k : v for k, v in graph.items() if k in blocks }
+#		for block, added in additions.items() :
+#			print(here(), block, added, block in blocks)
+#			if block in blocks :
+##				g.pop(block)#should not matter
+#				for v in added :
+#					g[v] = graph[v]
+#		pprint(g)
+#		code = codegen(g, delays, {}, types, task_name=tsk_name)
+#		out_fobj.write(code)#XXX pass out_fobj to codegen?
 
-	out_fobj.write(stub)
+#	out_fobj.write(stub)
 
 
 # ------------------------------------------------------------------------------------------------------------
