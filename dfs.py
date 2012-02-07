@@ -489,8 +489,8 @@ class BlockModel(object) :
 			"InputProto":"Input({0})",
 			"OutputProto":"Output({0})",
 			"JointProto":"",
-#			"PipeProto":"Tap({0})",
-#			"PipeEndProto":"TapEnd({0})",
+			"PipeProto":"Tap({0})",
+			"PipeEndProto":"TapEnd({0})",
 #			"ConstInputProto":"ConstInput({0})",
 		}
 		cls = self.prototype.__class__.__name__
@@ -527,28 +527,24 @@ class BlockModel(object) :
 			term_label += str(self.get_term_index(t, nr))
 		return term_label
 
-	def __my_init(self, model, caption, left, top, width, height, terms) :
+	def __my_init(self, model, caption, left, top, width, height, terms, values) :
 		self.__orientation = (0, 0, 0)
 		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
 			caption, left, top, width, height, terms)
 		self.__model = model
 		self.__can_move = True
 		self.__prototype = None
-		self.__value = None
+		self.__value = tuple(dv for name, dv in values)
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 	def __init__(self, prototype, model, left = 0, top = 0) :
-#		print prototype.default_size
 		self.__my_init(model, prototype.type_name, left, top,
 			prototype.default_size[0], prototype.default_size[1],
-			prototype.terms)
+			prototype.terms, prototype.values)
 		self.__prototype = prototype
 
 	def __repr__(self) :
-#		return self.__prototype.type_name
 		return "%s(%s)" % (self.__prototype.type_name, str(self.value))
-		#return "block proto=" + type(self.prototype).__name__
-		#return 'block"' + self.prototype.type_name + '"'
 #		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
 
 # ------------------------------------------------------------------------------------------------------------

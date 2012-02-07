@@ -440,6 +440,8 @@ class BasicBlocksFactory(object) :
 			InputProto(),
 			OutputProto(),
 			SBP("Sink", "Special", [ In(-1, "", W, .5, type_name="<infer>") ], pure=True),
+			PipeProto(),
+			PipeEndProto(),
 
 			BinaryOp("xor", "Logic", commutative=True),
 			BinaryOp("or", "Logic", commutative=True),
