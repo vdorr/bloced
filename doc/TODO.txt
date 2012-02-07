@@ -35,3 +35,4 @@ sane graph rewriting function
 move foreign blocks handling from core.py to separate module
 menu with known special sheets
 editor context menu
+make operators variadic
