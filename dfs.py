@@ -155,11 +155,14 @@ class BlockModel(object) :
 
 	@edit("value")
 	def __set_value(self, value) :
-		self.__value = value
-#		if self.value :
-#			self.caption = self.prototype.get_type_name() + " (" + str(self.value) + ")"
-#		self.__raise_block_changed({"p":"value"})
-#		self.__model._GraphModel__on_block_changed(self, event=e)
+		if isinstance(value, tuple) :
+			self.__value = value
+		else :
+			self.__value = (value,)
+
+#	def __get_value(self) :
+#		return self.__value
+
 
 	int_left = property(lambda self: self.__left)
 
@@ -472,23 +475,46 @@ class BlockModel(object) :
 			else :
 				yield t, None
 
+	def stringified_value(self, value) :
+		assert(value is None or isinstance(value, tuple))
+		v = value if value else ("None", )
+		return ",".join(str(s) for s in v)
+
 	def get_presentation_text(self) :
-		if self.prototype.__class__.__name__ == "ConstProto" :
-			newtxt = str(self.value)
-		elif self.prototype.__class__.__name__ == "DelayProto" :
-			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
-		elif self.prototype.__class__.__name__ == "TapProto" :
-			newtxt = "Tap (%s)" % (str(self.value) if self.value != None else "None")
-		elif self.prototype.__class__.__name__ == "TapEndProto" :
-			newtxt = "TapEnd (%s)" % (str(self.value) if self.value != None else "None")
-		elif self.prototype.__class__.__name__ == "InputProto" :
-			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
-		elif self.prototype.__class__.__name__ == "OutputProto" :
-			newtxt = "Out(%s)" % (str(self.value) if self.value != None else "None")
-		elif self.prototype.__class__.__name__ == "JointProto" :
-			newtxt = ""
+		fmt = {
+			"ConstProto":"{0}",
+			"DelayProto":"Delay({0})",
+			"TapProto":"Tap({0})",
+			"TapEndProto":"TapEnd({0})",
+			"InputProto":"Input({0})",
+			"OutputProto":"Output({0})",
+			"JointProto":"",
+#			"PipeProto":"Tap({0})",
+#			"PipeEndProto":"TapEnd({0})",
+#			"ConstInputProto":"ConstInput({0})",
+		}
+		cls = self.prototype.__class__.__name__
+		if cls in fmt :
+			newtxt = fmt[cls].format(self.stringified_value(self.value))
 		else :
 			newtxt = self.caption
+
+#		if self.prototype.__class__.__name__ == "ConstProto" :
+#			newtxt = str(self.value)
+#		elif self.prototype.__class__.__name__ == "DelayProto" :
+#			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
+#		elif self.prototype.__class__.__name__ == "TapProto" :
+#			newtxt = "Tap (%s)" % (str(self.value) if self.value != None else "None")
+#		elif self.prototype.__class__.__name__ == "TapEndProto" :
+#			newtxt = "TapEnd (%s)" % (str(self.value) if self.value != None else "None")
+#		elif self.prototype.__class__.__name__ == "InputProto" :
+#			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
+#		elif self.prototype.__class__.__name__ == "OutputProto" :
+#			newtxt = "Out(%s)" % (str(self.value) if self.value != None else "None")
+#		elif self.prototype.__class__.__name__ == "JointProto" :
+#			newtxt = ""
+#		else :
+#			newtxt = self.caption
 		return newtxt
 
 	presentation_text = property(get_presentation_text)

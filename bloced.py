@@ -134,18 +134,18 @@ class CascadeMnu(MenuItem) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class textbox(Frame):
+#class textbox(Frame):
 
-	def __init__(self, parent, msg) :
-		Frame.__init__(self,parent)
-		self.g_label = Label(self,text=msg)
-		self.g_label.pack(side=LEFT,expand=False)
-		self.g_entry = Entry(self)
-		self.g_entry.pack(side=LEFT, fill=X, expand=True)
-		self.pack(fill=X, anchor=NW, expand=True)
+#	def __init__(self, parent, msg) :
+#		Frame.__init__(self,parent)
+#		self.g_label = Label(self,text=msg)
+#		self.g_label.pack(side=LEFT,expand=False)
+#		self.g_entry = Entry(self)
+#		self.g_entry.pack(side=LEFT, fill=X, expand=True)
+#		self.pack(fill=X, anchor=NW, expand=True)
 
-	def text(self) :
-		return self.gui["entry"].get()
+#	def text(self) :
+#		return self.gui["entry"].get()
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -293,12 +293,10 @@ class Block(Canvas, BlockBase) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here(), self.model.prototype, self.model.prototype.values
 		if self.model.prototype.values :
-			items = self.model.prototype.values
-#			items = [ name, val for (name, _), val
-#				in zip(self.model.prototype.values, self.model.value)]#TODO TODO TODO
+			items = [ (name, val) for (name, _), val
+				in zip(self.model.prototype.values, self.model.value)]
 			d = InputDialog(self, items=items)
 			if d.value :
-#				print here(), d.value
 				self.model.value = d.value
 				self.update_text()
 #			entry = Entry(self)
