@@ -62,7 +62,6 @@ def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 		{ n[b] : dfs.BlockModel.get_meta(b) for b in blocks },
 		conn_meta
 	)
-	pprint(meta)
 	return types, struct, meta
 
 # ------------------------------------------------------------------------------------------------------------

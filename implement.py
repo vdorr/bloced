@@ -497,7 +497,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		elif m.prototype.__class__ == ConstProto :
-			value_type, _ = parse_literal(m.value, known_types=known_types)
+			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 #			print here(), mt_type_name
 		else :
@@ -522,7 +522,7 @@ type of Delay is derived from initial value
 	"""
 	delays = {}
 	for k, (din, dout) in expd_dels.items() :
-		delays[din] = delays[dout] = k.value
+		delays[din] = delays[dout] = k.value[0]
 	types = {}
 	dft_alt(g,
 		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),

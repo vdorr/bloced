@@ -81,7 +81,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 #		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
 		if isinstance(m.prototype, core.ConstProto) :
 			assert(m.value != None)
-			args.append(str(m.value))
+			assert(len(m.value) == 1)
+			args.append(str(m.value[0]))
 		elif (n, in_term, in_t_nr) in subtrees :
 			args.append(subtrees.pop((n, in_term, in_t_nr)))
 		else :
@@ -186,7 +187,7 @@ def churn_code(task_name, cg_out) :
 		del_in = expd_dels[d][0]
 		del_type = types[del_in, del_in.terms[0], 0]
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
-			del_type, state_var_prefix, i, int(d.value), linesep))
+			del_type, state_var_prefix, i, int(d.value[0]), linesep))
 
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :
