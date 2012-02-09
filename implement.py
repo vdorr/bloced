@@ -996,7 +996,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
-			code = codegen(g, d, {}, types, task_name=tsk_name)
+			code = codegen(g, d, { "endless_loop_wrap" : False }, types, task_name=tsk_name)
 			out_fobj.write(code)
 		else :
 			raise Exception("impossible exception")

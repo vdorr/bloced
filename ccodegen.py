@@ -161,7 +161,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 
 def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
-	return churn_code(tsk_name, cg_out)
+	return churn_code(tsk_name, meta, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
@@ -235,7 +235,7 @@ def merge_codegen_output(a, b) :
 	return code, types, tmp, expd_dels, global_vars, dummies
 
 
-def churn_code(task_name, cg_out) :
+def churn_code(task_name, meta, cg_out) :
 	code, types, tmp, expd_dels, global_vars, dummies = cg_out
 
 	state_var_prefix = task_name + "_"
@@ -257,14 +257,17 @@ def churn_code(task_name, cg_out) :
 
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
 
+	if "endless_loop_wrap" in meta and not meta["endless_loop_wrap"] :
+		loop_code = "\t" + (linesep + "\t\t").join(code)
+	else :
+		loop_code = linesep.join(("\tfor(;;)", "\t{", "\t\t" + (linesep + "\t\t").join(code), "\t}"))
+
 	output = ("void " + task_name + "()" + linesep + "{" + linesep +
 		# locals and delays
 		"".join(temp_vars + state_vars + dummy_vars) +
 		# main loop
-		"\tfor(;;)"+ linesep + "\t{" + linesep +
-		"\t\t" + (linesep + "\t\t").join(code) + linesep +
-		"\t}" + linesep +
-		linesep + "}")
+		loop_code + linesep +
+		"}")
 
 	return output
 

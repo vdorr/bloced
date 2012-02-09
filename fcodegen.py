@@ -115,7 +115,7 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
 
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
-	return churn_code(tsk_name, cg_out)
+	return churn_code(tsk_name, meta, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, task_name = "tsk") :
@@ -153,9 +153,12 @@ def merge_codegen_output(a, b) :
 	return code, types, tmp, expd_dels
 
 
-def churn_code(task_name, cg_out) :
+def churn_code(task_name, meta, cg_out) :
 
 	code, types, tmp, expd_dels = cg_out
+
+	if "endless_loop_wrap" in meta :
+		pass #TODO
 
 #	del_init = [ "%i " % int(d.value) for d in sorted(expd_dels.keys(), key=lambda x,y: y.nr-x.nr) ]
 	del_init = [ "%i " % int(d.value[0]) for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr, reverse=True) ]
