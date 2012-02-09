@@ -31,7 +31,7 @@ __operators = {
 }
 
 
-def __implement(n, args, outs, pipe_vars) :
+def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name)
 	if n.prototype.type_name in __operators :
@@ -43,18 +43,24 @@ def __implement(n, args, outs, pipe_vars) :
 		assert(not outs)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(not pipe_name in pipe_vars)
-		i, = max(pipe_vars.values(), key=lambda x: x[0]) if pipe_vars else (0, )
-		pipe_vars[pipe_name] = (i + 1, )
+
+		pipe_type = infer_block_type(n, g[n].p, types, known_types)
+		print here(), args, pipe_vars, pipe_type
+		
+		i = (max(pipe_vars.values(), key=lambda x: x[0]) if pipe_vars else (0, ))[0]
+		pipe_vars[pipe_name] = (i + 1, pipe_type)
+
+
 		return "global{0} = {1}".format(i + 1, args[0])
 	elif n.prototype.__class__ == core.PipeEndProto :
 		pipe_name = block_value_by_name(n, "Name")
-		return "global{0}".format(pipe_vars[pipe_name])
+		return "global{0}".format(pipe_vars[pipe_name][0])
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_prefix, pipe_vars, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, n, visited) :
 #	print "__post_visit:", n.to_string()
 
 	if isinstance(n.prototype, core.ConstProto) :
@@ -139,7 +145,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 ##		slot = add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
 	else :
 		print(here(), n.prototype.type_name)
-		expr = __implement(n, args, outs, pipe_vars)
+		expr = __implement(g, n, args, outs, types, known_types, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
 #	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
@@ -159,12 +165,12 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, dummies, state_var_pr
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
-	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
+def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
+	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name=task_name)
 	return churn_code(tsk_name, meta, cg_out)
 
 
-def codegen(g, expd_dels, meta, types, task_name = "tsk") :
+def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk") :
 
 	tmp = temp_init(core.KNOWN_TYPES)
 	subtrees = {}
@@ -177,7 +183,7 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 	pipes = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeProto ]
 	pipe_ends = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeEndProto ]
 
-	pipe_vars = {}
+#	pipe_vars = {}
 
 #	for n, (p, s) in pipes :
 
@@ -203,12 +209,14 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
 
 	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
-		expd_dels, types, dummies, state_var_prefix, pipe_vars)
+		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars)
 
 	dft_alt(g, post_visit=post_visit_callback)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
+
+	pprint(pipe_vars)
 
 	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies)
 

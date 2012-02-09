@@ -476,7 +476,7 @@ def compare_types(known_types, a, b) :
 	return known_types[a].priority - known_types[b].priority
 
 
-def __infer_block_type(block, preds, types, known_types) :
+def infer_block_type(block, preds, types, known_types) :
 #	print here(), block
 	inferred = None
 	for t, t_nr, preds in preds :
@@ -505,7 +505,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 		elif m.prototype.__class__ == PipeProto :
 			print here(), "!!!!!!!!!!!"
 		else :
-			types[m, mt, mt_nr] = mt_type_name = __infer_block_type(m, g[m].p, types, known_types)
+			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
 		types[n, nt, nt_nr] = mt_type_name
 
@@ -515,7 +515,7 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 	print(here(), n, s)
 	for t, t_nr, succs in s :
 		if not succs :
-			types[n, t, t_nr] = __infer_block_type(n, p, types, known_types)
+			types[n, t, t_nr] = infer_block_type(n, p, types, known_types)
 
 
 def infer_types(g, expd_dels, known_types) :
@@ -989,6 +989,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
+	pipe_vars = {}
 
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
@@ -996,7 +997,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
-			code = codegen(g, d, { "endless_loop_wrap" : False }, types, task_name=tsk_name)
+			code = codegen(g, d, { "endless_loop_wrap" : False }, types, known_types, pipe_vars, task_name=tsk_name)
 			out_fobj.write(code)
 		else :
 			raise Exception("impossible exception")
@@ -1009,7 +1010,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	join_taps(graph, delays)
 	types = infer_types(graph, delays, known_types=known_types)
 	tsk_name = "tsk0"#XXX ?!?!
-	code = codegen(graph, delays, {}, types, task_name=tsk_name)
+	code = codegen(graph, delays, {}, types, known_types, pipe_vars, task_name=tsk_name)
 	out_fobj.write(code)
 
 

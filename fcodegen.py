@@ -112,7 +112,7 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types, task_name="tsk") :
+def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
 
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
 	return churn_code(tsk_name, meta, cg_out)
