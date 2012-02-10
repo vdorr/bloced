@@ -492,7 +492,7 @@ def infer_block_type(block, preds, types, known_types) :
 
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	mt_type_name = mt.type_name
-	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
+#	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
 	if mt_type_name == "<inferred>"	:
 		if m.prototype.__class__ == DelayOutProto :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
@@ -500,10 +500,10 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 		elif m.prototype.__class__ == ConstProto :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-		elif m.prototype.__class__ == PipeEndProto :
-			print here(), "!!!!!!!!!!!"
-		elif m.prototype.__class__ == PipeProto :
-			print here(), "!!!!!!!!!!!"
+#		elif m.prototype.__class__ == PipeEndProto :
+#			print here(), "!!!!!!!!!!!"
+#		elif m.prototype.__class__ == PipeProto :
+#			print here(), "!!!!!!!!!!!"
 		else :
 			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
@@ -512,7 +512,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 
 def __infer_types_post_visit(g, types, known_types, n, visited) :
 	p, s = g[n]
-	print(here(), n, s)
+#	print(here(), n, s)
 	for t, t_nr, succs in s :
 		if not succs :
 			types[n, t, t_nr] = infer_block_type(n, p, types, known_types)
@@ -525,7 +525,6 @@ def infer_types(g, expd_dels, known_types) :
 	if block have more than one inferred input type, highest priority type is used for all outputs
 	type of Delay is derived from initial value
 	"""
-	print here()
 	delays = {}
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value[0]
