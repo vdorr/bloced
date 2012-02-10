@@ -115,10 +115,10 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
 
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
-	return churn_task_code(tsk_name, meta, cg_out)
+	return churn_task_code(tsk_name,cg_out)
 
 
-def codegen(g, expd_dels, meta, types, task_name = "tsk") :
+def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk") :
 
 	numbering = sethi_ullman(g)
 	tmp = temp_init(core.KNOWN_TYPES)
@@ -134,28 +134,28 @@ def codegen(g, expd_dels, meta, types, task_name = "tsk") :
 
 	assert(tmp_used_slots(tmp) == 0)
 
-	return task_name, (code, types, tmp, expd_dels)
+	return task_name, (code, types, tmp, expd_dels, meta)
 
 
-def merge_codegen_output(a, b) :
-	code0, types0, tmp0, expd_dels0, dummies0 = a
-	code1, types1, tmp1, expd_dels1, dummies1 = b
-	code = code0 + code1
+#def merge_codegen_output(a, b) :
+#	code0, types0, tmp0, expd_dels0, dummies0 = a
+#	code1, types1, tmp1, expd_dels1, dummies1 = b
+#	code = code0 + code1
 
-	types = dict(types0)
-	types.update(types1)
+#	types = dict(types0)
+#	types.update(types1)
 
-	tmp = tmp_merge(tmp0, tmp1)
+#	tmp = tmp_merge(tmp0, tmp1)
 
-	expd_dels = dict(expd_dels0)
-	expd_dels.update(expd_dels1)
+#	expd_dels = dict(expd_dels0)
+#	expd_dels.update(expd_dels1)
 
-	return code, types, tmp, expd_dels
+#	return code, types, tmp, expd_dels
 
 
-def churn_task_code(task_name, meta, cg_out) :
+def churn_task_code(task_name, cg_out) :
 
-	code, types, tmp, expd_dels = cg_out
+	code, types, tmp, expd_dels, meta = cg_out
 
 	if "endless_loop_wrap" in meta :
 		pass #TODO
@@ -175,6 +175,17 @@ def churn_task_code(task_name, meta, cg_out) :
 
 	return output
 
-# ------------------------------------------------------------------------------------------------------------
+
+def churn_code(meta, global_vars, tsk_cg_out, f) :
+	"""
+	tasks_cg_out = { task_name : cg_out }
+	f - writeble filelike object
+	"""
+
+	#TODO g_vars_code
+
+	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
+		f.write(churn_task_code(name, cg_out))
+
 
 

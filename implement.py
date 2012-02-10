@@ -973,7 +973,7 @@ def block_value_by_name(n, value_name) :
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
 	types = infer_types(graph, delays, known_types=known_types)
-	code = codegen(graph, delays, {}, types)
+	code = codegen.codegen_alt(graph, delays, {}, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
@@ -990,14 +990,16 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 
 	pipe_vars = {}
 
+	tsk_cg_out = []
+
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
 			tsk_name = name.strip("@")
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
-			code = codegen(g, d, { "endless_loop_wrap" : False }, types, known_types, pipe_vars, task_name=tsk_name)
-			out_fobj.write(code)
+			tsk_cg_out.append(codegen.codegen(g, d, { "endless_loop_wrap" : False },
+				types, known_types, pipe_vars, task_name=tsk_name))
 		else :
 			raise Exception("impossible exception")
 
@@ -1009,9 +1011,10 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	join_taps(graph, delays)
 	types = infer_types(graph, delays, known_types=known_types)
 	tsk_name = "tsk0"#XXX ?!?!
-	code = codegen(graph, delays, {}, types, known_types, pipe_vars, task_name=tsk_name)
-	out_fobj.write(code)
+	tsk_cg_out.append(codegen.codegen(graph, delays, {},
+		types, known_types, pipe_vars, task_name=tsk_name))
 
+	codegen.churn_code(global_meta, pipe_vars, dict(tsk_cg_out), out_fobj)
 
 	out_fobj.write(stub)
 
@@ -1119,28 +1122,26 @@ if __name__ == "__main__" :
 		sheets = { "tsk" : model }
 		global_meta = {}
 
-	import ccodegen
-	import fcodegen
 #TODO use meta to set task name (that is, method name in generated code)
 #TODO make states (delays) global
 #TODO ...which requires initializer method
-	cgens = {
-		"c" : ccodegen.codegen_alt,
-		"f" : fcodegen.codegen_alt,
-	}
-	if action in cgens :
-		class DummyFile(object):
-			def write(self, s) :
-				print(s)
-		out_fobj = DummyFile()
-#		implement_dfs(model, meta, cgens[action], KNOWN_TYPES, out_fobj)
-		implement_workbench(sheets, global_meta,
-			cgens[action], KNOWN_TYPES, out_fobj)
-		exit(0)
-	elif action == "mkmac" :
-#		try_mkmac(model)
-		exit(667)
-	exit(666)
+	if action == "c" :
+		import ccodegen as cg
+	elif action == "f" :
+		import fcodegen as cg
+	else :
+		exit(666)
+
+	class DummyFile(object):
+		def write(self, s) :
+			print(s)
+	out_fobj = DummyFile()
+	implement_workbench(sheets, global_meta, cg, KNOWN_TYPES, out_fobj)
+
+	exit(0)
+#	elif action == "mkmac" :
+##		try_mkmac(model)
+#		exit(667)
 
 # ------------------------------------------------------------------------------------------------------------
 

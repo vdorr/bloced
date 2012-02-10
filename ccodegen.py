@@ -42,11 +42,12 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 		assert(len(args) == 1)
 		assert(not outs)
 		pipe_name = block_value_by_name(n, "Name")
+		pipe_default = block_value_by_name(n, "Default")
 		assert(not pipe_name in pipe_vars)
 		pipe_type = infer_block_type(n, g[n].p, types, known_types)
-#		print here(), args, pipe_vars, pipe_type
+#		print here(), pipe_type, pipe_default
 		i = (max(pipe_vars.values(), key=lambda x: x[0]) - 1) if pipe_vars else 0
-		pipe_vars[pipe_name] = (i, pipe_type)
+		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
 		return "global{0} = {1}".format(i, args[0])
 	elif n.prototype.__class__ == core.PipeEndProto :
 		pipe_name = block_value_by_name(n, "Name")
@@ -56,7 +57,8 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, n, visited) :
+def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
+		dummies, state_var_prefix, pipe_vars, n, visited) :
 #	print "__post_visit:", n.to_string()
 
 	if isinstance(n.prototype, core.ConstProto) :
@@ -74,7 +76,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types, dummies,
 		if out_term.type_name == "<inferred>" :
 			if n.prototype.__class__ == core.PipeEndProto :
 				pipe_name = block_value_by_name(n, "Name")
-				pipe_index, pipe_type = pipe_vars[pipe_name]
+				pipe_index, pipe_type, pipe_default = pipe_vars[pipe_name]
 				term_type = pipe_type
 			else :
 				term_type = types[n, out_term, out_t_nr]
@@ -163,7 +165,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types, dummies,
 
 def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name=task_name)
-	return churn_task_code(tsk_name, meta, cg_out)
+	return churn_task_code(tsk_name, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk") :
@@ -174,36 +176,6 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk"
 	dummies = set()
 	state_var_prefix = task_name + "_"
 
-#	global_vars = temp_init(core.KNOWN_TYPES)
-
-#	pipes = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeProto ]
-#	pipe_ends = [ (n, (p, s)) for n, (p, s) in g.items() if n.prototype.__class__ == core.PipeEndProto ]
-
-#	pipe_vars = {}
-
-#	for n, (p, s) in pipes :
-
-
-
-
-#	pipe_index = {}
-
-#	for n, (p, s) in pipe_ends :
-#		assert(not p)
-#		pipe_name = block_value_by_name(n, "Name")
-##		pipe_index[pipe_name]
-
-#		slot_type #based on pipe default value and pipe preds
-
-#		slot = add_tmp_ref(global_vars, s, slot_type=slot_type) 
-
-#block_value_by_name(n, "Name")
-
-#	add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
-
-
-
-
 	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
 		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars)
 
@@ -212,37 +184,35 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk"
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-#	pprint(pipe_vars)
-
-	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies)
+	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta)
 
 
-def merge_codegen_output(a, b) :
+#def merge_codegen_output(a, b) :
 
-	code0, types0, tmp0, expd_dels0, global_vars0, dummies0 = a
-	code1, types1, tmp1, expd_dels1, global_vars1, dummies1 = b
+#	code0, types0, tmp0, expd_dels0, global_vars0, dummies0 = a
+#	code1, types1, tmp1, expd_dels1, global_vars1, dummies1 = b
 
-	code = code0 + code1
+#	code = code0 + code1
 
-	types = dict(types0)
-	types.update(types1)
+#	types = dict(types0)
+#	types.update(types1)
 
-	tmp = tmp_merge(tmp0, tmp1)
+#	tmp = tmp_merge(tmp0, tmp1)
 
-	expd_dels = dict(expd_dels0)
-	expd_dels.update(expd_dels1)
+#	expd_dels = dict(expd_dels0)
+#	expd_dels.update(expd_dels1)
 
-	dummies = dummies0.union(dummies1)
+#	dummies = dummies0.union(dummies1)
 
-	global_vars = None#TODO
+#	global_vars = None#TODO
 
-	return code, types, tmp, expd_dels, global_vars, dummies
+#	return code, types, tmp, expd_dels, global_vars, dummies
 
 
-def churn_task_code(task_name, meta, cg_out) :
+def churn_task_code(task_name, cg_out) :
 #TODO list known meta values
 
-	code, types, tmp, expd_dels, global_vars, dummies = cg_out
+	code, types, tmp, expd_dels, global_vars, dummies, meta = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
@@ -278,15 +248,23 @@ def churn_task_code(task_name, meta, cg_out) :
 	return output
 
 
-def churn_code(meta, tsk_list) :
+def churn_code(meta, global_vars, tsk_cg_out, f) :
+	"""
+	tasks_cg_out = { task_name : cg_out }
+	f - writeble filelike object
+	"""
 
 	g_vars_grouped = groupby(sorted(global_vars.items(), key=lambda x: x[1]), key=lambda x: x[1][1])
-	g_vars_code = linesep.join((pipe_type + " " + ",".join(("global"+str(i)for _, (i, _) in vlist)) + ";")
-		for pipe_type, vlist in g_vars_grouped)
+	g_vars_code = linesep.join((pipe_type + " " + ",".join(
+		("global"+str(i)+" = "+str(pipe_default)for _, (i, _, pipe_default) in vlist)) + ";")
+			for pipe_type, vlist in g_vars_grouped)
+#	print here(), g_vars_code
+	f.write(g_vars_code)
 
-	print here(), g_vars_code
+	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
+		f.write(churn_task_code(name, cg_out))
 
-#for i, pipe_type in 
+
 
 
 
