@@ -233,6 +233,11 @@ def churn_task_code(task_name, cg_out) :
 
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
 
+	if "function_wrap" in meta and not meta["function_wrap"] :
+		pass #TODO
+	else :
+		pass #TODO
+
 	if "endless_loop_wrap" in meta and not meta["endless_loop_wrap"] :
 		loop_code = "\t" + (linesep + "\t\t").join(code)
 	else :

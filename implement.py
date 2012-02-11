@@ -992,13 +992,14 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 
 	tsk_cg_out = []
 
+	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False }
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
 			tsk_name = name.strip("@")
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
-			tsk_cg_out.append(codegen.codegen(g, d, { "endless_loop_wrap" : False },
+			tsk_cg_out.append(codegen.codegen(g, d, tsk_setup_meta,
 				types, known_types, pipe_vars, task_name=tsk_name))
 		else :
 			raise Exception("impossible exception")
@@ -1010,14 +1011,14 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 	graph, delays = dag_merge(l)
 	join_taps(graph, delays)
 	types = infer_types(graph, delays, known_types=known_types)
-	tsk_name = "tsk0"#XXX ?!?!
+	tsk_name = "loop0"
 	tsk_cg_out.append(codegen.codegen(graph, delays, {},
 		types, known_types, pipe_vars, task_name=tsk_name))
 
 	codegen.churn_code(global_meta, pipe_vars, dict(tsk_cg_out), out_fobj)
 
 	out_fobj.write(stub)
-
+#TODO say something about what you've done
 
 
 #def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :

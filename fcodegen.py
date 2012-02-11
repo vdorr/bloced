@@ -157,6 +157,11 @@ def churn_task_code(task_name, cg_out) :
 
 	code, types, tmp, expd_dels, meta = cg_out
 
+	if "function_wrap" in meta and not meta["function_wrap"] :
+		pass #TODO
+	else :
+		pass #TODO
+
 	if "endless_loop_wrap" in meta :
 		pass #TODO
 
