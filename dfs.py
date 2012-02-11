@@ -508,8 +508,8 @@ class BlockModel(object) :
 			"InputProto":"Input({0})",
 			"OutputProto":"Output({0})",
 			"JointProto":"",
-			"PipeProto":"Tap({0})",
-			"PipeEndProto":"TapEnd({0})",
+			"PipeProto":"Pipe({0})",
+			"PipeEndProto":"PipeEnd({0})",
 #			"ConstInputProto":"ConstInput({0})",
 		}
 		cls = self.prototype.__class__.__name__

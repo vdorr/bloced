@@ -1050,7 +1050,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 #	pprint(main_tsk_g)
 	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, { "endless_loop_wrap" : False},
-		{}, known_types, {}, task_name="main"))
+		{}, known_types, {}, task_name="main"))#XXX name of 'main' may depend on target
 
 	codegen.churn_code(global_meta, pipe_vars, tsk_cg_out, out_fobj)
 
