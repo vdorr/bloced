@@ -167,9 +167,9 @@ class PipeEndProto(BlockPrototype):
 
 
 class FunctionCallProto(BlockPrototype):
-	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "CFunction", [], category="External")
+	def __init__(self) :
+		BlockPrototype.__init__(self, "FunctionCall", [],
+			values=[("Name", None)])
 
 
 # ------------------------------------------------------------------------------------------------------------

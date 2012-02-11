@@ -965,8 +965,36 @@ def dag_merge(l) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
 def block_value_by_name(n, value_name) :
 	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+
+def skip_virtual_term(terms) :
+	for t in terms :
+		if not t.virtual :
+			yield t
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+
+def chain_blocks(g, n, m) :
+	"""
+	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
+	motivated by need to express calls in main function, this is probably BAD THING
+	"""
+	n_p, n_s = g[n]
+	m_p, m_s = g[m]
+	n_out = VirtualOut("y")
+	m_in = VirtualIn("x")
+
+	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
+	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -977,7 +1005,7 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :
+def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
@@ -989,9 +1017,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
 	pipe_vars = {}
-
 	tsk_cg_out = []
-
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False }
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
@@ -1004,20 +1030,31 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stu
 		else :
 			raise Exception("impossible exception")
 
-
 	l = [ make_dag(s, None, known_types, do_join_taps=False)
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
 	join_taps(graph, delays)
 	types = infer_types(graph, delays, known_types=known_types)
-	tsk_name = "loop0"
+	tsk_name = "loop"
 	tsk_cg_out.append(codegen.codegen(graph, delays, {},
 		types, known_types, pipe_vars, task_name=tsk_name))
 
-	codegen.churn_code(global_meta, pipe_vars, dict(tsk_cg_out), out_fobj)
+	setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	setup_call.value = ("setup")
+	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	loop_call.value = (tsk_name, )
+	main_tsk_g = { loop_call : adjs_t([], []) }
+	if "@setup" in special :
+		main_tsk_g[setup_call] = adjs_t([], [])
+		chain_blocks(main_tsk_g, setup_call, loop_call)
+#	pprint(main_tsk_g)
+	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, { "endless_loop_wrap" : False},
+		{}, known_types, {}, task_name="main"))
 
-	out_fobj.write(stub)
+	codegen.churn_code(global_meta, pipe_vars, tsk_cg_out, out_fobj)
+
+
 #TODO say something about what you've done
 
 

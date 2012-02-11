@@ -52,6 +52,10 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 	elif n.prototype.__class__ == core.PipeEndProto :
 		pipe_name = block_value_by_name(n, "Name")
 		return "global{0}".format(pipe_vars[pipe_name][0])
+	elif n.prototype.__class__ == core.FunctionCallProto :
+		func_name = block_value_by_name(n, "Name")
+		assert(func_name)
+		return func_name + "(" + ", ".join(args + outs) + ")"
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
@@ -64,7 +68,9 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
-	inputs, outputs = g[n]
+	inputs_all, outputs_all = g[n]
+	inputs = [ (t, nr, ngh) for t, nr, ngh in inputs_all if not t.virtual ]
+	outputs = [ (t, nr, ngh) for t, nr, ngh in outputs_all if not t.virtual ]
 
 	args = []
 	outs = []
@@ -73,6 +79,8 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 #	print here(), n, outputs
 
 	for out_term, out_t_nr, succs in outputs :
+#		if out_term.virtual :
+#			continue
 		if out_term.type_name == "<inferred>" :
 			if n.prototype.__class__ == core.PipeEndProto :
 				pipe_name = block_value_by_name(n, "Name")
@@ -99,6 +107,10 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 	for in_term, in_t_nr, preds in inputs :
 		assert(len(preds)==1)
+
+#		if out_term.virtual :
+#			continue
+
 		((m, m_t, m_t_nr), ) = preds
 #		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
 		if isinstance(m.prototype, core.ConstProto) :
@@ -239,7 +251,7 @@ def churn_task_code(task_name, cg_out) :
 		pass #TODO
 
 	if "endless_loop_wrap" in meta and not meta["endless_loop_wrap"] :
-		loop_code = "\t" + (linesep + "\t\t").join(code)
+		loop_code = "\t" + (linesep + "\t").join(code)
 	else :
 		loop_code = linesep.join(("\tfor(;;)", "\t{", "\t\t" + (linesep + "\t\t").join(code), "\t}"))
 
@@ -255,7 +267,7 @@ def churn_task_code(task_name, cg_out) :
 
 def churn_code(meta, global_vars, tsk_cg_out, f) :
 	"""
-	tasks_cg_out = { task_name : cg_out }
+	tasks_cg_out = [ (task_name, cg_out), ... ]
 	f - writeble filelike object
 	"""
 
@@ -266,7 +278,8 @@ def churn_code(meta, global_vars, tsk_cg_out, f) :
 #	print here(), g_vars_code
 	f.write(g_vars_code)
 
-	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
+#	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
+	for name, cg_out in tsk_cg_out :
 		f.write(churn_task_code(name, cg_out))
 
 

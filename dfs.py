@@ -91,7 +91,10 @@ class TermModel(object) :
 
 	commutative = property(lambda self: self.__commutative)
 
-	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative, type_name=None) :
+	virtual = property(lambda self: self.__virtual)
+
+	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
+			type_name=None, virtual=False) :
 #		self.__name, self.__side, self.__pos, self.__direction, self.__type_name = (
 #			name, side, pos, direction, type_name )
 		self.__name = name
@@ -102,6 +105,7 @@ class TermModel(object) :
 		self.arg_index = arg_index
 		self.__variadic = variadic
 		self.__commutative = commutative
+		self.__virtual = virtual
 
 	def __repr__(self) :
 		return "." + self.__name
@@ -125,6 +129,19 @@ class Out(TermModel) :
 			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,
 			type_name=type_name)
+
+
+class VirtualIn(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, INPUT_TERM, False, False,
+			virtual=True)
+
+
+class VirtualOut(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, OUTPUT_TERM, False, False,
+			virtual=True)
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -151,6 +168,8 @@ class BlockModel(object) :
 			return decorated
 
 	def __raise_block_changed(self, e, old_meta=None, new_meta=None) :
+		if self.__model == "itentionally left blank" :
+			return None
 		self.__model._GraphModel__on_block_changed(self, event=e, old_meta=old_meta, new_meta=new_meta)
 
 	@edit("value")
@@ -538,6 +557,10 @@ class BlockModel(object) :
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 	def __init__(self, prototype, model, left = 0, top = 0) :
+		"""
+		when there is no parent use for model argument value
+		'itentionally left blank' instead of GraphModel instance
+		"""
 		self.__my_init(model, prototype.type_name, left, top,
 			prototype.default_size[0], prototype.default_size[1],
 			prototype.terms, prototype.values)
