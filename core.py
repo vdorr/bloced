@@ -385,9 +385,75 @@ def load_c_module(lib_name, input_files) :
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
 	return protos#TODO c_lib_data_t(lib_name)
 
+
+be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name")
+
+be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
+
+
+def read_be_lib_file(path) :
+	pass
+
+
+def read_lib_dir(path) :
+
+	root, dirnames, filenames = tuple(islice(os.walk(path))
+
+	lib_name = os.path.split(path)[-1]
+
+	items = []
+	include_files = []
+
+	for f in filenames :
+
+		ext = f.split(os.path.extsep)[-1]
+		fbasename = f[0:(len(f)-len(ext)-len(os.path.extsep))]
+		filepath = os.path.join(root, dirname, f)
+
+
+		if ext == "bloc" :
+#			blocks = [ load_macro(filepath) ] #TODO not implemented at all
+#			src_type = "sheet"
+			pass#TODO
+		if ext == "w" :
+#			blocks = [ ]
+#			src_type = "workbench:sheet"
+			pass#TODO
+		elif ext == "h" :
+			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+			src_type = "c"
+		elif ext == "hpp" :
+#			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+#			src_type = "c++"
+			pass#TODO
+		else :
+			blocks = False
+
+		if blocks :
+			i = be_lib_block_t(
+				library=lib_name,
+				file_path=filepath,
+				src_type=src_type,
+				name="??",
+				block_name="???")
+
+	return be_library_t(
+		name=lib_name,
+		path=path,
+		allowed_targets=None,#TODO
+		include_files=include_files,
+		items=items))
+
+
 # ------------------------------------------------------------------------------------------------------------
 
+
 class BasicBlocksFactory(object) :
+
+
+	def load_lib_dir(self, path) :
+		for dirname, dirnames, filenames in os.walk(path) :
+			pass
 
 
 	def load_library(self, basedir) :
@@ -412,7 +478,7 @@ class BasicBlocksFactory(object) :
 			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
 			if ext == MY_FILE_EXTENSION :
 				try :
-					blocks = load_macro(f)
+					blocks = [ load_macro(f) ] #TODO not implemented at all
 				except :
 					print("failed to load " + f)
 				else :
