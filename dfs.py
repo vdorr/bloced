@@ -912,13 +912,16 @@ class BlockPrototype(object) :
 
 	values = property(lambda self: self.__values)
 
+	library = property(lambda self: self.__library)
+
 	def __init__(self, type_name, terms,
 			exe_name=None,
 			default_size=(64,64),
 			category="all",
 			commutative=False,
 			pure=False,
-			values=None) :
+			values=None,
+			library=None) :
 		self.__category = category
 		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
@@ -928,6 +931,7 @@ class BlockPrototype(object) :
 		self.__commutative = commutative
 		self.__pure = pure
 		self.__values = values
+		self.__library = library
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1132,21 +1136,19 @@ class Workbench(object) :
 	#			print(s)
 	#	out_fobj = DummyFile()
 
-		stub = os.linesep + "void main() { init(); tsk(); }"
-
-		out_fobj = StringIO(stub)
+		out_fobj = StringIO()
 		try :
 #			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
 			implement_workbench(self.__sheets, self.get_meta(),
-				ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+				ccodegen, core.KNOWN_TYPES, out_fobj)
 		except Exception as e:
 #			return (False, e)
 			raise
 		if out_fobj.tell() < 1 :
 			return (False, "no_code")
 
-		source = out_fobj.getvalue() + stub
-#		print(source)
+		source = out_fobj.getvalue()
+		print(source)
 
 		blob_stream = StringIO()
 		rc, = build.build_source(board_type, source,

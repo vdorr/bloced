@@ -358,7 +358,8 @@ def __cmod_create_proto(lib_name, export) :
 			inputs + outputs,
 			exe_name=block_name,
 			default_size=(width, height),
-			category=lib_name)
+			category=lib_name,
+			library=lib_name)
 	return proto
 
 #def __cmod_name_from_fname(fname) :
@@ -370,7 +371,10 @@ def __is_header(fname) :
 	ext = fname.split(os.path.extsep)[-1]
 	return ext.lower() in HEADER_EXTS
 
+c_lib_data_t = namedtuple("c_lib_data", ("name", "path", "headers", "blocks", ))
+
 def load_c_module(lib_name, input_files) :
+#TODO use directory path or single file instead of list of files
 #	print "load_c_module:", input_files
 #	exports = [ (fn, extract_vmex(fn)) for fn in input_files ]
 	header = [ fn for fn in input_files if __is_header(fn) ][-1]
@@ -379,7 +383,7 @@ def load_c_module(lib_name, input_files) :
 #	pprint(exports)
 #TODO now produce prototypes
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
-	return protos
+	return protos#TODO c_lib_data_t(lib_name)
 
 # ------------------------------------------------------------------------------------------------------------
 

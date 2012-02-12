@@ -33,7 +33,7 @@ __operators = {
 
 def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
-#	print(here(), n.prototype.type_name)
+#	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __operators :
 		assert(len(args) >= 2)
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
@@ -273,7 +273,7 @@ def churn_code(meta, global_vars, tsk_cg_out, f) :
 
 	g_vars_grouped = groupby(sorted(global_vars.items(), key=lambda x: x[1]), key=lambda x: x[1][1])
 	g_vars_code = linesep.join((pipe_type + " " + ",".join(
-		("global"+str(i)+" = "+str(pipe_default)for _, (i, _, pipe_default) in vlist)) + ";")
+		("global"+str(i)+" = "+str(pipe_default)for _, (i, _, pipe_default) in vlist)) + ";" + linesep)
 			for pipe_type, vlist in g_vars_grouped)
 #	print here(), g_vars_code
 	f.write(g_vars_code)
