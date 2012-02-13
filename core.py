@@ -397,7 +397,7 @@ def read_be_lib_file(path) :
 
 def read_lib_dir(path) :
 
-	root, dirnames, filenames = tuple(islice(os.walk(path), 1))[0]
+	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
 
 	lib_name = os.path.split(path)[-1]
 
@@ -451,12 +451,21 @@ def read_lib_dir(path) :
 class BasicBlocksFactory(object) :
 
 
-	def load_lib_dir(self, path) :
-		for dirname, dirnames, filenames in os.walk(path) :
-			pass
+#	def load_lib_dir(self, path) :
+#		for dirname, dirnames, filenames in os.walk(path) :
+#			pass
 
 
 	def load_library(self, basedir) :
+		(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+		for d in dirnames :
+			path = os.path.join(basedir, d)
+			lib = read_lib_dir(path)
+			self.__blocks += [ proto for item, proto in lib.items ]
+		return (True, )
+
+
+	def load_library_OLD(self, basedir) :
 		try :
 			(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 		except :
