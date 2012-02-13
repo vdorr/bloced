@@ -421,9 +421,11 @@ def read_lib_dir(path) :
 			pass#TODO
 		elif ext == "h" :
 			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+			include_files.append(filepath)
 			src_type = "c"
 		elif ext == "hpp" :
 #			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+#			include_files.append(filepath)
 #			src_type = "c++"
 			pass#TODO
 		else :
