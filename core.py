@@ -386,7 +386,7 @@ def load_c_module(lib_name, input_files) :
 	return protos#TODO c_lib_data_t(lib_name)
 
 
-be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name")
+be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
 be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
 
@@ -397,7 +397,7 @@ def read_be_lib_file(path) :
 
 def read_lib_dir(path) :
 
-	root, dirnames, filenames = tuple(islice(os.walk(path))
+	root, dirnames, filenames = tuple(islice(os.walk(path), 1))[0]
 
 	lib_name = os.path.split(path)[-1]
 
@@ -408,7 +408,7 @@ def read_lib_dir(path) :
 
 		ext = f.split(os.path.extsep)[-1]
 		fbasename = f[0:(len(f)-len(ext)-len(os.path.extsep))]
-		filepath = os.path.join(root, dirname, f)
+		filepath = os.path.join(root, f)
 
 
 		if ext == "bloc" :
@@ -427,22 +427,20 @@ def read_lib_dir(path) :
 #			src_type = "c++"
 			pass#TODO
 		else :
-			blocks = False
+#			print(f)
+#			blocks = False
+			continue
 
-		if blocks :
-			i = be_lib_block_t(
-				library=lib_name,
-				file_path=filepath,
-				src_type=src_type,
-				name="??",
-				block_name="???")
+		items += [ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
+			for b in blocks ]
+
 
 	return be_library_t(
 		name=lib_name,
 		path=path,
 		allowed_targets=None,#TODO
 		include_files=include_files,
-		items=items))
+		items=items)
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -574,6 +572,10 @@ def create_block_factory(**args) :
 # ----------------------------------------------------------------------------
 
 if __name__ == "__main__" :
+
+	pprint(read_lib_dir("/home/vd/personal/bloced/library/arduino"))
+	sys.exit(0)
+
 #	OUTPUT_TERM, INPUT_TERM = 666, 667
 	if len(sys.argv) > 1 :
 		if sys.argv[1] == "librariantest" :
