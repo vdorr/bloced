@@ -1140,7 +1140,7 @@ class Workbench(object) :
 		try :
 #			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
 			implement_workbench(self.__sheets, self.get_meta(),
-				ccodegen, core.KNOWN_TYPES, out_fobj)
+				ccodegen, core.KNOWN_TYPES, self.blockfactory, out_fobj)
 		except Exception as e:
 #			return (False, e)
 			raise

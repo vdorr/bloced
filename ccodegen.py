@@ -62,11 +62,14 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 
 
 def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
-		dummies, state_var_prefix, pipe_vars, n, visited) :
+		dummies, state_var_prefix, pipe_vars, libs_used, n, visited) :
 #	print "__post_visit:", n.to_string()
 
 	if isinstance(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
+
+	if n.prototype.library :
+		libs_used.add(n.prototype.library)
 
 	inputs_all, outputs_all = g[n]
 	inputs = [ (t, nr, ngh) for t, nr, ngh in inputs_all if not t.virtual ]
@@ -175,12 +178,12 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
-	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name=task_name)
+def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
+	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name=task_name)
 	return churn_task_code(tsk_name, cg_out)
 
 
-def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk") :
+def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
 
 	tmp = temp_init(core.KNOWN_TYPES)
 	subtrees = {}
@@ -189,7 +192,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk"
 	state_var_prefix = task_name + "_"
 
 	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
-		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars)
+		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used)
 
 	dft_alt(g, post_visit=post_visit_callback)
 
@@ -265,11 +268,13 @@ def churn_task_code(task_name, cg_out) :
 	return output
 
 
-def churn_code(meta, global_vars, tsk_cg_out, f) :
+def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	"""
 	tasks_cg_out = [ (task_name, cg_out), ... ]
 	f - writeble filelike object
 	"""
+
+	f.write("".join('#include "{0}"{1}'.format(incl, linesep) for incl in include_files))
 
 	g_vars_grouped = groupby(sorted(global_vars.items(), key=lambda x: x[1]), key=lambda x: x[1][1])
 	g_vars_code = linesep.join((pipe_type + " " + ",".join(

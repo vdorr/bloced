@@ -1001,11 +1001,12 @@ def chain_blocks(g, n, m) :
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
 	types = infer_types(graph, delays, known_types=known_types)
-	code = codegen.codegen_alt(graph, delays, {}, types)
+	libs_used = {}
+	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
+def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
@@ -1016,6 +1017,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
+	libs_used = set()
 	pipe_vars = {}
 	tsk_cg_out = []
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False }
@@ -1026,7 +1028,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
 			tsk_cg_out.append(codegen.codegen(g, d, tsk_setup_meta,
-				types, known_types, pipe_vars, task_name=tsk_name))
+				types, known_types, pipe_vars, libs_used, task_name=tsk_name))
 		else :
 			raise Exception("impossible exception")
 
@@ -1038,10 +1040,10 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 	types = infer_types(graph, delays, known_types=known_types)
 	tsk_name = "loop"
 	tsk_cg_out.append(codegen.codegen(graph, delays, {},
-		types, known_types, pipe_vars, task_name=tsk_name))
+		types, known_types, pipe_vars, libs_used, task_name=tsk_name))
 
 	setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
-	setup_call.value = ("setup")
+	setup_call.value = ("setup", )
 	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
 	loop_call.value = (tsk_name, )
 	main_tsk_g = { loop_call : adjs_t([], []) }
@@ -1050,9 +1052,14 @@ def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj) :
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 #	pprint(main_tsk_g)
 	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, { "endless_loop_wrap" : False},
-		{}, known_types, {}, task_name="main"))#XXX name of 'main' may depend on target
+		{}, known_types, {}, libs_used, task_name="main"))#XXX name of 'main' may depend on target
 
-	codegen.churn_code(global_meta, pipe_vars, tsk_cg_out, out_fobj)
+	include_files = []
+	for l in lib.libs :
+		if l.name in libs_used :
+			include_files.extend(l.include_files)
+
+	codegen.churn_code(global_meta, pipe_vars, tsk_cg_out, include_files, out_fobj)
 
 
 #TODO say something about what you've done
@@ -1139,6 +1146,7 @@ if __name__ == "__main__" :
 		w = Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
 			passive=True)
+		blockfactory = w.blockfactory
 		try :
 			with open(fname, "rb") as f :
 				unpickle_workbench(f, w)
@@ -1174,7 +1182,7 @@ if __name__ == "__main__" :
 		def write(self, s) :
 			print(s)
 	out_fobj = DummyFile()
-	implement_workbench(sheets, global_meta, cg, KNOWN_TYPES, out_fobj)
+	implement_workbench(sheets, global_meta, cg, KNOWN_TYPES, blockfactory, out_fobj)
 
 	exit(0)
 #	elif action == "mkmac" :

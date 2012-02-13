@@ -421,7 +421,7 @@ def read_lib_dir(path) :
 			pass#TODO
 		elif ext == "h" :
 			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
-			include_files.append(filepath)
+			include_files.append(f)
 			src_type = "c"
 		elif ext == "hpp" :
 #			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
@@ -433,8 +433,8 @@ def read_lib_dir(path) :
 #			blocks = False
 			continue
 
-		items += [ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
-			for b in blocks ]
+		items.extend([ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
+			for b in blocks ])
 
 
 	return be_library_t(
@@ -461,56 +461,57 @@ class BasicBlocksFactory(object) :
 		for d in dirnames :
 			path = os.path.join(basedir, d)
 			lib = read_lib_dir(path)
+			self.libs.append(lib)
 			self.__blocks += [ proto for item, proto in lib.items ]
 		return (True, )
 
 
-	def load_library_OLD(self, basedir) :
-		try :
-			(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-		except :
-			print("load_library: failed to scan ", basedir)
+#	def load_library_OLD(self, basedir) :
+#		try :
+#			(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+#		except :
+#			print("load_library: failed to scan ", basedir)
 
-			return (False, )
+#			return (False, )
 
-		lib_name = os.path.split(dirname)[-1]
+#		lib_name = os.path.split(dirname)[-1]
 
-#		print lib_name, dirname, dirnames, filenames
+##		print lib_name, dirname, dirnames, filenames
 
-		MY_FILE_EXTENSION = "bloc"#XXX
+#		MY_FILE_EXTENSION = "bloc"#XXX
 
-		for f in filenames :
-#			fname_split = f.split(os.path.extsep)
-#			ext = fname_split[-1]
-#			fname = fname_split[:-1]
-			ext = f.split(os.path.extsep)[-1]
-			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
-			if ext == MY_FILE_EXTENSION :
-				try :
-					blocks = [ load_macro(f) ] #TODO not implemented at all
-				except :
-					print("failed to load " + f)
-				else :
-					if blocks == None :
-						continue #XXX
-					self.__blocks += blocks
-			elif ext == "c" and (fname + os.path.extsep + "h") in filenames : #XXX too naive!
-				try :
-					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
-						os.path.join(dirname, fname + os.path.extsep + "h")])
-				except :
-					print("failed to load " + f)
-					raise
-				else :
-					if blocks == None :
-						continue #XXX
-					self.__blocks += blocks
-		for d in dirnames :
-			self.load_library(os.path.join(dirname, d))
+#		for f in filenames :
+##			fname_split = f.split(os.path.extsep)
+##			ext = fname_split[-1]
+##			fname = fname_split[:-1]
+#			ext = f.split(os.path.extsep)[-1]
+#			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
+#			if ext == MY_FILE_EXTENSION :
+#				try :
+#					blocks = [ load_macro(f) ] #TODO not implemented at all
+#				except :
+#					print("failed to load " + f)
+#				else :
+#					if blocks == None :
+#						continue #XXX
+#					self.__blocks += blocks
+#			elif ext == "c" and (fname + os.path.extsep + "h") in filenames : #XXX too naive!
+#				try :
+#					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
+#						os.path.join(dirname, fname + os.path.extsep + "h")])
+#				except :
+#					print("failed to load " + f)
+#					raise
+#				else :
+#					if blocks == None :
+#						continue #XXX
+#					self.__blocks += blocks
+#		for d in dirnames :
+#			self.load_library(os.path.join(dirname, d))
 
-		self.__blocks += []
+#		self.__blocks += []
 
-		return (True, )
+#		return (True, )
 
 
 	def get_block_by_name(self, type_name) :
@@ -526,6 +527,7 @@ class BasicBlocksFactory(object) :
 
 	def __init__(self, scan_dir=None) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
+		self.libs = []
 		self.__blocks = [
 			JointProto(),
 			ConstProto(),

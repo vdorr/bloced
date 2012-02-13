@@ -112,13 +112,13 @@ def post_tree(g, code, tmp, d_stack, n, visited) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, task_name="tsk") :
+def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
 
 	tsk_name, cg_out = codegen(g, expd_dels, meta, types, task_name=task_name)
 	return churn_task_code(tsk_name,cg_out)
 
 
-def codegen(g, expd_dels, meta, types, known_types, pipe_vars, task_name = "tsk") :
+def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
 
 	numbering = sethi_ullman(g)
 	tmp = temp_init(core.KNOWN_TYPES)
@@ -181,7 +181,7 @@ def churn_task_code(task_name, cg_out) :
 	return output
 
 
-def churn_code(meta, global_vars, tsk_cg_out, f) :
+def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	"""
 	tasks_cg_out = { task_name : cg_out }
 	f - writeble filelike object
