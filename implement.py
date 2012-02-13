@@ -987,16 +987,28 @@ def chain_blocks(g, n, m) :
 	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
 	motivated by need to express calls in main function, this is probably BAD THING
 	"""
-	n_p, n_s = g[n]
-	m_p, m_s = g[m]
 	n_out = VirtualOut("y")
 	m_in = VirtualIn("x")
-
 	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
 	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
 
+def replace_pipes(g) :
+	for n, (p, s) in g.items() :
+		pass
+
+#		if n.prototype.__class__ == PipeProto :
+#			pipe_name = block_value_by_name(n, "Name")
+#			pipe_default = block_value_by_name(n, "Default")
+#			pipe_type = infer_block_type(n, g[n].p, types, known_types)
+#			pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
+#			return "global{0} = {1}".format(i, args[0])
+#		elif n.prototype.__class__ == PipeEndProto :
+
+
+
 # ------------------------------------------------------------------------------------------------------------
+
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
@@ -1065,67 +1077,6 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 #TODO say something about what you've done
 
 
-#def implement_workbench(sheets, global_meta, codegen, known_types, out_fobj, stub="") :
-#	"""
-#	sheets = { name : sheet, ... }
-#	"""
-
-#	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
-#	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
-#	unknown = [ name for name in special if not name in special_sheets ]
-#	if unknown :
-#		raise Exception("Unknown special sheet name(s) " + unknown)
-
-#	join_taps_policies={}
-
-#	contexts = []
-#	l =[]
-#	for name, s in sorted(sheets.items(), key=lambda x: x[0]) :
-#		if name == "@setup" :
-#			g, d = make_dag(s, None, known_types, do_join_taps=False)
-#			has_tap_ends = bool(len(get_tap_ends(g)))
-#			if has_tap_ends :
-#				raise Exception("TapEnd not allowed in " + str(name))
-#			taps = { tap : "delay" for tap_name, tap in get_taps(g).items() }
-#			join_taps_policies.update(taps)
-##			print here(), taps, d
-#			l.append((g, d))
-#			contexts.append((name, g.keys()))
-#		else :
-#			g, d = make_dag(s, None, known_types, do_join_taps=False)
-#			l.append((g, d))
-#			contexts.append((name, g.keys()))
-
-##	l = [ make_dag(s, None, known_types, do_join_taps=False)
-##		for name, s in sheets.items() if not name in special ]
-#	graph, delays = dag_merge(l)
-
-
-#	additions, = join_taps(graph, delays, policies=join_taps_policies)
-#	print(here(), delays)
-
-#	types = infer_types(graph, delays, known_types=known_types)
-
-
-##	contexts = [ (ctx, v) for ctx, v in ... ]
-#	contexts.sort(key=lambda x: x[0])
-
-#	for ctx, blocks in contexts :
-#		tsk_name = ctx.strip("@")
-#		g = { k : v for k, v in graph.items() if k in blocks }
-#		for block, added in additions.items() :
-#			print(here(), block, added, block in blocks)
-#			if block in blocks :
-##				g.pop(block)#should not matter
-#				for v in added :
-#					g[v] = graph[v]
-#		pprint(g)
-#		code = codegen(g, delays, {}, types, task_name=tsk_name)
-#		out_fobj.write(code)#XXX pass out_fobj to codegen?
-
-#	out_fobj.write(stub)
-
-
 # ------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__" :
@@ -1180,10 +1131,13 @@ if __name__ == "__main__" :
 
 	class DummyFile(object):
 		def write(self, s) :
-			print(s)
+			self.s += s
+		def __init__(self) :
+			self.s = ""
+
 	out_fobj = DummyFile()
 	implement_workbench(sheets, global_meta, cg, KNOWN_TYPES, blockfactory, out_fobj)
-
+	print(out_fobj.s)
 	exit(0)
 #	elif action == "mkmac" :
 ##		try_mkmac(model)

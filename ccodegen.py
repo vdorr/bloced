@@ -178,9 +178,9 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 # ------------------------------------------------------------------------------------------------------------
 
-def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
-	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name=task_name)
-	return churn_task_code(tsk_name, cg_out)
+#def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
+#	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name=task_name)
+#	return churn_task_code(tsk_name, cg_out)
 
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
@@ -258,14 +258,16 @@ def churn_task_code(task_name, cg_out) :
 	else :
 		loop_code = linesep.join(("\tfor(;;)", "\t{", "\t\t" + (linesep + "\t\t").join(code), "\t}"))
 
-	output = ("void " + task_name + "()" + linesep + "{" + linesep +
+	decl = "void " + task_name + "()"
+
+	output = (decl + linesep + "{" + linesep +
 		# locals and delays
 		"".join(temp_vars + state_vars + dummy_vars) +
 		# main loop
 		loop_code + linesep +
 		"}")
 
-	return output
+	return decl + ";", output
 
 
 def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
@@ -276,6 +278,17 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 
 	f.write("".join('#include "{0}"{1}'.format(incl, linesep) for incl in include_files))
 
+	decls = []
+	functions = []
+#	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
+	for name, cg_out in tsk_cg_out :
+		decl, func = churn_task_code(name, cg_out)
+		decls.append(decl)
+		decls.append(linesep)
+		functions.append(func)
+
+	f.write("".join(decls))
+
 	g_vars_grouped = groupby(sorted(global_vars.items(), key=lambda x: x[1]), key=lambda x: x[1][1])
 	g_vars_code = linesep.join((pipe_type + " " + ",".join(
 		("global"+str(i)+" = "+str(pipe_default)for _, (i, _, pipe_default) in vlist)) + ";" + linesep)
@@ -283,10 +296,7 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 #	print here(), g_vars_code
 	f.write(g_vars_code)
 
-#	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
-	for name, cg_out in tsk_cg_out :
-		f.write(churn_task_code(name, cg_out))
-
+	f.write(linesep.join(functions))
 
 
 
