@@ -32,6 +32,7 @@ if __name__ == "__main__" :
 		w = Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
 			passive=True)
+		blockfactory = w.blockfactory
 		try :
 			with open(fname, "rb") as f :
 				unpickle_workbench(f, w)
@@ -55,10 +56,9 @@ if __name__ == "__main__" :
 
 	out_fobj = StringIO()
 	implement_workbench(sheets, global_meta,
-		ccodegen.codegen_alt, KNOWN_TYPES, out_fobj)
+		ccodegen, KNOWN_TYPES, blockfactory, out_fobj)
 
-	stub = os.linesep + "void main() { init(); tsk(); }"
-	source = out_fobj.getvalue() + stub
+	source = out_fobj.getvalue()
 	print source
 
 	blob_stream = StringIO()

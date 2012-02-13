@@ -1,4 +1,8 @@
 
+#define _VM_EXPORT_ 
+typedef int vm_word_t;
+typedef long vm_dword_t;
+
 _VM_EXPORT_ vm_word_t d_in(vm_word_t nr); /* simple digital input */
 _VM_EXPORT_ void d_out(vm_word_t nr, vm_word_t v); // simple digital output
 _VM_EXPORT_ vm_word_t a_in(vm_word_t nr, vm_word_t a_ref);
