@@ -993,7 +993,9 @@ def chain_blocks(g, n, m) :
 	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
 
-def replace_pipes(g) :
+def replace_pipes(g, known_types) :
+#create global r/w prototype pair for each type in known_types
+#derive type from pipe initial value to avoid loops
 	for n, (p, s) in g.items() :
 		pass
 
@@ -1032,7 +1034,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	libs_used = set()
 	pipe_vars = {}
 	tsk_cg_out = []
-	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False }
+	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
 			tsk_name = name.strip("@")
