@@ -38,24 +38,37 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 		assert(len(args) >= 2)
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
 		return __operators[n.prototype.type_name](n, args)
-	elif n.prototype.__class__ == core.PipeProto :
-		assert(len(args) == 1)
-		assert(not outs)
-		pipe_name = block_value_by_name(n, "Name")
-		pipe_default = block_value_by_name(n, "Default")
-		assert(not pipe_name in pipe_vars)
-		pipe_type = infer_block_type(n, g[n].p, types, known_types)
-#		print here(), pipe_type, pipe_default
-		i = (max(pipe_vars.values(), key=lambda x: x[0]) - 1) if pipe_vars else 0
-		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
-		return "global{0} = {1}".format(i, args[0])
-	elif n.prototype.__class__ == core.PipeEndProto :
-		pipe_name = block_value_by_name(n, "Name")
-		return "global{0}".format(pipe_vars[pipe_name][0])
+#	elif n.prototype.__class__ == core.PipeProto :
+#		assert(len(args) == 1)
+#		assert(not outs)
+#		pipe_name = block_value_by_name(n, "Name")
+#		pipe_default = block_value_by_name(n, "Default")
+#		assert(not pipe_name in pipe_vars)
+#		pipe_type = infer_block_type(n, g[n].p, types, known_types)
+##		print here(), pipe_type, pipe_default
+#		i = (max(pipe_vars.values(), key=lambda x: x[0]) - 1) if pipe_vars else 0
+#		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
+#		return "global{0} = {1}".format(i, args[0])
+#	elif n.prototype.__class__ == core.PipeEndProto :
+#		pipe_name = block_value_by_name(n, "Name")
+#		return "global{0}".format(pipe_vars[pipe_name][0])
 	elif n.prototype.__class__ == core.FunctionCallProto :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
 		return func_name + "(" + ", ".join(args + outs) + ")"
+
+	elif n.prototype.__class__ == core.GlobalReadProto :
+		pipe_name = block_value_by_name(n, "Name")
+		#TODO assert
+		return pipe_name#"global{0}".format(pipe_vars[pipe_name][0])
+	elif n.prototype.__class__ == core.GlobalWriteProto :
+		pipe_name = block_value_by_name(n, "Name")
+		#TODO assert
+		assert(pipe_name)
+		return pipe_name#"{0} = {1}".format(i, args[0])
+
+
+
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
@@ -127,8 +140,9 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			if slot != None:
 				args.append("tmp%i" % slot)
 			else :
+				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
 				raise Exception("holy shit! %s not found, %s %s" %
-					(str((n, in_term, in_t_nr)), str(tmp), str(subtrees)))
+					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]

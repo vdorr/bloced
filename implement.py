@@ -999,9 +999,6 @@ def chain_blocks(g, n, m) :
 def replace_block(g, n, m) :
 	p, s = g.pop(n)
 
-#	g[m] = adjs_t(
-#		[ ( t, t_nr, adj) for t, t_nr, adj in p ],
-#		[ ( t, t_nr, adj) for t, t_nr, adj in s ])
 
 #	for neighbourhood in (p, s) :
 #		for t, t_nr, adj in neighbourhood :
@@ -1009,16 +1006,28 @@ def replace_block(g, n, m) :
 #				__neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
 
 	for t, t_nr, adj in p :
-		new_term, = (tnew for tnew in terms if tnew.name == t.name)
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+#		new_term, = (tnew for tnew in m.prototype.terms if tnew.name == t.name)
+#		print here(), id(t)
 		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr) :
+#			print here(), id(new_term), id(bt)
+			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
 
 	for t, t_nr, adj in s :
-		new_term, = (tnew for tnew in terms if tnew.name == t.name)
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+#		new_term, = (tnew for tnew in m.prototype.terms if tnew.name == t.name)
+#		print here(), id(t)
 		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr) :
+#			print here(), id(new_term), id(bt)
+			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
 
-	g[m] = adjs_t(p, s)
+#	print here(), p[0][]
+
+
+	g[m] = adjs_t(
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
+
 
 
 #def replace_pipes(g, known_types) :
@@ -1059,7 +1068,7 @@ def replace_block(g, n, m) :
 #		replace_block(g, pipe_end, m)
 
 
-def init_pipe_protos(g, known_types) :
+def init_pipe_protos(known_types) :
 #TODO generalize for other IPC schemes
 	g_protos = {}
 	for type_name in known_types :
@@ -1079,17 +1088,22 @@ def extract_pipes(g, known_types, g_protos, pipe_replacement) :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_default = block_value_by_name(n, "Default")
 		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
-		gw_proto, gr_proto = g_protos[type_name]
+		gw_proto, gr_proto = g_protos[pipe_type]
 		pipe_replacement[pipe_name] = (pipe_type, gw_proto, gr_proto)
 	#TODO return something useful for generation of globals
 
 
-def replace_pipes(g, known_types, g_protos, pipe_replacement) :
+def replace_pipes(g, g_protos, pipe_replacement) :
+
+#	print "------------------------------"
+#	pprint(g)
+#	print "------------------------------"
+
 
 	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
 
 	unmatched = [ pe for pe in pipe_ends
-		if not (block_value_by_name(n, "Name") in pipe_replacement) ]
+		if not (block_value_by_name(pe, "Name") in pipe_replacement) ]
 	if unmatched :
 		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
 
@@ -1101,13 +1115,18 @@ def replace_pipes(g, known_types, g_protos, pipe_replacement) :
 		pipe_type, gw_proto, gr_proto = pipe_replacement[pipe_name]
 		gw_proto, gr_proto = g_protos[pipe_type]
 		m = BlockModel(gw_proto, "itentionally left blank")
+		m.value = (pipe_name, )
 		replace_block(g, n, m)
 
 	for pipe_end, pipe_name in pipe_ends.items() :
-		gr_proto = pipe_ends_replacement[pipe_name]
+		pipe_type, gw_proto, gr_proto = pipe_replacement[pipe_name]
 		m = BlockModel(gr_proto, "itentionally left blank")
+		m.value = (pipe_name, )
 		replace_block(g, pipe_end, m)
 
+#	print "++++++++++++++++++++++++++++++"
+#	pprint(g)
+#	print "++++++++++++++++++++++++++++++"
 
 #	for n, (p, s) in g.items() :
 #		if n.prototype.__class__ == PipeProto :
@@ -1153,12 +1172,18 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 #TODO
 #def init_pipe_protos(g, known_types) :
 #def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-#def replace_pipes(g, known_types, g_protos, pipe_replacement) :
+#def replace_pipes(g, g_protos, pipe_replacement) :
 
+	g_protos = init_pipe_protos(known_types)
+	pipe_replacement = {}
+#	pprint(g_protos)
 
 	libs_used = set()
 	pipe_vars = {}
 	tsk_cg_out = []
+
+	graph_data = []
+
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
 	for name, s in sorted(special.items(), key=lambda x: x[0]) :
 		if name == "@setup" :
@@ -1166,8 +1191,13 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			join_taps(g, d)
 			types = infer_types(g, d, known_types=known_types)
-			tsk_cg_out.append(codegen.codegen(g, d, tsk_setup_meta,
-				types, known_types, pipe_vars, libs_used, task_name=tsk_name))
+			extract_pipes(g, known_types, g_protos, pipe_replacement)#XXX
+
+			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+
+#			tsk_cg_out.append(codegen.codegen(g, d, tsk_setup_meta,
+#				types, known_types, pipe_vars, libs_used, task_name=tsk_name))
+
 		else :
 			raise Exception("impossible exception")
 
@@ -1177,21 +1207,41 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	graph, delays = dag_merge(l)
 	join_taps(graph, delays)
 	types = infer_types(graph, delays, known_types=known_types)
+	extract_pipes(graph, known_types, g_protos, pipe_replacement)#XXX
+
 	tsk_name = "loop"
-	tsk_cg_out.append(codegen.codegen(graph, delays, {},
-		types, known_types, pipe_vars, libs_used, task_name=tsk_name))
+
+	graph_data.append((tsk_name, graph, delays, {}, types))
+
+#	tsk_cg_out.append(codegen.codegen(graph, delays, {},
+#		types, known_types, pipe_vars, libs_used, task_name=tsk_name))
+
 
 	setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
-	setup_call.value = ("setup", )
 	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	setup_call.value = ("setup", )
 	loop_call.value = (tsk_name, )
 	main_tsk_g = { loop_call : adjs_t([], []) }
 	if "@setup" in special :
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 #	pprint(main_tsk_g)
-	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, { "endless_loop_wrap" : False},
-		{}, known_types, {}, libs_used, task_name="main"))#XXX name of 'main' may depend on target
+
+	tsk_name = "main"
+	main_tsk_meta = { "endless_loop_wrap" : False}
+	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
+
+#	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, main_tsk_meta,
+#		{}, known_types, {}, libs_used, task_name="main"))#XXX name of 'main' may depend on target, infer from "is_entry_point"
+
+#	pprint(pipe_replacement)
+#	pprint(graph_data)
+
+
+	for tsk_name, g, d, meta, types in graph_data :
+		replace_pipes(g, g_protos, pipe_replacement)
+		tsk_cg_out.append(codegen.codegen(g, d, meta,
+			types, known_types, pipe_vars, libs_used, task_name=tsk_name))
 
 	include_files = []
 	for l in lib.libs :
