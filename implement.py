@@ -127,13 +127,16 @@ def __neighbourhood_add(neighbourhood, bt, block, term, term_nr) :
 	neighbours.append((block, term))
 	assert(len(neighbours)==1 if bt.direction == INPUT_TERM else True)
 
-def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_pair, new_pair) :
+def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
+	"""
+	new/old_tuple = (block, block_term, block_term_number)
+	"""
 #	print "__neighbourhood_safe_replace:", neighbourhood, term, term_nr
 	(neighbours, ) = [ succs for t, nr, succs in neighbourhood if t == term and nr == term_nr ]
-	if old_pair != None and old_pair in neighbours :
-		neighbours.remove(old_pair)
-	if new_pair != None and not new_pair in neighbours :
-		neighbours.append(new_pair)
+	if old_tuple != None and old_tuple in neighbours :
+		neighbours.remove(old_tuple)
+	if new_tuple != None and not new_tuple in neighbours :
+		neighbours.append(new_tuple)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -993,11 +996,127 @@ def chain_blocks(g, n, m) :
 	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
 
-def replace_pipes(g, known_types) :
-#create global r/w prototype pair for each type in known_types
-#derive type from pipe initial value to avoid loops
-	for n, (p, s) in g.items() :
-		pass
+def replace_block(g, n, m) :
+	p, s = g.pop(n)
+
+#	g[m] = adjs_t(
+#		[ ( t, t_nr, adj) for t, t_nr, adj in p ],
+#		[ ( t, t_nr, adj) for t, t_nr, adj in s ])
+
+#	for neighbourhood in (p, s) :
+#		for t, t_nr, adj in neighbourhood :
+#			for b, bt, bt_nr in p :
+#				__neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
+
+	for t, t_nr, adj in p :
+		new_term, = (tnew for tnew in terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr) :
+
+	for t, t_nr, adj in s :
+		new_term, = (tnew for tnew in terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr) :
+
+	g[m] = adjs_t(p, s)
+
+
+#def replace_pipes(g, known_types) :
+
+#	g_protos = {}
+#	for type_name in known_types :
+#		if type_name != "<inferred>" :
+#			gw_proto = GlobalWriteProto(type_name)
+#			gr_proto = GlobalReadProto(type_name)
+#			g_protos[type_name] = (gw_proto, gr_proto)
+
+#	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
+#	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
+
+#	unmatched = [ pe for pe in pipe_ends if not (pe in pipes) ]
+#	if unmatched :
+#		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
+
+#	pipe_ends_replacement = {}
+#	for n in pipes :
+#		pipe_name = block_value_by_name(n, "Name")
+#		pipe_default = block_value_by_name(n, "Default")
+##		pipe_type = infer_block_type(n, g[n].p, types, known_types)
+##		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
+
+#		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
+#		gw_proto, gr_proto = g_protos[type_name]
+
+#		pipe_ends_replacement[pipe_name] = gr_proto
+
+#		m = BlockModel(gw_proto, "itentionally left blank")
+#		replace_block(g, n, m)
+
+#	for pipe_end, pipe_name in pipe_ends.items() :
+#		gr_proto = pipe_ends_replacement[pipe_name]
+
+#		m = BlockModel(gr_proto, "itentionally left blank")
+#		replace_block(g, pipe_end, m)
+
+
+def init_pipe_protos(g, known_types) :
+#TODO generalize for other IPC schemes
+	g_protos = {}
+	for type_name in known_types :
+		if type_name != "<inferred>" :
+			gw_proto = GlobalWriteProto(type_name)
+			gr_proto = GlobalReadProto(type_name)
+			g_protos[type_name] = (gw_proto, gr_proto)
+	return g_protos
+
+
+def extract_pipes(g, known_types, g_protos, pipe_replacement) :
+
+	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
+
+#	pipe_ends_replacement = {}
+	for n in pipes :
+		pipe_name = block_value_by_name(n, "Name")
+		pipe_default = block_value_by_name(n, "Default")
+		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
+		gw_proto, gr_proto = g_protos[type_name]
+		pipe_replacement[pipe_name] = (pipe_type, gw_proto, gr_proto)
+	#TODO return something useful for generation of globals
+
+
+def replace_pipes(g, known_types, g_protos, pipe_replacement) :
+
+	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
+
+	unmatched = [ pe for pe in pipe_ends
+		if not (block_value_by_name(n, "Name") in pipe_replacement) ]
+	if unmatched :
+		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
+
+	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
+
+#	pipe_ends_replacement = {}
+	for n in pipes :
+		pipe_name = block_value_by_name(n, "Name")
+		pipe_type, gw_proto, gr_proto = pipe_replacement[pipe_name]
+		gw_proto, gr_proto = g_protos[pipe_type]
+		m = BlockModel(gw_proto, "itentionally left blank")
+		replace_block(g, n, m)
+
+	for pipe_end, pipe_name in pipe_ends.items() :
+		gr_proto = pipe_ends_replacement[pipe_name]
+		m = BlockModel(gr_proto, "itentionally left blank")
+		replace_block(g, pipe_end, m)
+
+
+#	for n, (p, s) in g.items() :
+#		if n.prototype.__class__ == PipeProto :
+#			pipe_name = block_value_by_name(n, "Name")
+#			pipe_default = block_value_by_name(n, "Default")
+#			pipe_type = infer_block_type(n, g[n].p, types, known_types)
+#			pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
+#		elif n.prototype.__class__ == PipeEndProto :
+#			pass
 
 #		if n.prototype.__class__ == PipeProto :
 #			pipe_name = block_value_by_name(n, "Name")
@@ -1030,6 +1149,12 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	unknown = [ name for name in special if not name in special_sheets ]
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
+
+#TODO
+#def init_pipe_protos(g, known_types) :
+#def extract_pipes(g, known_types, g_protos, pipe_replacement) :
+#def replace_pipes(g, known_types, g_protos, pipe_replacement) :
+
 
 	libs_used = set()
 	pipe_vars = {}

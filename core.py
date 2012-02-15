@@ -151,19 +151,21 @@ class PipeEndProto(BlockPrototype):
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
-##TODO
-#class GlobalWriteProto(BlockPrototype):
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "GlobalWrite", [ In(0, "x", W, 0.5) ],
-#			default_size=(96,28),
-#			values=[("Name", None), ("Sync", None)])
+#TODO
+class GlobalWriteProto(BlockPrototype):
+	def __init__(self, type_name) :
+		BlockPrototype.__init__(self, "GlobalWrite",
+			[ In(0, "x", W, 0.5, type_name=type_name) ],
+			default_size=(96,28),
+			values=[("Name", None), ("Sync", None)])
 
 
-#class GlobalReadProto(BlockPrototype):
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "GlobalRead", [ Out(0, "y", E, 0.5) ],
-#			default_size=(96,28),
-#			values=[("Name", None), ("Sync", None)])
+class GlobalReadProto(BlockPrototype):
+	def __init__(self, type_name) :
+		BlockPrototype.__init__(self, "GlobalRead",
+			[ Out(0, "y", E, 0.5, type_name=type_name) ],
+			default_size=(96,28),
+			values=[("Name", None), ("Sync", None)])
 
 
 class FunctionCallProto(BlockPrototype):
