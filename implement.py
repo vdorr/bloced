@@ -41,13 +41,11 @@ def groupby_to_dict(it, key_selector, value_selector, value_grouper) :
 	return { key : value_grouper([ value_selector(val) for val in values ])
 			for key, values in groupby(sorted(it, key=key_selector), key_selector) }
 
-# ------------------------------------------------------------------------------------------------------------
 
 def reverse_dict_of_lists(d, key_grouper) :
 	l = list(chain(*[ [ (v, k) for v in values ] for k, values in d.items() ]))
 	return groupby_to_dict(l, lambda i: i[0], lambda i: i[1], key_grouper)
 
-# ------------------------------------------------------------------------------------------------------------
 
 def dict_map(d, k_map, v_map, item_filter=lambda k,v: True) :
 	return { k_map(*i): v_map(*i) for i in d.items() if item_filter(*i) }
@@ -72,6 +70,7 @@ def __dag_structural_check(g, stop_on_first=True) :
 # implicit feedback loops
 # explicit feedback loops matching
 	return False
+
 
 def __dag_sanity_check(g, stop_on_first=True) :
 # 1) dangling references (because of joints and macroes) :
@@ -127,6 +126,7 @@ def __neighbourhood_add(neighbourhood, bt, block, term, term_nr) :
 	neighbours.append((block, term))
 	assert(len(neighbours)==1 if bt.direction == INPUT_TERM else True)
 
+
 def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
 	"""
 	new/old_tuple = (block, block_term, block_term_number)
@@ -145,10 +145,10 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tu
 #XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
-replace single block from g with subgraph, subgraph may be empty dict and function might be used
-to map block terminal to other blocks in g
-map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
-map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
+	replace single block from g with subgraph, subgraph may be empty dict and function might be used
+	to map block terminal to other blocks in g
+	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
 #	print "map_in=", map_in
 #	print "map_out=", map_out
@@ -234,9 +234,6 @@ def __expand_joints_new(g) :
 
 
 def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
-	"""
-	replaces one Tap and corresponding TapEnds with snippet according to policies
-	"""
 	p, s = g[tap]
 	((_, _, ((pb, pt, pt_nr),)),) = p
 
@@ -703,13 +700,13 @@ def dft(g, v,
 		visited={},
 		term=None) :
 	"""
-graph structure:
-{
-	blockA :
-		(p=[ (blockA->term, blockA->term->term_number,
-			[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
-		 s=[ ]), ...
-}
+	graph structure:
+	{
+		blockA :
+			(p=[ (blockA->term, blockA->term->term_number,
+				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+			 s=[ ]), ...
+	}
 	"""
 
 #	pprint(g)
@@ -797,8 +794,8 @@ def __su_post_visit(g, numbering, n, visited) :
 #TODO add documentation
 #TODO take into account temp variables?
 	"""
-commutativity comes in two flavours, it may be commutative block,
-or numbered instances of variadic terminal
+	commutativity comes in two flavours, it may be commutative block,
+	or numbered instances of variadic terminal
 	"""
 
 #	print here(), n
@@ -919,7 +916,7 @@ def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
 
 def tmp_used_slots(tmp) :
 	"""
-returns current number of non-empty slots of all types
+	returns current number of non-empty slots of all types
 	"""
 #	print "tmp_used_slots: id=", id(tmp)
 	return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
@@ -928,8 +925,8 @@ returns current number of non-empty slots of all types
 
 def tmp_max_slots_used(tmp, slot_type=None) :
 	"""
-returns peak number of slots in use to this time
-returns results for single data type if slot_type argument set
+	returns peak number of slots in use to this time
+	returns results for single data type if slot_type argument set
 	"""
 	slots = [ t_tmp for tp, t_tmp in tmp.items()
 		if slot_type == None or tp == slot_type ]
