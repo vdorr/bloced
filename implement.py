@@ -926,13 +926,17 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	graph_data = []
 
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
-	for name, s in sorted(special.items(), key=lambda x: x[0]) :
+	for name, sheet_list in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
+		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
 			tsk_name = name.strip("@")
-			g, d = make_dag(s, None, known_types, do_join_taps=True)
-			join_taps(g)#use separately if there are special sheets to be merged
+#			g, d = make_dag(s, None, known_types, do_join_taps=True)
+			l = [ make_dag(s, None, known_types, do_join_taps=False)
+				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
+			g, d = dag_merge(l)
+			join_taps(g)
 			types = infer_types(g, d, known_types=known_types)
-			extract_pipes(g, known_types, g_protos, pipe_replacement)#XXX
+			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
 		else :
 			raise Exception("impossible exception")
@@ -943,7 +947,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	graph, delays = dag_merge(l)
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
-	extract_pipes(graph, known_types, g_protos, pipe_replacement)#XXX
+	extract_pipes(graph, known_types, g_protos, pipe_replacement)
 	tsk_name = "loop"
 	graph_data.append((tsk_name, graph, delays, {}, types))
 

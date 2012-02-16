@@ -1720,7 +1720,7 @@ class BlockEditorWindow(object) :
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
 #			CmdMnu("&Stop", "Ctrl+F5", None)
 			SepMnu(),
-			CmdMnu("Add sheet", None, self.__mnu_add_sheet),
+			CmdMnu("Add sheet", "Shift+Ctrl+N", self.__mnu_add_sheet),
 			CmdMnu("Rename sheet", None, self.__mnu_rename_sheet),
 			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
 			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
