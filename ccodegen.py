@@ -141,7 +141,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			if slot != None:
 				args.append("tmp%i" % slot)
 			else :
-				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
+#				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
 				raise Exception("holy shit! %s not found, %s %s" %
 					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
