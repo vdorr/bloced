@@ -37,3 +37,4 @@ menu with known special sheets
 editor context menu
 make operators variadic
 keep out of collisions in global vars names, take into account delays and temps
+select block with right-click

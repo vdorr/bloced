@@ -335,6 +335,9 @@ class Block(Canvas, BlockBase) :
 		self.__labels[name] = lbl
 		return lbl.canvas_item
 
+	def popup(self, e) :
+		self.editor.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
+
 	def __init__(self, editor, model) :
 		self.editor = editor
 		self.canvas = editor.canv
@@ -354,6 +357,7 @@ class Block(Canvas, BlockBase) :
 #		self.bind("<Configure>", self.onConfigure)
 		self.bind("<Double-Button-1>", self.onDblClick)
 		self.bind("<Tab>", lambda a: self.select_next())
+		self.bind("<ButtonPress-3>", self.popup)
 
 		self.border_rect = self.create_rectangle(0, 0, self.model.width - 1, self.model.height - 1)
 
@@ -1026,7 +1030,12 @@ class BlockEditor(Frame, GraphModelListener) :
 		else :
 			self.end_paste_block()
 
-	def __init__(self, parent, workbench_getter) :
+	def popup(self, e) :
+		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
+
+	def __init__(self, ui, parent, workbench_getter) :
+
+		self.ui = ui
 
 #		self.__changed = False # XXX destroy
 
@@ -1072,6 +1081,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.bind("<Up>", lambda a: self.move_selection(0, -cfg.GRID_SIZE))
 		self.canv.bind("<Down>", lambda a: self.move_selection(0, cfg.GRID_SIZE))
 		self.canv.bind("<Tab>", lambda a: self.select_next())
+		self.canv.bind("<ButtonPress-3>", self.popup)
 
 #		self.canv.config(cursor="plus")
 #		self.canv.config(cursor="arrow")
@@ -1256,8 +1266,10 @@ class BlockEditorWindow(object) :
 #		self.__menu_items[item] = menu
 
 
-	def add_top_menu(self, text, items=[]) :
-		mnu = Menu(self.__menubar)
+	def add_top_menu(self, text, items=[], root=None) :
+		if root is None :
+			root = self.__menubar
+		mnu = Menu(root)
 		txt, under = self.__convert_mnu_text(text)
 		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
 		for item, i in zip(items, count()) :
@@ -1414,7 +1426,7 @@ class BlockEditorWindow(object) :
 
 
 	def add_sheet(self, sheet, name) :
-		bloced = BlockEditor(self.tabs, self.__workbench_getter)
+		bloced = BlockEditor(self, self.tabs, self.__workbench_getter)
 		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
@@ -1592,6 +1604,112 @@ class BlockEditorWindow(object) :
 			self.work.rename_sheet(name=sheet_name, new_name=new_name)
 
 
+	def setup_menus(self) :
+
+		self.last_block_inserted = None
+
+#		self.bloced.changed_event = self.__changed_event
+
+		self.__menubar = Menu(self.root)
+		self.root["menu"] = self.__menubar
+
+		self.__recent_menu = None
+		self.__recent_menu = self.__list_recent_files(self.__settings.recent_files)
+
+		examples = self.__list_examples()
+
+		self.add_top_menu("&File", [
+			CmdMnu("&New", "Ctrl+N", self.new_file),
+			CmdMnu("&Open...", "Ctrl+O", self.open_file),
+			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
+			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
+			SepMnu(),
+			CascadeMnu("Examples",
+				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in examples ]),
+			SepMnu(),
+			self.__recent_menu,
+#			SepMnu(),
+#			CmdMnu("Export...", "Ctrl+E", self.__mnu_file_export),
+			SepMnu(),
+			CmdMnu("&Quit", "Alt+F4", self.close_window) ])
+
+		mnu_undo = CmdMnu("&Undo", "Ctrl+Z", self.mnu_edit_undo)
+		mnu_redo = CmdMnu("&Redo", "Shift+Ctrl+Z", self.mnu_edit_redo)
+		mnu_cut = CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut)
+		mnu_copy = CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy)
+		mnu_paste = CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste)
+		mnu_delete = CmdMnu("&Delete", "Delete", self.mnu_edit_delete)
+		mnu_select_all = CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all)
+
+		self.add_top_menu("&Edit", [
+			mnu_undo,
+			mnu_redo,
+			SepMnu(),
+			mnu_cut, #CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut),
+			mnu_cut, #CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
+			mnu_paste, #CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste),
+			mnu_delete, #CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
+			SepMnu(),
+			mnu_select_all, #CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all),
+#			SepMnu(),
+#			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
+			])
+
+		#TODO should be explicitly sorted
+		self.block_list = ([ CascadeMnu(cat,
+			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
+		self.add_top_menu("&Library",
+#			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
+			self.block_list)
+
+		editor_menu = [ CascadeMnu("Library", self.block_list),
+			SepMnu(), mnu_undo, mnu_redo,
+			SepMnu(), mnu_cut, mnu_copy, mnu_paste, mnu_delete,
+			SepMnu(), mnu_select_all ]
+		self.editor_popup = self.add_top_menu("", items=editor_menu, root=self.root)
+
+		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
+
+#		self.__port_menu = CascadeMnu("Serial Port",
+#			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])
+		self.__port_menu = CascadeMnu("(scanning)", [])
+
+		self.__board_menu = CascadeMnu("Board",
+			[ RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards ])
+
+		self.__model_menu = self.add_top_menu("&Workbench", [
+			CmdMnu("&Build", "F6", self.mnu_mode_build),
+			CmdMnu("&Run", "F5", self.mnu_mode_run),
+#			CmdMnu("&Stop", "Ctrl+F5", None)
+			SepMnu(),
+			CmdMnu("Add sheet", "Shift+Ctrl+N", self.__mnu_add_sheet),
+			CmdMnu("Rename sheet", None, self.__mnu_rename_sheet),
+			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
+			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
+			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
+			SepMnu(),
+			self.__board_menu,
+			self.__port_menu,
+			])
+
+		self.add_top_menu("&Help", [
+			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
+			SepMnu(),
+			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
+
+		self.add_top_menu("_Debu&g", [
+			CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
+			CmdMnu("Implement", None, self.implement),
+			CmdMnu("mkmac", None, self.mkmac),
+			CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+			CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
+#		menu_debug.add_command(label="zoom",
+#			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
+
+		self.rescan_ports()
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1657,93 +1775,7 @@ class BlockEditorWindow(object) :
 #		self.cons.grid(column=0, row=3, sticky=(W, E, S))
 #		self.cons.rowconfigure(2, weight=0)
 
-		self.last_block_inserted = None
-
-#		self.bloced.changed_event = self.__changed_event
-
-		self.__menubar = Menu(self.root)
-		self.root["menu"] = self.__menubar
-
-		self.__recent_menu = None
-		self.__recent_menu = self.__list_recent_files(self.__settings.recent_files)
-
-		examples = self.__list_examples()
-
-		self.add_top_menu("&File", [
-			CmdMnu("&New", "Ctrl+N", self.new_file),
-			CmdMnu("&Open...", "Ctrl+O", self.open_file),
-			CmdMnu("&Save", "Ctrl+S", self.save_current_file),
-			CmdMnu("S&ave As...", "Shift+Ctrl+S", self.save_file_as),
-			SepMnu(),
-			CascadeMnu("Examples",
-				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in examples ]),
-			SepMnu(),
-			self.__recent_menu,
-#			SepMnu(),
-#			CmdMnu("Export...", "Ctrl+E", self.__mnu_file_export),
-			SepMnu(),
-			CmdMnu("&Quit", "Alt+F4", self.close_window) ])
-
-		self.add_top_menu("&Edit", [
-			CmdMnu("&Undo", "Ctrl+Z", self.mnu_edit_undo),
-			CmdMnu("&Redo", "Shift+Ctrl+Z", self.mnu_edit_redo),
-			SepMnu(),
-			CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut),
-			CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
-			CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste),
-			CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
-			SepMnu(),
-			CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all),
-#			SepMnu(),
-#			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
-			])
-
-		#TODO should be explicitly sorted
-		blocks = ([ CascadeMnu(cat,
-			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
-				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
-		menu_blocks = self.add_top_menu("&Insert",
-#			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
-			blocks)
-
-		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
-
-#		self.__port_menu = CascadeMnu("Serial Port",
-#			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])
-		self.__port_menu = CascadeMnu("(scanning)", [])
-
-		self.__board_menu = CascadeMnu("Board",
-			[ RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards ])
-
-		self.__model_menu = self.add_top_menu("&Workbench", [
-			CmdMnu("&Build", "F6", self.mnu_mode_build),
-			CmdMnu("&Run", "F5", self.mnu_mode_run),
-#			CmdMnu("&Stop", "Ctrl+F5", None)
-			SepMnu(),
-			CmdMnu("Add sheet", "Shift+Ctrl+N", self.__mnu_add_sheet),
-			CmdMnu("Rename sheet", None, self.__mnu_rename_sheet),
-			CmdMnu("Import sheet", None, self.__mnu_import_sheet),
-			CmdMnu("Export sheet", None, self.__mnu_export_sheet),
-			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
-			SepMnu(),
-			self.__board_menu,
-			self.__port_menu,
-			])
-		self.rescan_ports()
-
-		self.add_top_menu("&Help", [
-			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
-			SepMnu(),
-			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
-
-		self.add_top_menu("_Debu&g", [
-			CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
-			CmdMnu("Implement", None, self.implement),
-			CmdMnu("mkmac", None, self.mkmac),
-			CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
-			CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
-#		menu_debug.add_command(label="zoom",
-#			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
+		self.setup_menus()
 
 		self.root.geometry("%ix%i" % (self.__settings.main_width, self.__settings.main_height))
 #		self.root.geometry("+%i+%i" % (self.__settings.main_left, self.__settings.main_top))
