@@ -22,17 +22,6 @@ def here(depth=1) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#	model :
-#	( from_block, from_term ) : [ ( to_block0, to_term0, ), ... ]
-
-#TODO TODO TODO revisit
-# convention: get_terms - last term in list is on top of stack
-# assumption : every block is evaluated exactly once per iteration
-#	- except constants
-#	- evaluation of stateless components can (should) be optimized
-
-# ------------------------------------------------------------------------------------------------------------
-
 adjs_t = namedtuple("a", [ "p", "s", ])
 
 # ------------------------------------------------------------------------------------------------------------
@@ -207,83 +196,6 @@ def __expand_joints_new(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-#def __tap_replacement(g, tap_ends_lst, tap, policy) :
-#	return (snippet, map_in)
-
-
-#def __tap_end_replacement(tap, tap_pred, tap_end_succs, del_seed, policy) :
-#	if policy == "wire" :
-#		pred = tap_pred
-#	elif policy == "delay" :
-#		d =  BlockModel(DelayProto(), None)
-#		d.nr = del_seed + 1
-#		pred = (,,)
-
-#	map_out = { (out_term, out_term_nr) : pred
-#		for out_term, out_term_nr, _ in tap_end_succs }
-#	snippet_out = {}
-#	delays = {}
-##	del_seed
-
-#	return (snippet, map_out, delays)
-
-#	blockA :
-#		(p=[ (blockA->term, blockA->term->term_number,
-#			[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
-#		 s=[ ]), ...
-
-
-#def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
-#	p, s = g[tap]
-#	((_, _, ((pb, pt, pt_nr),)),) = p
-
-#	if policy == "wire" :
-#		tap_pred = (pb, pt, pt_nr)
-#		snippet_out = {}
-#		succs = []
-#		snippet_in = {}
-#	elif policy == "delay" :
-#		del_seed = max([ d.nr for d in expd_delays ]) if expd_delays else 0
-#		d =  BlockModel(DelayProto(), None)
-#		nr = d.nr = del_seed + 1
-#		(d, (i, o)) = __expddel(d, nr)
-#		expd_delays[d] = (i, o)
-#		tap_pred = (o, o.terms[0], 0)
-#		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
-#		snippet_in = {
-#			i : adjs_t([(i.terms[0], 0, [])], [])
-#		}#TODO make function to generate this
-#		snippet_out = {
-#			o : adjs_t([], [(o.terms[0], 0, [])])
-#		}
-#		additions[tap] = [ i ]
-#	else :
-#		raise Exception("unknown tap joining policy")
-
-#	for tap_end in tap_ends_lst :
-#		_, tap_end_succs = g[tap_end]
-#		if policy == "wire" :
-#			succs += tap_end_succs
-#		elif policy == "delay" :
-#			if tap_end in additions :
-#				additions[tap_end].append(o)
-#			else :
-#				additions[tap_end] = o
-
-#		map_out = { (out_term, out_term_nr) : tap_pred
-#			for out_term, out_term_nr, _ in tap_end_succs }
-
-#		print(here(), tap_end, snippet_out, {}, map_out)
-#		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
-
-#		assert(not tap_end in g)
-
-#	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
-
-#	print(here(), tap, snippet_in, map_in)
-#	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
-
-
 def __join_one_tap(g, tap_ends_lst, tap) :
 	p, s = g[tap]
 	((_, _, ((pb, pt, pt_nr),)),) = p
@@ -317,25 +229,6 @@ def get_tap_ends(g) :
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
 	assert( len(tap_ends_list) == sum([len(v) for v in tap_ends.values()]) )
 	return tap_ends
-
-
-#def join_taps(g, expd_delays, policies={}) :
-#	"""
-#	policies = { tap : "<policy>", ... }
-#	return { tap_replaced : [ replacement, ... ], ...}
-#	"""
-#	known_policies = { "wire", "delay" }#, "snippet" }
-#	assert(all([v in known_policies for v in policies.values()]))
-#	taps = get_taps(g)
-#	tap_ends = get_tap_ends(g)
-#	additions={}
-#	for tap_name, tap in taps.items() :
-#		tap_end = tap_ends.pop(tap.value) #TODO do not pop
-#		policy = policies[tap] if tap in policies else "wire"
-#		__join_one_tap(g, tap_end, tap, expd_delays, policy, additions)
-##	pprint(tap_ends)
-##	assert(len(tap_ends)==0)
-#	return (additions, )
 
 
 def join_taps(g) :
@@ -501,7 +394,6 @@ def compare_types(known_types, a, b) :
 
 
 def infer_block_type(block, preds, types, known_types) :
-#	print here(), block
 	inferred = None
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
@@ -524,10 +416,6 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 		elif m.prototype.__class__ == ConstProto :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-#		elif m.prototype.__class__ == PipeEndProto :
-#			print here(), "!!!!!!!!!!!"
-#		elif m.prototype.__class__ == PipeProto :
-#			print here(), "!!!!!!!!!!!"
 		else :
 			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
 	if nt.type_name == "<inferred>"	:
@@ -566,20 +454,12 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
-#	pprint(model.connections)
-#	exit(666)
-
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
 			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in __in_terms(b) ],
 			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
 		for b in blocks }
-#	pprint(
-#	{ b : (#adjs_t(
-#			__in_terms(b),#[ (t, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in __in_terms(b) ],
-#			__out_terms(b),#[ (t, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
-#		) for b in blocks }
-#)
+
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
 		raise Exception("make_dag: produced graph is insane")
@@ -592,6 +472,7 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	return graph, delays
 
 # ------------------------------------------------------------------------------------------------------------
+
 
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
@@ -626,14 +507,8 @@ def __dft_alt_term_sorter(g, block, preds) :
 
 #		neighbours_list = neighbours
 
-#		print "__dft_alt_term_sorter: neighbours_list=", neighbours_list
 		for b, mt, nr in neighbours : #XXX
 			yield t, t_nr, b, mt, nr
-
-#def __dft_alt_term_sorter(g, block, preds) :
-#	for t, t_nr, neighbours in preds :
-#		for b, mt, nr in neighbours :
-#			yield t, t_nr, b, mt, nr
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -643,20 +518,28 @@ def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 #	print("\t", "".join(edge))
 	hsh.update("".join(edge).encode())
 
+
 def location_id(g, block, term=None) :
 	assert(term==None or (term!=None and len(term) == 2))
-#	assert(not (term==None^term_nr==None))
 	hsh = hashlib.md5()
 	dft(g, block, undirected=True,
 		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
 	digest = hsh.hexdigest()
-#	print(here(), block, term, digest)
 	return digest
+
+
+def sortable_sinks(g, sinks) :
+	sortable = {}	
+	for s in sinks :
+		digest = location_id(g, s, term=None)
+		sortable[s] = digest
+	return sortable
 
 # ------------------------------------------------------------------------------------------------------------
 
 def dft_alt_succs_count(s):
 	return sum([ len(succ_blocks) for t, nr, succ_blocks in s ])
+
 
 # block is root if have no successors (no outputs, or all outputs are unconnected)
 def __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter) :
@@ -675,6 +558,7 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 		return neighbourhood.p
 	else :
 		return neighbourhood.s
+
 
 def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
@@ -733,25 +617,12 @@ def dft(g, v,
 	}
 	"""
 
-#	pprint(g)
-
 	visited[v] = True
 	term_list = None
-
-#	print here(3), v, term
-
 	if term != None :
 		t, t_nr = term
 		(term_list, ) = [ (t, t_nr, nbh) for t, t_nr, nbh in
 			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
-
-#	term_list = None
-
-#__where_to_go(g[v], sinks_to_sources, undirected))
-
-#terms = list(__dft_alt_term_sorter()
-
-
 	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
 		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
 
@@ -768,23 +639,12 @@ def dft_alt(g,
 		sinks_to_sources=True) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 
-#	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
 	s = __dft_alt_roots_selector(g, sinks_to_sources, __dft_alt_roots_sorter)
 
-#	print("dft_alt: s=", s)
-#TODO TODO TODO
-#	print "dft_alt: TODO TODO TODO sortable=", sortable_sinks(g, s)
-#TODO TODO TODO
 	visited = {}
 	for v in s :
 		pre_tree(v, visited)
 		assert(not v in visited)
-#		visited[v] = True
-#		visited_per_tree = {}
-#		__dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive, post_visit, visited, visited_per_tree,
-#			sinks_to_sources, False)
-#		print "dft_alt: v=", v
-#		dft(g, v, pre_visit, pre_dive, post_dive, post_visit, sinks_to_sources, False, visited)
 		dft(g, v,
 			pre_visit = pre_visit,
 			pre_dive = pre_dive,
@@ -813,6 +673,7 @@ def graph_components(g) :
 def __su_get_number(numbering, src_blocks_tuple) :
 	t, nr, src_b, i = src_blocks_tuple
 	return numbering[src_b][0]
+
 
 def __su_post_visit(g, numbering, n, visited) :
 #TODO add documentation
@@ -859,6 +720,7 @@ def __su_post_visit(g, numbering, n, visited) :
 	slots = max( usages + [ len(s) ] )
 	numbering[n] = ( slots, indices )
 
+
 def sethi_ullman(g) :
 #TODO testing, is it (easily) possible to algorithmically create graph with given numbering?
 	print(here())
@@ -866,29 +728,6 @@ def sethi_ullman(g) :
 	dft_alt(g, post_visit = partial(__su_post_visit, g, numbering))
 	return numbering
 
-# ------------------------------------------------------------------------------------------------------------
-
-#def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
-#	edge = (n.to_string(), ".", nt.name, "/", str(nt_nr),
-#		"<-", m.to_string(), ".", mt.name, "/", str(mt_nr))
-#	print "".join(edge)
-#	hsh.update("".join(edge))
-
-def __sort_successors(g, block, t, t_nr, succs) :
-	pass
-#	assert(t.direction==OUTPUT_TERM)
-#	print "__sort_successors: ", succs
-##	sortable = { location_id(g, block, term=None) for sb, st, stnr, lst  in succs }
-##	print "__sort_successors:" block, t, t_nr, sortable
-##	return sorted(succs, key=lambda
-#	return list(succs)
-
-def sortable_sinks(g, sinks) :
-	sortable = {}	
-	for s in sinks :
-		digest = location_id(g, s, term=None)
-		sortable[s] = digest
-	return sortable
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -896,12 +735,10 @@ def sortable_sinks(g, sinks) :
 def temp_init(known_types) :
 	tmp = { tp_name : []
 		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
-#	print "temp_init: id=", id(tmp), tmp
 	return tmp
 
 
 def get_tmp_slot(tmp, slot_type="vm_word_t") :
-#	print "get_tmp_slot: id=", id(tmp)
 	if "empty" in tmp[slot_type] :
 		slot = tmp[slot_type].index("empty")
 	else :
@@ -911,19 +748,14 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 
 
 def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
-#	print "add_tmp_ref:", refs
-#	print "add_tmp_ref: id=", id(tmp)
 	assert(len(refs)>0)
 	assert(slot_type != "<inferred>")
 	slot = get_tmp_slot(tmp, slot_type=slot_type)
-#	print here(2), "add_tmp_ref: ", "slot=", slot, "type=", slot_type
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
 
 def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
-#	print "pop_tmp_ref:", "slot_type=", slot_type, "searching:", b, t
-#	pprint(tmp)
 	for _, t_tmp in tmp.items() :
 		for slot, nr in zip(t_tmp, count()) :
 			if slot != "empty" and (b, t, t_nr) in slot :
@@ -938,7 +770,6 @@ def tmp_used_slots(tmp) :
 	"""
 	returns current number of non-empty slots of all types
 	"""
-#	print "tmp_used_slots: id=", id(tmp)
 	return sum([ sum([ 1 for slot in t_tmp if slot != "empty" ])
 		for tp, t_tmp in tmp.items() ])
 
@@ -950,7 +781,6 @@ def tmp_max_slots_used(tmp, slot_type=None) :
 	"""
 	slots = [ t_tmp for tp, t_tmp in tmp.items()
 		if slot_type == None or tp == slot_type ]
-#	print "tmp_used_slots: id=", id(tmp), usage
 	return sum([ sum([ 1 for slot in t_tmp ]) for t_tmp in slots ])
 
 
@@ -1017,6 +847,8 @@ def replace_block(g, n, m) :
 	g[m] = adjs_t(
 		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
 		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
+
+# ------------------------------------------------------------------------------------------------------------
 
 
 def init_pipe_protos(known_types) :
@@ -1188,9 +1020,6 @@ if __name__ == "__main__" :
 		sheets = { "tsk" : model }
 		global_meta = {}
 
-#TODO use meta to set task name (that is, method name in generated code)
-#TODO make states (delays) global
-#TODO ...which requires initializer method
 	if action == "c" :
 		import ccodegen as cg
 	elif action == "f" :
