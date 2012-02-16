@@ -951,12 +951,12 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	tsk_name = "loop"
 	graph_data.append((tsk_name, graph, delays, {}, types))
 
-	setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
 	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
-	setup_call.value = ("setup", )
 	loop_call.value = (tsk_name, )
 	main_tsk_g = { loop_call : adjs_t([], []) }
 	if "@setup" in special :
+		setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+		setup_call.value = ("setup", )
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 	tsk_name = "main"
