@@ -233,55 +233,70 @@ def __expand_joints_new(g) :
 #		 s=[ ]), ...
 
 
-def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
+#def __join_one_tap(g, tap_ends_lst, tap, expd_delays, policy, additions) :
+#	p, s = g[tap]
+#	((_, _, ((pb, pt, pt_nr),)),) = p
+
+#	if policy == "wire" :
+#		tap_pred = (pb, pt, pt_nr)
+#		snippet_out = {}
+#		succs = []
+#		snippet_in = {}
+#	elif policy == "delay" :
+#		del_seed = max([ d.nr for d in expd_delays ]) if expd_delays else 0
+#		d =  BlockModel(DelayProto(), None)
+#		nr = d.nr = del_seed + 1
+#		(d, (i, o)) = __expddel(d, nr)
+#		expd_delays[d] = (i, o)
+#		tap_pred = (o, o.terms[0], 0)
+#		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
+#		snippet_in = {
+#			i : adjs_t([(i.terms[0], 0, [])], [])
+#		}#TODO make function to generate this
+#		snippet_out = {
+#			o : adjs_t([], [(o.terms[0], 0, [])])
+#		}
+#		additions[tap] = [ i ]
+#	else :
+#		raise Exception("unknown tap joining policy")
+
+#	for tap_end in tap_ends_lst :
+#		_, tap_end_succs = g[tap_end]
+#		if policy == "wire" :
+#			succs += tap_end_succs
+#		elif policy == "delay" :
+#			if tap_end in additions :
+#				additions[tap_end].append(o)
+#			else :
+#				additions[tap_end] = o
+
+#		map_out = { (out_term, out_term_nr) : tap_pred
+#			for out_term, out_term_nr, _ in tap_end_succs }
+
+#		print(here(), tap_end, snippet_out, {}, map_out)
+#		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
+
+#		assert(not tap_end in g)
+
+#	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
+
+#	print(here(), tap, snippet_in, map_in)
+#	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
+
+
+def __join_one_tap(g, tap_ends_lst, tap) :
 	p, s = g[tap]
 	((_, _, ((pb, pt, pt_nr),)),) = p
-
-	if policy == "wire" :
-		tap_pred = (pb, pt, pt_nr)
-		snippet_out = {}
-		succs = []
-		snippet_in = {}
-	elif policy == "delay" :
-		del_seed = max([ d.nr for d in expd_delays ]) if expd_delays else 0
-		d =  BlockModel(DelayProto(), None)
-		nr = d.nr = del_seed + 1
-		(d, (i, o)) = __expddel(d, nr)
-		expd_delays[d] = (i, o)
-		tap_pred = (o, o.terms[0], 0)
-		succs = [ (None, None, [(i, i.terms[0], 0)]), ]
-		snippet_in = {
-			i : adjs_t([(i.terms[0], 0, [])], [])
-		}#TODO make function to generate this
-		snippet_out = {
-			o : adjs_t([], [(o.terms[0], 0, [])])
-		}
-		additions[tap] = [ i ]
-	else :
-		raise Exception("unknown tap joining policy")
-
+	succs = []
 	for tap_end in tap_ends_lst :
-		_, tap_end_succs = g[tap_end]
-		if policy == "wire" :
-			succs += tap_end_succs
-		elif policy == "delay" :
-			if tap_end in additions :
-				additions[tap_end].append(o)
-			else :
-				additions[tap_end] = o
-
-		map_out = { (out_term, out_term_nr) : tap_pred
+		tap_end_preds, tap_end_succs = g[tap_end]
+		succs += tap_end_succs
+		map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr)
 			for out_term, out_term_nr, _ in tap_end_succs }
-
-		print(here(), tap_end, snippet_out, {}, map_out)
-		__replace_block_with_subgraph(g, tap_end, snippet_out, {}, map_out)
-
+		__replace_block_with_subgraph(g, tap_end, {}, {}, map_out)
 		assert(not tap_end in g)
-
 	map_in = { (tap.terms[0], 0) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] }
-
-	print(here(), tap, snippet_in, map_in)
-	__replace_block_with_subgraph(g, tap, snippet_in, map_in, {})
+	__replace_block_with_subgraph(g, tap, {}, map_in, {})
 
 
 def get_taps(g) :
@@ -304,23 +319,32 @@ def get_tap_ends(g) :
 	return tap_ends
 
 
-def join_taps(g, expd_delays, policies={}) :
-	"""
-	policies = { tap : "<policy>", ... }
-	return { tap_replaced : [ replacement, ... ], ...}
-	"""
-	known_policies = { "wire", "delay" }#, "snippet" }
-	assert(all([v in known_policies for v in policies.values()]))
+#def join_taps(g, expd_delays, policies={}) :
+#	"""
+#	policies = { tap : "<policy>", ... }
+#	return { tap_replaced : [ replacement, ... ], ...}
+#	"""
+#	known_policies = { "wire", "delay" }#, "snippet" }
+#	assert(all([v in known_policies for v in policies.values()]))
+#	taps = get_taps(g)
+#	tap_ends = get_tap_ends(g)
+#	additions={}
+#	for tap_name, tap in taps.items() :
+#		tap_end = tap_ends.pop(tap.value) #TODO do not pop
+#		policy = policies[tap] if tap in policies else "wire"
+#		__join_one_tap(g, tap_end, tap, expd_delays, policy, additions)
+##	pprint(tap_ends)
+##	assert(len(tap_ends)==0)
+#	return (additions, )
+
+
+def join_taps(g) :
 	taps = get_taps(g)
 	tap_ends = get_tap_ends(g)
 	additions={}
 	for tap_name, tap in taps.items() :
 		tap_end = tap_ends.pop(tap.value) #TODO do not pop
-		policy = policies[tap] if tap in policies else "wire"
-		__join_one_tap(g, tap_end, tap, expd_delays, policy, additions)
-#	pprint(tap_ends)
-#	assert(len(tap_ends)==0)
-	return (additions, )
+		__join_one_tap(g, tap_end, tap)
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -563,7 +587,7 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	__expand_joints_new(graph)
 
 	if do_join_taps :
-		join_taps(graph, delays)
+		join_taps(graph)
 
 	return graph, delays
 
@@ -868,10 +892,6 @@ def sortable_sinks(g, sinks) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO testing
-#TODO it may be better to use dictionary
-
-#__DBG = 0
 
 def temp_init(known_types) :
 	tmp = { tp_name : []
@@ -973,15 +993,6 @@ def block_value_by_name(n, value_name) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def skip_virtual_term(terms) :
-	for t in terms :
-		if not t.virtual :
-			yield t
-
-
-# ------------------------------------------------------------------------------------------------------------
-
-
 def chain_blocks(g, n, m) :
 	"""
 	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
@@ -995,74 +1006,17 @@ def chain_blocks(g, n, m) :
 
 def replace_block(g, n, m) :
 	p, s = g.pop(n)
-
-
-#	for neighbourhood in (p, s) :
-#		for t, t_nr, adj in neighbourhood :
-#			for b, bt, bt_nr in p :
-#				__neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
-
 	for t, t_nr, adj in p :
 		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-#		new_term, = (tnew for tnew in m.prototype.terms if tnew.name == t.name)
-#		print here(), id(t)
 		for b, bt, bt_nr in adj :
-#			print here(), id(new_term), id(bt)
 			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-
 	for t, t_nr, adj in s :
 		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-#		new_term, = (tnew for tnew in m.prototype.terms if tnew.name == t.name)
-#		print here(), id(t)
 		for b, bt, bt_nr in adj :
-#			print here(), id(new_term), id(bt)
 			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-
-#	print here(), p[0][]
-
-
 	g[m] = adjs_t(
 		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
 		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
-
-
-
-#def replace_pipes(g, known_types) :
-
-#	g_protos = {}
-#	for type_name in known_types :
-#		if type_name != "<inferred>" :
-#			gw_proto = GlobalWriteProto(type_name)
-#			gr_proto = GlobalReadProto(type_name)
-#			g_protos[type_name] = (gw_proto, gr_proto)
-
-#	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
-#	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
-
-#	unmatched = [ pe for pe in pipe_ends if not (pe in pipes) ]
-#	if unmatched :
-#		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
-
-#	pipe_ends_replacement = {}
-#	for n in pipes :
-#		pipe_name = block_value_by_name(n, "Name")
-#		pipe_default = block_value_by_name(n, "Default")
-##		pipe_type = infer_block_type(n, g[n].p, types, known_types)
-##		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
-
-#		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
-#		gw_proto, gr_proto = g_protos[type_name]
-
-#		pipe_ends_replacement[pipe_name] = gr_proto
-
-#		m = BlockModel(gw_proto, "itentionally left blank")
-#		replace_block(g, n, m)
-
-#	for pipe_end, pipe_name in pipe_ends.items() :
-#		gr_proto = pipe_ends_replacement[pipe_name]
-
-#		m = BlockModel(gr_proto, "itentionally left blank")
-#		replace_block(g, pipe_end, m)
 
 
 def init_pipe_protos(known_types) :
@@ -1077,26 +1031,17 @@ def init_pipe_protos(known_types) :
 
 
 def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-
 	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
-
-#	pipe_ends_replacement = {}
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_default = block_value_by_name(n, "Default")
 		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
 		gw_proto, gr_proto = g_protos[pipe_type]
 		pipe_replacement[pipe_name] = (pipe_type, pipe_default, gw_proto, gr_proto)
-	#TODO return something useful for generation of globals
+	#TODO maybe return something useful for generation of globals
 
 
 def replace_pipes(g, g_protos, pipe_replacement) :
-
-#	print "------------------------------"
-#	pprint(g)
-#	print "------------------------------"
-
-
 	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
 
 	unmatched = [ pe for pe in pipe_ends
@@ -1106,7 +1051,6 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 
 	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
 
-#	pipe_ends_replacement = {}
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_type, pipe_default, gw_proto, gr_proto = pipe_replacement[pipe_name]
@@ -1120,28 +1064,6 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 		m = BlockModel(gr_proto, "itentionally left blank")
 		m.value = (pipe_name, )
 		replace_block(g, pipe_end, m)
-
-#	print "++++++++++++++++++++++++++++++"
-#	pprint(g)
-#	print "++++++++++++++++++++++++++++++"
-
-#	for n, (p, s) in g.items() :
-#		if n.prototype.__class__ == PipeProto :
-#			pipe_name = block_value_by_name(n, "Name")
-#			pipe_default = block_value_by_name(n, "Default")
-#			pipe_type = infer_block_type(n, g[n].p, types, known_types)
-#			pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
-#		elif n.prototype.__class__ == PipeEndProto :
-#			pass
-
-#		if n.prototype.__class__ == PipeProto :
-#			pipe_name = block_value_by_name(n, "Name")
-#			pipe_default = block_value_by_name(n, "Default")
-#			pipe_type = infer_block_type(n, g[n].p, types, known_types)
-#			pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
-#			return "global{0} = {1}".format(i, args[0])
-#		elif n.prototype.__class__ == PipeEndProto :
-
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1166,18 +1088,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
-#TODO
-#def init_pipe_protos(g, known_types) :
-#def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-#def replace_pipes(g, g_protos, pipe_replacement) :
-
 	g_protos = init_pipe_protos(known_types)
 	pipe_replacement = {}
-#	pprint(g_protos)
-
-	libs_used = set()
-	pipe_vars = {}
-	tsk_cg_out = []
 
 	graph_data = []
 
@@ -1186,15 +1098,10 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		if name == "@setup" :
 			tsk_name = name.strip("@")
 			g, d = make_dag(s, None, known_types, do_join_taps=True)
-			join_taps(g, d)
+			join_taps(g)#use separately if there are special sheets to be merged
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)#XXX
-
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
-
-#			tsk_cg_out.append(codegen.codegen(g, d, tsk_setup_meta,
-#				types, known_types, pipe_vars, libs_used, task_name=tsk_name))
-
 		else :
 			raise Exception("impossible exception")
 
@@ -1202,17 +1109,11 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-	join_taps(graph, delays)
+	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
 	extract_pipes(graph, known_types, g_protos, pipe_replacement)#XXX
-
 	tsk_name = "loop"
-
 	graph_data.append((tsk_name, graph, delays, {}, types))
-
-#	tsk_cg_out.append(codegen.codegen(graph, delays, {},
-#		types, known_types, pipe_vars, libs_used, task_name=tsk_name))
-
 
 	setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
 	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
@@ -1222,19 +1123,13 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	if "@setup" in special :
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
-#	pprint(main_tsk_g)
-
 	tsk_name = "main"
 	main_tsk_meta = { "endless_loop_wrap" : False}
 	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
 
-#	tsk_cg_out.append(codegen.codegen(main_tsk_g, {}, main_tsk_meta,
-#		{}, known_types, {}, libs_used, task_name="main"))#XXX name of 'main' may depend on target, infer from "is_entry_point"
-
-#	pprint(pipe_replacement)
-#	pprint(graph_data)
-
-
+	tsk_cg_out = []
+	libs_used = set()
+	pipe_vars = {}
 	for tsk_name, g, d, meta, types in graph_data :
 		replace_pipes(g, g_protos, pipe_replacement)
 		tsk_cg_out.append(codegen.codegen(g, d, meta,
@@ -1245,15 +1140,10 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		if l.name in libs_used :
 			include_files.extend(l.include_files)
 
-#	pprint(pipe_replacement)
-
 	glob_vars = [ (pipe_name, pipe_type, pipe_default) for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
-#	pprint(glob_vars)
-
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
-
-#TODO say something about what you've done
+	#TODO say something about what you've done
 
 
 # ------------------------------------------------------------------------------------------------------------
