@@ -60,12 +60,13 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 	elif n.prototype.__class__ == core.GlobalReadProto :
 		pipe_name = block_value_by_name(n, "Name")
 		#TODO assert
-		return pipe_name#"global{0}".format(pipe_vars[pipe_name][0])
+		return pipe_name
 	elif n.prototype.__class__ == core.GlobalWriteProto :
 		pipe_name = block_value_by_name(n, "Name")
 		#TODO assert
 		assert(pipe_name)
-		return pipe_name#"{0} = {1}".format(i, args[0])
+#		return pipe_name
+		return "{0} = {1}".format(pipe_name, args[0])
 
 
 
@@ -98,11 +99,11 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 #		if out_term.virtual :
 #			continue
 		if out_term.type_name == "<inferred>" :
-			if n.prototype.__class__ == core.PipeEndProto :
-				pipe_name = block_value_by_name(n, "Name")
-				pipe_index, pipe_type, pipe_default = pipe_vars[pipe_name]
-				term_type = pipe_type
-			else :
+#			if n.prototype.__class__ == core.PipeEndProto :
+#				pipe_name = block_value_by_name(n, "Name")
+#				pipe_index, pipe_type, pipe_default = pipe_vars[pipe_name]
+#				term_type = pipe_type
+#			else :
 				term_type = types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name
@@ -303,12 +304,14 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 
 	f.write("".join(decls))
 
-	g_vars_grouped = groupby(sorted(global_vars.items(), key=lambda x: x[1]), key=lambda x: x[1][1])
-	g_vars_code = linesep.join((pipe_type + " " + ",".join(
-		("global"+str(i)+" = "+str(pipe_default)for _, (i, _, pipe_default) in vlist)) + ";" + linesep)
+	g_vars_grouped = groupby(sorted(global_vars, key=lambda x: x[1]), key=lambda x: x[1])
+	g_vars_code = tuple((pipe_type + " " + ",".join(
+		(i+" = "+str(pipe_default)for (i, _, pipe_default) in sorted(vlist))) + ";" + linesep)
 			for pipe_type, vlist in g_vars_grouped)
+
+#	pprint(g_vars_code)
 #	print here(), g_vars_code
-	f.write(g_vars_code)
+	f.write(linesep.join(g_vars_code))
 
 	f.write(linesep.join(functions))
 

@@ -1089,7 +1089,7 @@ def extract_pipes(g, known_types, g_protos, pipe_replacement) :
 		pipe_default = block_value_by_name(n, "Default")
 		pipe_type, v = parse_literal(pipe_default, known_types=known_types, variables={})
 		gw_proto, gr_proto = g_protos[pipe_type]
-		pipe_replacement[pipe_name] = (pipe_type, gw_proto, gr_proto)
+		pipe_replacement[pipe_name] = (pipe_type, pipe_default, gw_proto, gr_proto)
 	#TODO return something useful for generation of globals
 
 
@@ -1112,14 +1112,14 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 #	pipe_ends_replacement = {}
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
-		pipe_type, gw_proto, gr_proto = pipe_replacement[pipe_name]
+		pipe_type, pipe_default, gw_proto, gr_proto = pipe_replacement[pipe_name]
 		gw_proto, gr_proto = g_protos[pipe_type]
 		m = BlockModel(gw_proto, "itentionally left blank")
 		m.value = (pipe_name, )
 		replace_block(g, n, m)
 
 	for pipe_end, pipe_name in pipe_ends.items() :
-		pipe_type, gw_proto, gr_proto = pipe_replacement[pipe_name]
+		pipe_type, pipe_default, gw_proto, gr_proto = pipe_replacement[pipe_name]
 		m = BlockModel(gr_proto, "itentionally left blank")
 		m.value = (pipe_name, )
 		replace_block(g, pipe_end, m)
@@ -1248,7 +1248,12 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		if l.name in libs_used :
 			include_files.extend(l.include_files)
 
-	codegen.churn_code(global_meta, pipe_vars, tsk_cg_out, include_files, out_fobj)
+#	pprint(pipe_replacement)
+
+	glob_vars = [ (pipe_name, pipe_type, pipe_default) for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
+#	pprint(glob_vars)
+
+	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 
 #TODO say something about what you've done
