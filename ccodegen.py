@@ -31,7 +31,8 @@ __operators = {
 }
 
 
-def __implement(g, n, args, outs, types, known_types, pipe_vars) :
+def __implement(g, n, args, outs) :
+#, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __operators :
@@ -56,20 +57,16 @@ def __implement(g, n, args, outs, types, known_types, pipe_vars) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
 		return func_name + "(" + ", ".join(args + outs) + ")"
-
 	elif n.prototype.__class__ == core.GlobalReadProto :
+		assert(len(args)==0)
 		pipe_name = block_value_by_name(n, "Name")
-		#TODO assert
+		assert(pipe_name)
 		return pipe_name
 	elif n.prototype.__class__ == core.GlobalWriteProto :
+		assert(len(args)==1)
 		pipe_name = block_value_by_name(n, "Name")
-		#TODO assert
 		assert(pipe_name)
-#		return pipe_name
 		return "{0} = {1}".format(pipe_name, args[0])
-
-
-
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
@@ -173,7 +170,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 ##		slot = add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
 	else :
 #		print(here(), n.prototype.type_name)
-		expr = __implement(g, n, args, outs, types, known_types, pipe_vars)
+		expr = __implement(g, n, args, outs)#, types, known_types, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
 #	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
