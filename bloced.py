@@ -1404,10 +1404,15 @@ class BlockEditorWindow(object) :
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
-	def __workbench_status_changed(self, columns) :
-		print("workbench changed")
-		self.status_label_left.configure(text=columns[0])
-		self.status_label_right.configure(text=columns[-1])
+	def __workbench_status_changed(self, job, is_ok, reason) :
+		print("workbench changed", job, is_ok, reason)
+		if job == "build" :
+			if reason == "build_started" :
+				msg = "build started ..."
+			else :
+				msg = "build ok" if is_ok else "build failed"
+			self.status_label_right.configure(text=msg)
+#		self.status_label_left.configure(text=columns[-1])
 
 
 	def get_bloced(self) :
@@ -1698,14 +1703,15 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
-		self.add_top_menu("_Debu&g", [
-			CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
-			CmdMnu("Implement", None, self.implement),
-			CmdMnu("mkmac", None, self.mkmac),
-			CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
-			CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
-#		menu_debug.add_command(label="zoom",
-#			command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
+		if 0 :
+			self.add_top_menu("_Debu&g", [
+				CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
+				CmdMnu("Implement", None, self.implement),
+				CmdMnu("mkmac", None, self.mkmac),
+				CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
+				CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
+#			menu_debug.add_command(label="zoom",
+#				command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
 		self.rescan_ports()
 

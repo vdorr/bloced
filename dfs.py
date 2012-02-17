@@ -1128,9 +1128,17 @@ class Workbench(object) :
 		pass
 
 
-#	def build(model, board_type, out_fobj) :
 	def build(self) :
 		board_type = self.get_board()
+		sheets = self.__sheets
+		meta = self.get_meta()
+		self.build_job(board_type, sheets, meta)
+
+
+	def build_job(self, board_type, sheets, meta) :
+
+		self.__messages.put(("status", (("build", True, "build_started"), {})))
+
 	#	class DummyFile(object):
 	#		def write(self, s) :
 	#			print(s)
@@ -1139,13 +1147,15 @@ class Workbench(object) :
 		out_fobj = StringIO()
 		try :
 #			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
-			implement_workbench(self.__sheets, self.get_meta(),
+			implement_workbench(sheets, meta,
 				ccodegen, core.KNOWN_TYPES, self.blockfactory, out_fobj)
 		except Exception as e:
-#			return (False, e)
-			raise
+			self.__messages.put(("status", (("build", False, str(e)), {})))
+			return None
+
 		if out_fobj.tell() < 1 :
-			return (False, "no_code")
+			self.__messages.put(("status", (("build", False, "no_code_generated"), {})))
+			return None
 
 		source = out_fobj.getvalue()
 		print(source)
@@ -1172,9 +1182,12 @@ class Workbench(object) :
 			self.__blob = blob_stream.getvalue()
 			self.__blob_time = time.time()
 		else :
-			return (False, "build_failed")
+			self.__messages.put(("status", (("build", False, "compilation_failed"), {})))
+			return None
+#			return (False, "build_failed")
 
-		return (True, "ok")
+		self.__messages.put(("status", (("build", True, ""), {})))
+#		return (True, "ok")
 #		return (True, (blob, ))
 
 
@@ -1269,6 +1282,7 @@ class Workbench(object) :
 		try :
 			while not self.__messages.empty() :
 				messages.append(self.__messages.get_nowait())
+				print(here(), messages[-1])
 		except QueueEmpty :
 			pass
 		return messages
