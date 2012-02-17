@@ -1271,7 +1271,7 @@ class BlockEditorWindow(object) :
 			root = self.__menubar
 		mnu = Menu(root)
 		txt, under = self.__convert_mnu_text(text)
-		self.__menubar.add_cascade(menu=mnu, label=txt, underline=under)
+		root.add_cascade(menu=mnu, label=txt, underline=under)
 		for item, i in zip(items, count()) :
 			self.__add_menu_item(mnu, item, index=i)
 			self.__menu_items[text] = (mnu, i)
@@ -1667,7 +1667,7 @@ class BlockEditorWindow(object) :
 			SepMnu(), mnu_undo, mnu_redo,
 			SepMnu(), mnu_cut, mnu_copy, mnu_paste, mnu_delete,
 			SepMnu(), mnu_select_all ]
-		self.editor_popup = self.add_top_menu("", items=editor_menu, root=self.root)
+		self.editor_popup = self.add_top_menu("", items=editor_menu, root=Menu(self.root))
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 
