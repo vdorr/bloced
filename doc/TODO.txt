@@ -38,3 +38,8 @@ editor context menu
 make operators variadic
 keep out of collisions in global vars names, take into account delays and temps
 select block with right-click
+file menu - Revert
+editor move in grid
+editor show grid
+editor make move with mouse undoable at once
+
