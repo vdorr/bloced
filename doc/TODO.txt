@@ -41,7 +41,7 @@ select block with right-click
 file menu - Revert
 editor move in grid
 editor show grid
-editor make move with mouse undoable at once
+DONE - editor make move with mouse undoable at once
 target support packages
 tsp arduino
 tsp generic avr

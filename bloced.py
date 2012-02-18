@@ -438,6 +438,7 @@ class Block(Canvas, BlockBase) :
 		else :
 			sel_blocks = (self, )
 			self.editor.create_selection_from_list(sel_blocks, [])
+		self.editor.model.begin_edit()
 		self.affected_wires = self.get_wires(sel_blocks=sel_blocks)
 
 	def onMouseMoveW(self, e) :
@@ -452,6 +453,7 @@ class Block(Canvas, BlockBase) :
 	def onMouseUpW(self, e) :
 		if self.term_hit :
 			return None
+		self.editor.model.end_edit()
 		self.move_start = None
 		if self.affected_wires :
 			for k, v in self.affected_wires :

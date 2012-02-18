@@ -821,7 +821,6 @@ class GraphModel(object) :
 			self.__history_frame.insert(0, (action, data))
 
 	def begin_edit(self) :
-#		traceback.print_stack()
 		self.__editing = True
 		if not self.__history_frame_depth :
 #			self.__history_frame_depth = 0
@@ -832,7 +831,6 @@ class GraphModel(object) :
 #		self.__history_frame = []
 
 	def end_edit(self) :
-#		print "end_edit"
 		self.__history_frame_depth -= 1 if self.__history_frame_depth else 0
 #		self.__history_frame = None
 		if not self.__history_frame_depth :
