@@ -42,4 +42,7 @@ file menu - Revert
 editor move in grid
 editor show grid
 editor make move with mouse undoable at once
-
+target support packages
+tsp arduino
+tsp generic avr
+tsp incforth
