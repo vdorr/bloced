@@ -4,7 +4,6 @@ ccodegen distinguish macroes and functions (embed vs call)
 ... the same for fcodegen
 static assertions for term count/type configuration of variadic blocks
 monitoring system, probe block with custom format
-incforth machine runtime package
 optional FreeRTOS package
 optional Modbus package
 optional EEPROM support, sort of "persistent pipe"
@@ -46,3 +45,5 @@ target support packages
 tsp arduino
 tsp generic avr
 tsp incforth
+redo
+circumstance under which rerout wire
