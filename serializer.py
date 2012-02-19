@@ -119,6 +119,8 @@ def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 				if (block_nr, term_name, ntb, stt) in conn_meta else {})
 
 			tt2 = (tt, stt[1]) if isinstance(stt, tuple) else tt #XXX check this if problem with varterm occurs!
+#			print(here(), sb, st, tb, tt2, meta, deserializing)
+
 			m.add_connection(sb, st, tb, tt2, meta=meta, deserializing=deserializing)
 
 			conn_list.append((sb, st, tb, tt2))

@@ -627,17 +627,25 @@ class BlockEditor(Frame, GraphModelListener) :
 #				self.update_connection(*(k + (True,)))
 
 	def connection_changed(self, sb, st, tb, tt) :
-		pass # TODO
+		line, linecoords = self.connection2line[(sb, st, tb, tt)]
+		meta = self.model.get_connection_meta(sb, st, tb, tt)
+		path = meta["path"]
+		self.connection2line[(sb, st, tb, tt)] = (line, path)
+#		print(here(1), "old:", linecoords)
+#		print(here(1), "new:", path)
+		self.canv.coords(line, *path)
 
 	def connection_added(self, sb, st, tb, tt, deserializing=False) :
 		#TODO i/o arrow dir, make it cleaner
 		line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
 		self.connection2line[(sb, st, tb, tt)] = (line, [])
 
-		if deserializing :
-			conn_meta = self.model.get_connection_meta(sb, st, tb, tt)
+		conn_meta = dict(self.model.get_connection_meta(sb, st, tb, tt))
+#		print(here(), sb, st, tb, tt, "deserializing:", deserializing, "path" in conn_meta)
+
+		if deserializing or "path" in conn_meta :
 			if "path" in conn_meta :
-				linecoords = conn_meta["path"]
+				linecoords = list(conn_meta["path"])
 				self.connection2line[(sb, st, tb, tt)] = (line, linecoords)
 				self.canv.coords(line, *linecoords)
 			else :
@@ -679,6 +687,7 @@ class BlockEditor(Frame, GraphModelListener) :
 	# ----------------------------------------------------------------------------------------------------
 	
 	def update_connection(self, sb, t0, tb, t1, fullroute) :
+#		print(here(), fullroute)
 		line, path = self.connection2line[(sb, t0, tb, t1)]
 
 		st, sn = t0 if isinstance(t0, tuple) else (t0, 0)
@@ -767,24 +776,39 @@ class BlockEditor(Frame, GraphModelListener) :
 
 			self.manipulating = "connection"
 			self.mdata = item[0]
+#			print here(), self.mdata
+#			self.model.begin_edit()
+
 		else :
 			self.selection_rect = self.create_selection_rect(e.x, e.y, e.x, e.y)
 #			self.create_selection([])
 
+#		(sb, t0, tb, t1), (canv_line, linecoords) = self.mdata
+#		meta = self.model.get_connection_meta(sb, t0, tb, t1)
+#		print here(), "old:", meta["path"]
+
+
 	def default_mousemove(self, ee) :
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
+
+#		(sb, t0, tb, t1), (canv_line, _) = self.mdata
+#		meta = self.model.get_connection_meta(sb, t0, tb, t1)
+#		print here(), "old:", meta["path"]
 
 		if self.manipulating == "connection" :
 			diffX, diffY = (e.x - self.move_start.x), (e.y - self.move_start.y)
 			self.move_start = e
 			indices = range(self.mdata2[0], self.mdata2[0]+(self.mdata2[1]*2), 2)
+			wire, (canv_line, old_path) = self.mdata
+			path = list(old_path)
+#			path = list(self.mdata[1][1])
 			for i in indices :
-				if i > 0 and (i+2)<len(self.mdata[1][1]) :
-					self.mdata[1][1][i] += diffX
-					self.mdata[1][1][i+1] += diffY
-
+				if i > 0 and (i + 2) < len(path) :
+					path[i] += diffX
+					path[i + 1] += diffY
 			#self.connection2line[(sb, st, tb, tt)] = (line, linecoords)
-			self.canv.coords(self.mdata[1][0], *self.mdata[1][1])
+			self.canv.coords(self.mdata[1][0], *path)
+			self.mdata = wire, (canv_line, path)
 		elif self.selection_rect != None :
 			self.canv.coords(self.selection_rect, self.move_start.x, self.move_start.y, e.x, e.y)
 
@@ -796,6 +820,16 @@ class BlockEditor(Frame, GraphModelListener) :
 #			if not self.selection_rect :
 #				self.move_start = e
 #				self.selection_rect = self.create_selection_rect(e.x, e.y, e.x, e.y)
+
+		if self.manipulating == "connection" :
+			(sb, t0, tb, t1), (canv_line, linecoords) = self.mdata
+#			print here(), (sb, t0, tb, t1), linecoords
+#			meta = self.model.get_connection_meta(sb, t0, tb, t1)
+#			print here(), "old:", meta["path"]
+#			print here(), "new:", linecoords
+			self.model.begin_edit()
+			self.model.set_connection_meta(sb, t0, tb, t1, { "path" : linecoords })
+			self.model.end_edit()
 
 		self.manipulating = None
 		self.mdata = None

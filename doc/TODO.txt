@@ -47,3 +47,4 @@ tsp generic avr
 tsp incforth
 redo
 circumstance under which rerout wire
+store wire data for undo when changing block

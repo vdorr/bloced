@@ -617,22 +617,17 @@ class GraphModel(object) :
 		self.blocks.remove(block)
 		
 		succs = [ c for c in self.connections.iteritems() if c[0][0] == block ]
-#		succs = filter(lambda c: c[0][0] == block, self.connections.iteritems())
 
 		for s, dests in succs :
 			for d in dests :
 				self.remove_connection(*(s+d))
 
-#		preds = filter(lambda c: reduce(lambda a, dest: a or dest[0] == block, c[1], False),
-#			self.connections.iteritems())
 		preds = [ c for c in self.connections.iteritems()
 			if reduce(lambda a, dest: a or dest[0] == block, c[1], False) ]
+
 		for s, dests in preds :
-#			for d in filter(lambda dest: dest[0] == block, dests) :
 			for d in [ dest for dest in dests if dest[0] == block ] :
 				self.remove_connection(*(s+d))
-
-#		block.graph = None #XXX ?!
 
 		self.__history_frame_append("block_removed", (block, ))
 		self.__on_block_removed(block)
@@ -650,16 +645,19 @@ class GraphModel(object) :
 
 	def set_connection_meta(self, b0, t0, b1, t1, meta) :
 		old_meta = self.__connections_meta[(b0, t0, b1, t1)]
+#		print(here(3), "old:", old_meta)
 		if (b0, t0, b1, t1) in self.__connections_meta :
 			self.__connections_meta[(b0, t0, b1, t1)] = meta
 		else :
 			self.__connections_meta[(b0, t0, b1, t1)].update(meta)
+#		print(here(3), "new:", meta)
 		self.__history_frame_append("connection_meta", (b0, t0, b1, t1, old_meta))
 		self.__on_connection_changed(b0, t0, b1, t1)
 
 
 	def get_connection_meta(self, b0, t0, b1, t1) :
-		return self.__connections_meta[(b0, t0, b1, t1)]
+#		print(here(3), "new:", self.__connections_meta)
+		return dict(self.__connections_meta[(b0, t0, b1, t1)])
 
 
 	def __variadic_term_test(self, t, t_tst) :
@@ -706,7 +704,7 @@ class GraphModel(object) :
 			self.__connections[(b0, t0)].append((b1, t1))
 		else :
 			self.__connections[(b0, t0)] = [(b1, t1)]
-		self.connections_meta[(b0, t0, b1, t1)] = meta
+		self.__connections_meta[(b0, t0, b1, t1)] = meta
 
 		self.__history_frame_append("connection_added", ((b0, t0, b1, t1), meta))
 		self.__on_connection_added(b0, t0, b1, t1, deserializing=deserializing)
@@ -779,12 +777,14 @@ class GraphModel(object) :
 #		raise Exception("not implemented")
 		for listener in self.__listeners :
 			listener.connection_changed(sb, st, tb, tt)
+#			print(here(), (sb, st, tb, tt))
 
 	# ---------------------------------------------------------------------------------
 
 	def undo(self) :
 		if self.__undo_stack :
 			frame = self.__undo_stack.pop()
+#			print(here(), frame)
 #			self.__redo_stack.append(frame)
 			self.__revert_frame(frame)
 
@@ -807,20 +807,30 @@ class GraphModel(object) :
 
 	def __revert_frame(self, frame) :
 		self.__editing = False #TODO redo, swap stacks
+#		print(here(), frame)
 		for act, data in frame :
 			GraphModel.inverse_actions[act](self, data)
 
 	#XXX do i really want to have logic of history logging in _this_ class?!
 	#XXX XXX XXX probably its enough to log changes in model and frame them in editor actions
 	def __history_frame_append(self, action, data) :
+		if not self.__enable_logging :
+#			print(here(), "not logging!")
+			return None
+#		print(here())
 		self.__assert_editing()
 		if self.__history_frame == None:#XXX should not happen because of __assert_editing
-#			print "no opened frame"
+#			print(here(), "no opened frame")
+#			raise Exception("shit!!")
 			pass
 		else :
+#			print(here(), action, data)
 			self.__history_frame.insert(0, (action, data))
 
 	def begin_edit(self) :
+		if not self.__enable_logging :
+#			print(here(), "not logging!")
+			return None
 		self.__editing = True
 		if not self.__history_frame_depth :
 #			self.__history_frame_depth = 0
