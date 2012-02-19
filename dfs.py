@@ -380,21 +380,7 @@ class BlockModel(object) :
 		index = self.get_term_index(t, t_nr) if t.variadic else 1
 		c = (index - 1) * term_size if t.variadic else 0
 #XXX XXX XXX
-		#TODO precompute
-##		sides = {
-##			N : lambda p, tw: ((self.width*p-t_size/2+c, 0), (0, t_size)),
-##			S : lambda p, tw: ((self.width*p-t_size/2+c, self.height-t_size-1), (0, -t_size)),
-##			W : lambda p, tw: ((0, self.height*p-t_size/2+c), (t_size, 0)),
-##			E : lambda p, tw: ((self.width-t_size-1, self.height*p-t_size/2+c), (-1-tw, 0)),
-##			C : lambda p, tw: ((0.5*self.width, 0.5*self.height), (0, 0)),
-##		}
-#		sides = {
-#			N : lambda p, tw: ((self.width*p-shift+c, 0), (0, t_size)),
-#			S : lambda p, tw: ((self.width*p-shift+c, self.height-t_size-1), (0, -t_size)),
-#			W : lambda p, tw: ((0, self.height*p-shift+c), (t_size, 0)),
-#			E : lambda p, tw: ((self.width-t_size-1, self.height*p-shift+c), (-1-tw, 0)),
-#			C : lambda p, tw: ((self.width/2, self.height/2), (0, 0)),
-#		}
+
 		p = t.get_pos(self)
 		tw = text_width
 		side = t.get_side(self)
@@ -405,23 +391,22 @@ class BlockModel(object) :
 			w, h = self.default_size
 
 		if side == N :
-			pos = ((w*p-shift+c, 0),		(0, t_size))
+			pos = ((w*p-shift+c, 0),	(0, 0))
 		elif side == S :
-#			pos = ((w*p-shift+c, h-t_size-1),	(0, -t_size))
-			pos = ((w*p-shift+c, h-1),	(0, -t_size))
+			pos = ((w*p-shift+c, h-1),	(0, 0))
 		elif side == W :
-			pos = ((0, h*p-shift+c),		(t_size, 0))
+			pos = ((0, h*p-shift+c),	(0, 0))
 		elif side == E :
-#			pos = ((w-t_size-1, h*p-shift+c),	(-1-tw, 0))
-			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
-#			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
+			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
 		elif side == C :
-			pos = ((w/2, h/2),			(0, 0))
+			pos = ((w/2, h/2),		(0, 0))
 		else :
 			raise Exception()
 
 		#XXX XXX (x, y), (txtx, txty) = 
 		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
+#		txtx, txty = 0, 0
+#		print(here(), x, y, self.width, self.height)
 		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 
 #	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,

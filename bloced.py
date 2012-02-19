@@ -184,27 +184,25 @@ class InputDialog(Dialog) :
 
 #TODO move to dfs
 def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
-#	print "txt_width=", txt_width
-	txt_height = tsz #XXX XXX XXX
-	orgx, orgy = tx+0.5*(txt_width+tsz), ty+0.5*tsz
-#	orgx, orgy = tx+0.5*tsz, ty+0.5*tsz
+	txt_height = tsz
 	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
-#	a = (ang[side] + (0 if direction == INPUT_TERM else 180)) % 360
+	txt_width += (0 if direction == INPUT_TERM else tsz)
+	shift = { N : (0, 0), S : (0, txt_width+1), W : (0, 0), E : (txt_width+1, 0), C : (0, 0), }
+	sx, sy = shift[side]
+	glyph = ( (tx-sx, ty-1-sy),
+		(tx+1+txt_width-sx, ty-1-sy),
+		(tx+txt_width-sx+1+(tsz/2 if direction == INPUT_TERM else -tsz/2), ty-sy+tsz/2),
+		(tx+1+txt_width-sx, ty+tsz-sy+1),
+		(tx-sx, ty+tsz-sy+1) )
+	l, t, w, h = mathutils.bounding_rect(glyph)
+	orgx = l + 0.5 * w
+	orgy = t + 0.5 * h
 	a = (ang[side]) % 360
 	sin_angle, cos_angle = mathutils.rotate4_trig_tab[a]
-	r = lambda xx, yy: (
-		orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
-		orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
-#	return r(tx, ty) + r(tx+tsz, ty+tsz/2) + r(tx, ty+tsz)
-
-#	return ( r(tx, ty) + r(tx+tsz+txt_width, ty) +
-#		r(tx+tsz+txt_width, ty+txt_height) + r(tx, ty+tsz) + r(tx+tsz, ty+tsz/2) )
-
-	return ( r(tx, ty) +
-		r(tx+tsz+txt_width, ty) +
-		r(tx+txt_width+tsz+tsz/2, ty+tsz/2) +
-		r(tx+tsz+txt_width, ty+txt_height) +
-		r(tx, ty+tsz) )
+	def r(xx, yy) :
+		return (orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
+			orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
+	return tuple(r(*p) for p in glyph)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -415,14 +413,15 @@ class Block(Canvas, BlockBase) :
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
 			poly = get_term_poly(
-				x-(term_size if t_side == E else 0),
-				y-(term_size if t_side == S else 0),
+				x,#x-(term_size if t_side == E else 0),
+				y,#y-(term_size if t_side == S else 0),
 				term_size, t.get_side(self.model), t.direction, txt_width)
 
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
 			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
+			self.bind_as_term(txt)
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt

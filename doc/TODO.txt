@@ -48,3 +48,6 @@ tsp incforth
 redo
 circumstance under which rerout wire
 store wire data for undo when changing block
+undo add wire
+make graphic function (terms, labels) less crazy
+refactor variadic term placement
