@@ -51,3 +51,4 @@ store wire data for undo when changing block
 undo add wire
 make graphic function (terms, labels) less crazy
 refactor variadic term placement
+somehow handle canvas size

@@ -1738,17 +1738,41 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
-		if 0 :
+		if 1 :
 			self.add_top_menu("_Debu&g", [
 				CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
 				CmdMnu("Implement", None, self.implement),
 				CmdMnu("mkmac", None, self.mkmac),
 				CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
-				CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())) ])
+				CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())),
+				CmdMnu("edit custom target", None, self.edit_custom_target), ])
 #			menu_debug.add_command(label="zoom",
 #				command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
 		self.rescan_ports()
+
+
+	def edit_custom_target(self) :
+		items = (
+			("name", "(custom target name)"),
+			("upload.protocol", "arduino"),
+			("upload.maximum", "30720"),#mind size of bootloader
+			("upload.speed", "57600"),#??
+			("bootloader.low_fuses", "0xFF"),#??
+			("bootloader.high_fuses", "0xDA"),#??
+			("bootloader.extended_fuses", "0x05"),#??
+			("bootloader.path", "atmega"),
+			("bootloader.file", "a.hex"),
+			("bootloader.unlock_bits", "0x3F"),#??
+			("bootloader.lock_bits", "0x0F"),#??
+			("build.mcu", "atmega328"),
+			("build.f_cpu", "16000000L"),
+			("build.core", "arduino"),
+		)
+		d = InputDialog(self.root, "Edit custom target",
+			items=items)
+		if d.value :
+			pprint(d.value)
 
 
 #	@catch_all
