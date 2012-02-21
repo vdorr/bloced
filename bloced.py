@@ -1040,7 +1040,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__raise_changed_event()#XXX decorator?
 
 	def do_redo(self) :
-		self.model.undo()
+		self.model.redo()
 		self.__raise_changed_event()#XXX decorator?
 
 	def __raise_changed_event(self) :
