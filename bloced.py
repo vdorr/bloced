@@ -452,12 +452,14 @@ class Block(Canvas, BlockBase) :
 	def onMouseUpW(self, e) :
 		if self.term_hit :
 			return None
-		self.editor.model.end_edit()
 		self.move_start = None
 		if self.affected_wires :
+#			self.editor.model.begin_edit()
 			for k, v in self.affected_wires :
 				self.editor.update_connection(*(k + (True,)))
+#			self.editor.model.end_edit()
 		self.affected_wires = None
+		self.editor.model.end_edit()
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -679,7 +681,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.connection2line.pop((sb, st, tb, tt))
 		for block in (sb, tb) :
 			if block in self.block_index :
-#				print "connection_removed: rewiring"
 				for k, v in self.block_index[block].get_wires() :
 					self.update_connection(*(k + (True,)))
 

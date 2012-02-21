@@ -228,6 +228,7 @@ class BlockModel(object) :
 	def set_meta(self, meta) :
 		for k, v in meta.items() :
 			self.__getattribute__("_BlockModel__set_"+k)(v)
+			assert(not(k is None))
 			self.__raise_block_changed({"p":k})
 
 	def __set_term_meta(self, meta) :
@@ -768,21 +769,34 @@ class GraphModel(object) :
 
 	def undo(self) :
 		if self.__undo_stack :
+			assert(self.__history_frame_depth == 0)
+			print(here(), len(self.__undo_stack), len(self.__redo_stack), id(self.__undo_stack), id(self.__redo_stack))
 			frame = self.__undo_stack.pop()
-#			print(here(), frame)
-#			self.__redo_stack.append(frame)
+#			self.__redoing = True
+			undo_stack = self.__undo_stack
+			self.__undo_stack = self.__redo_stack
+			self.begin_edit()
 			self.__revert_frame(frame)
+			self.end_edit()
+			self.__undo_stack = undo_stack
+#			self.__redoing = False
+			print(here(), len(self.__undo_stack), len(self.__redo_stack), id(self.__undo_stack), id(self.__redo_stack))
 
 #XXX swap stacks and log?
 	def redo(self) :
-		pass
-#		if self.__redo_stack :
-#			frame = self.__redo_stack.pop()
-#			self.__undo_stack.append(frame)
-#			self.__revert_frame(frame)
+		print(here(), len(self.__undo_stack), len(self.__redo_stack))
+		if self.__redo_stack :
+			assert(self.__history_frame_depth == 0)
+			frame = self.__redo_stack.pop()
+			self.__redoing = True
+			self.begin_edit()
+			self.__revert_frame(frame)
+			self.end_edit()
+			self.__redoing = False
+			print(here(), len(self.__undo_stack), len(self.__redo_stack))
 
 	inverse_actions = {
-		"connection_added" : lambda self, data: self.remove_connection(*data),
+		"connection_added" : lambda self, data: self.remove_connection(*data[0]),
 		"connection_removed" : lambda self, data: self.add_connection(*data[0], meta=data[1]),
 		"connection_meta" : lambda self, data: self.set_connection_meta(*data),
 		"block_removed" : lambda self, data: self.add_block(data[0]),
@@ -791,9 +805,10 @@ class GraphModel(object) :
 	}
 
 	def __revert_frame(self, frame) :
-		self.__editing = False #TODO redo, swap stacks
-#		print(here(), frame)
+#		self.__editing = False #TODO redo, swap stacks
+		print(here(), len(frame))
 		for act, data in frame :
+			print(here(), act)
 			GraphModel.inverse_actions[act](self, data)
 
 	#XXX do i really want to have logic of history logging in _this_ class?!
@@ -802,14 +817,17 @@ class GraphModel(object) :
 		if not self.__enable_logging :
 #			print(here(), "not logging!")
 			return None
-#		print(here())
+#		print(here(), action, data)#"redo " if self.__redoing else "undo")
+		if not self.__redoing :
+#			print(here(), action)
+			del self.__redo_stack[:]
 		self.__assert_editing()
 		if self.__history_frame == None:#XXX should not happen because of __assert_editing
-#			print(here(), "no opened frame")
-#			raise Exception("shit!!")
+#			print(here(10), "no opened frame!")
+			raise Exception("no opened frame!")
 			pass
 		else :
-#			print(here(), action, data)
+			print(here(4), action, data)#len(self.__history_frame))
 			self.__history_frame.insert(0, (action, data))
 
 	def begin_edit(self) :
@@ -817,8 +835,9 @@ class GraphModel(object) :
 #			print(here(), "not logging!")
 			return None
 		self.__editing = True
-		if not self.__history_frame_depth :
+		if self.__history_frame_depth == 0 :
 #			self.__history_frame_depth = 0
+#			print(here())
 			self.__history_frame = []
 #			print "frame opened"
 		self.__history_frame_depth += 1
@@ -826,13 +845,22 @@ class GraphModel(object) :
 #		self.__history_frame = []
 
 	def end_edit(self) :
-		self.__history_frame_depth -= 1 if self.__history_frame_depth else 0
+#		self.__history_frame_depth -= 1 if self.__history_frame_depth else 0
+		self.__history_frame_depth -= 1
+		if self.__history_frame_depth < 0 :
+			raise Exception("undo framing underflow!")
+
 #		self.__history_frame = None
-		if not self.__history_frame_depth :
+		if self.__history_frame_depth == 0:
 #			print "frame closed", self.__history_frame
+
+			print(here(), len(self.__history_frame), len(self.__undo_stack), len(self.__redo_stack))
 			self.__undo_stack.append(self.__history_frame)
+#			self.__undo_stack.insert(0, self.__history_frame)
+
 #			self.__history_frame_depth = 0
 #			self.__history_frame = []
+
 			self.__history_frame = None
 			self.__editing = False
 
@@ -873,6 +901,7 @@ class GraphModel(object) :
 		self.__redo_stack = []
 		self.__editing = False
 		self.__enable_logging = True
+		self.__redoing = False
 
 		self.__blocks = []
 		self.__connections = {}
