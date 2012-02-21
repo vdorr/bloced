@@ -145,7 +145,105 @@ class VirtualOut(TermModel) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
+	txt_height = tsz
+	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
+	txt_width += (0 if direction == INPUT_TERM else tsz)
+	shift = { N : (0, 0), S : (0, txt_width+1), W : (0, 0), E : (txt_width+1, 0), C : (0, 0), }
+	sx, sy = shift[side]
+	glyph = ( (tx-sx, ty-1-sy),
+		(tx+1+txt_width-sx, ty-1-sy),
+		(tx+txt_width-sx+1+(tsz/2 if direction == INPUT_TERM else -tsz/2), ty-sy+tsz/2),
+		(tx+1+txt_width-sx, ty+tsz-sy+1),
+		(tx-sx, ty+tsz-sy+1) )
+	l, t, w, h = mathutils.bounding_rect(glyph)
+	orgx = l + 0.5 * w
+	orgy = t + 0.5 * h
+	a = (ang[side]) % 360
+	sin_angle, cos_angle = mathutils.rotate4_trig_tab[a]
+	def r(xx, yy) :
+		return (orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
+			orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
+	return tuple(r(*p) for p in glyph)
+
+# ------------------------------------------------------------------------------------------------------------
+
 class BlockModel(object) :
+
+	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
+
+#		dw, dh = self.__prototype.default_size
+
+		t_size = term_size
+		shift = t_size/2 if center else 0
+#XXX XXX XXX
+#		index = t_nr
+		index = self.get_term_index(t, t_nr) if t.variadic else 1
+		c = (index - 1) * term_size if t.variadic else 0
+#XXX XXX XXX
+
+		p = t.get_pos(self)
+		tw = text_width
+		side = t.get_side(self)
+
+		if t.variadic :
+			w, h = self.width, self.height
+		else :
+			w, h = self.default_size
+
+		if side == N :
+			pos = ((w*p-shift+c, 0),	(0, 0))
+		elif side == S :
+			pos = ((w*p-shift+c, h-1),	(0, 0))
+		elif side == W :
+			pos = ((0, h*p-shift+c),	(0, 0))
+		elif side == E :
+			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
+		elif side == C :
+			pos = ((w/2, h/2),		(0, 0))
+		else :
+			raise Exception()
+
+		#XXX XXX (x, y), (txtx, txty) = 
+		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
+#		txtx, txty = 0, 0
+#		print(here(), x, y, self.width, self.height)
+		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
+
+#	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,
+#			t_nr, text_width, txt_height, center=True) :
+
+#		t_size = term_size
+#		shift = t_size/2 if center else 0
+##XXX XXX XXX
+#		index = term_index if is_variadic else 1
+#		c = (index - 1) * term_size if is_variadic else 0
+##XXX XXX XXX
+#		p = term_pos
+#		tw = text_width
+#		side = term_side
+
+#		if is_variadic :
+#			w, h = self.width, self.height
+#		else :
+#			w, h = self.default_size
+
+#		if side == N :
+#			pos = ((w*p-shift+c, 0),		(0, t_size))
+#		elif side == S :
+#			pos = ((w*p-shift+c, h-1),	(0, -t_size))
+#		elif side == W :
+#			pos = ((0, h*p-shift+c),		(t_size, 0))
+#		elif side == E :
+#			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
+#		elif side == C :
+#			pos = ((w/2, h/2),			(0, 0))
+#		else :
+#			raise Exception()
+
+#		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
+#		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
+
 
 	def __lt__(self, other):
 		return id(other) < id(self)
@@ -368,81 +466,6 @@ class BlockModel(object) :
 		return (x+self.left, y+self.top)
 #		assert(retval==...
 #		return retval
-
-	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
-
-#		dw, dh = self.__prototype.default_size
-
-		t_size = term_size
-		shift = t_size/2 if center else 0
-#XXX XXX XXX
-#		index = t_nr
-		index = self.get_term_index(t, t_nr) if t.variadic else 1
-		c = (index - 1) * term_size if t.variadic else 0
-#XXX XXX XXX
-
-		p = t.get_pos(self)
-		tw = text_width
-		side = t.get_side(self)
-
-		if t.variadic :
-			w, h = self.width, self.height
-		else :
-			w, h = self.default_size
-
-		if side == N :
-			pos = ((w*p-shift+c, 0),	(0, 0))
-		elif side == S :
-			pos = ((w*p-shift+c, h-1),	(0, 0))
-		elif side == W :
-			pos = ((0, h*p-shift+c),	(0, 0))
-		elif side == E :
-			pos = ((w-1, h*p-shift+c),	(-1-tw, 0))
-		elif side == C :
-			pos = ((w/2, h/2),		(0, 0))
-		else :
-			raise Exception()
-
-		#XXX XXX (x, y), (txtx, txty) = 
-		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
-#		txtx, txty = 0, 0
-#		print(here(), x, y, self.width, self.height)
-		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
-
-#	def get_term_and_lbl_pos_alt(self, is_variadic, term_pos, term_side, term_index,
-#			t_nr, text_width, txt_height, center=True) :
-
-#		t_size = term_size
-#		shift = t_size/2 if center else 0
-##XXX XXX XXX
-#		index = term_index if is_variadic else 1
-#		c = (index - 1) * term_size if is_variadic else 0
-##XXX XXX XXX
-#		p = term_pos
-#		tw = text_width
-#		side = term_side
-
-#		if is_variadic :
-#			w, h = self.width, self.height
-#		else :
-#			w, h = self.default_size
-
-#		if side == N :
-#			pos = ((w*p-shift+c, 0),		(0, t_size))
-#		elif side == S :
-#			pos = ((w*p-shift+c, h-1),	(0, -t_size))
-#		elif side == W :
-#			pos = ((0, h*p-shift+c),		(t_size, 0))
-#		elif side == E :
-#			pos = ((w-1, h*p-shift+c),	(-1-tw-t_size, 0))
-#		elif side == C :
-#			pos = ((w/2, h/2),			(0, 0))
-#		else :
-#			raise Exception()
-
-#		(x, y), (txtx, txty) = pos#sides[t.get_side(self)](t.get_pos(self), text_width)
-#		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
-
 
 	def get_label_pos(self, txt_width, txt_height) :
 		side =  [W, N, E, S][self.orientation[2]//90]

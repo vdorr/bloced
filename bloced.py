@@ -182,30 +182,6 @@ class InputDialog(Dialog) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO move to dfs
-def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
-	txt_height = tsz
-	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
-	txt_width += (0 if direction == INPUT_TERM else tsz)
-	shift = { N : (0, 0), S : (0, txt_width+1), W : (0, 0), E : (txt_width+1, 0), C : (0, 0), }
-	sx, sy = shift[side]
-	glyph = ( (tx-sx, ty-1-sy),
-		(tx+1+txt_width-sx, ty-1-sy),
-		(tx+txt_width-sx+1+(tsz/2 if direction == INPUT_TERM else -tsz/2), ty-sy+tsz/2),
-		(tx+1+txt_width-sx, ty+tsz-sy+1),
-		(tx-sx, ty+tsz-sy+1) )
-	l, t, w, h = mathutils.bounding_rect(glyph)
-	orgx = l + 0.5 * w
-	orgy = t + 0.5 * h
-	a = (ang[side]) % 360
-	sin_angle, cos_angle = mathutils.rotate4_trig_tab[a]
-	def r(xx, yy) :
-		return (orgx + ((xx - orgx) * cos_angle - (yy - orgy) * sin_angle),
-			orgy + ((xx - orgx) * sin_angle + (yy - orgy) * cos_angle))
-	return tuple(r(*p) for p in glyph)
-
-# ------------------------------------------------------------------------------------------------------------
-
 class BlockBase(object) :
 
 	def get_wires(self, sel_blocks=None) :
