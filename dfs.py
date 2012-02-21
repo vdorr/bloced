@@ -145,7 +145,10 @@ class VirtualOut(TermModel) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+import mathutils
+
 def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
+#TODO try to rotate around center of block
 	txt_height = tsz
 	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
 	txt_width += (0 if direction == INPUT_TERM else tsz)
