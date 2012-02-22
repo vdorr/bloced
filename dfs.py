@@ -256,22 +256,38 @@ class BlockModel(object) :
 
 	class edit(object) :
 	
-		def __init__(self, prop_name) :
+		def __init__(self, prop_name=None) :
 			self.prop_name = prop_name
 		
 		def __call__(self, f) :
 			def decorated(*v, **w) :
-				old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+				if self.prop_name is None :
+					old_meta = v[0].get_meta()
+				else :
+					old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 				y = f(*v, **w)
-				new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-				v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, new_meta=new_meta, old_meta=old_meta)
+				if self.prop_name is None :
+					new_meta = v[0].get_meta()
+				else :
+					new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+				v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
 				return y
 			return decorated
 
-	def __raise_block_changed(self, e, old_meta=None, new_meta=None) :
+	def __raise_block_changed(self, e, old_meta, new_meta) :
 		if self.__model == "itentionally left blank" :
 			return None
 		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta)
+
+#	@edit()
+	def set_meta(self, meta) :
+		print here(3), meta
+		old_meta = self.get_meta()
+		for k, v in meta.items() :
+			
+			self.__getattribute__("_BlockModel__set_"+k)(v)
+			assert(not(k is None))
+			self.__raise_block_changed({"p":k}, {k:old_meta[k]}, {k:v})
 
 	@edit("value")
 	def __set_value(self, value) :
@@ -324,12 +340,6 @@ class BlockModel(object) :
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 		}
-
-	def set_meta(self, meta) :
-		for k, v in meta.items() :
-			self.__getattribute__("_BlockModel__set_"+k)(v)
-			assert(not(k is None))
-			self.__raise_block_changed({"p":k})
 
 	def __set_term_meta(self, meta) :
 		self.__term_meta = meta
@@ -764,6 +774,7 @@ class GraphModel(object) :
 			listener.block_removed(block)
 
 	def __on_block_changed(self, block, event, old_meta, new_meta) :
+		assert(not(old_meta is None))
 		self.__history_frame_append("block_meta", (block, old_meta))
 		for listener in self.__listeners :
 			listener.block_changed(block, event)
@@ -838,13 +849,14 @@ class GraphModel(object) :
 		if not self.__redoing :
 #			print(here(), action)
 			del self.__redo_stack[:]
+		assert(not(data is None))
 		self.__assert_editing()
 		if self.__history_frame == None:#XXX should not happen because of __assert_editing
 #			print(here(10), "no opened frame!")
 			raise Exception("no opened frame!")
 			pass
 		else :
-			print(here(4), action, data)#len(self.__history_frame))
+			print(here(), action, data)#len(self.__history_frame))
 			self.__history_frame.insert(0, (action, data))
 
 	def begin_edit(self) :

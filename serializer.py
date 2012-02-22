@@ -94,7 +94,8 @@ def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 	for n, type_name in types :
 		t = fact.get_block_by_name(type_name)
 		b = dfs.BlockModel(t, m)
-		b.set_meta(block_meta[n])
+		new_block_meta = block_meta[n]
+		b.set_meta({} if new_block_meta is None else new_block_meta)
 		blocks[n] = b
 		m.add_block(b)
 

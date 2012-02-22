@@ -52,4 +52,5 @@ undo add wire
 make graphic function (terms, labels) less crazy
 refactor variadic term placement
 somehow handle canvas size
-get rid of unnecessary undo logs (for example click on block)
+get rid of unnecessary undo logs (click on block, every move when moving with mouse)
+
