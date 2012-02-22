@@ -271,7 +271,7 @@ class BlockModel(object) :
 	def __raise_block_changed(self, e, old_meta=None, new_meta=None) :
 		if self.__model == "itentionally left blank" :
 			return None
-		self.__model._GraphModel__on_block_changed(self, event=e, old_meta=old_meta, new_meta=new_meta)
+		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta)
 
 	@edit("value")
 	def __set_value(self, value) :
@@ -307,7 +307,6 @@ class BlockModel(object) :
 	@edit("caption")
 	def __set_caption(self, v) :
 		self.__set_caption = v
-#		self.__raise_block_changed({"p":"caption"})
 
 	caption = property(lambda self: self.__caption, __set_caption)
 
@@ -359,7 +358,6 @@ class BlockModel(object) :
 	@edit("orientation")
 	def __set_orientation(self, v) :
 		self.__orientation = v
-#		self.__raise_block_changed({"p":"orientation"})
 
 	orientation = property(__get_orientation, __set_orientation)
 
@@ -380,7 +378,6 @@ class BlockModel(object) :
 			self.__height = v
 		else :
 			self.__width = v
-#		self.__raise_block_changed({"p":"width"})
 
 	def __get_prop_height(self) :
 		l = self.__height
@@ -403,7 +400,6 @@ class BlockModel(object) :
 			self.__width = v
 		else :
 			self.__height = v
-#		self.__raise_block_changed({"p":"height"})
 
 	def __get_left(self) :
 		return self.__left + ((self.__width - self.__height) / 2 if self.orientation[2] % 180 else 0)
@@ -411,7 +407,6 @@ class BlockModel(object) :
 	@edit("left")
 	def __set_left(self, v) :
 		self.__left = v - ((self.__width - self.__height) / 2 if self.orientation[2] % 180 else 0)
-#		self.__raise_block_changed({"p":"left"})
 
 	def __get_top(self) :
 		return self.__top + ((self.__height - self.__width) / 2 if self.orientation[2] % 180 else 0)
@@ -419,7 +414,6 @@ class BlockModel(object) :
 	@edit("top")
 	def __set_top(self, v) :
 		self.__top = v - ((self.__height - self.__width) / 2 if self.orientation[2] % 180 else 0)
-#		self.__raise_block_changed({"p":"top"})
 
 	def __get_center(self) :
 		return self.left+(self.width/2), self.top+(self.height/2)
@@ -616,7 +610,6 @@ class GraphModel(object) :
 #	def set_block_meta(self, block, meta) :
 #		for k, v in meta.iteritems() :
 #			self.__getattribute__("_BlockModel__set_"+k)(v)
-#			self.__raise_block_changed({"p":k})
 
 	def add_block(self, block) :
 		self.blocks.append(block)
@@ -758,8 +751,6 @@ class GraphModel(object) :
 
 		self.__history_frame_append("connection_removed", ((b0, t0, b1, t1), meta))
 		self.__on_connection_removed(b0, t0, b1, t1)
-#		self.__on_block_changed(self, b0)
-#		self.__on_block_changed(self, b1)
 
 
 	# ---------------------------------------------------------------------------------
@@ -772,7 +763,7 @@ class GraphModel(object) :
 		for listener in self.__listeners :
 			listener.block_removed(block)
 
-	def __on_block_changed(self, block, event=None, old_meta=None, new_meta=None) :
+	def __on_block_changed(self, block, event, old_meta, new_meta) :
 		self.__history_frame_append("block_meta", (block, old_meta))
 		for listener in self.__listeners :
 			listener.block_changed(block, event)
