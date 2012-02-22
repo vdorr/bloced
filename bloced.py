@@ -271,7 +271,9 @@ class Block(Canvas, BlockBase) :
 				in zip(self.model.prototype.values, self.model.value)]
 			d = InputDialog(self, items=items)
 			if d.value :
+				self.editor.model.begin_edit()
 				self.model.value = d.value
+				self.editor.model.end_edit()
 				self.update_text()
 #			entry = Entry(self)
 #			entry.insert(0, str(self.model.value))
@@ -583,10 +585,11 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.window_index.pop(window)
 
 	def block_changed(self, block, event=None, reroute=False) :
-#		print "block_changed", block
-		if self.manipulating == None and block in self.block_index : # and not self.move_indication :
+		if not block in self.block_index :
+			return None
+		b = self.block_index[block]
+		if self.manipulating == None : # and not self.move_indication :
 #			traceback.print_stack()
-			b = self.block_index[block]
 			if event and event["p"] in [ "left", "top", "width", "height",
 			  "orientation", "term_meta" ] : # and
 				b.reshape()
@@ -597,6 +600,7 @@ class BlockEditor(Frame, GraphModelListener) :
 					self.resize_selection()
 #			elif event and event["p"] == "term_meta" :
 #				print "term_meta changed", event
+		b.update_text()
 
 #		if block in self.block_index :
 #			print "block_changed: rewiring"
