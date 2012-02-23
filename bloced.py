@@ -407,7 +407,7 @@ class Block(Canvas, BlockBase) :
 	def onMouseDownW(self, e) :
 		if self.term_hit :
 			return None
-		self.move_start = (e.x_root, e.y_root)
+		self.mouse_down_at = self.move_start = (e.x_root, e.y_root)
 #		if e.state & BIT_SHIFT : #TODO
 #			pass
 		if self.editor.selection and self in self.editor.selection.blocks :
@@ -430,12 +430,11 @@ class Block(Canvas, BlockBase) :
 	def onMouseUpW(self, e) :
 		if self.term_hit :
 			return None
-		self.move_start = None
-		if self.affected_wires :
-#			self.editor.model.begin_edit()
+		need_wire_update = self.mouse_down_at != (e.x_root, e.y_root)
+		self.mouse_down_at = self.move_start = None
+		if self.affected_wires and need_wire_update :
 			for k, v in self.affected_wires :
 				self.editor.update_connection(*(k + (True,)))
-#			self.editor.model.end_edit()
 		self.affected_wires = None
 		self.editor.model.end_edit()
 

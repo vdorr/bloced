@@ -281,10 +281,9 @@ class BlockModel(object) :
 
 #	@edit()
 	def set_meta(self, meta) :
-		print here(3), meta
+#		print here(3), meta
 		old_meta = self.get_meta()
 		for k, v in meta.items() :
-			
 			self.__getattribute__("_BlockModel__set_"+k)(v)
 			assert(not(k is None))
 			self.__raise_block_changed({"p":k}, {k:old_meta[k]}, {k:v})
@@ -873,7 +872,7 @@ class GraphModel(object) :
 #		print self.__history_frame
 #		self.__history_frame = []
 
-	def end_edit(self) :
+	def end_edit(self, log_empty_frames=False) :
 #		self.__history_frame_depth -= 1 if self.__history_frame_depth else 0
 		self.__history_frame_depth -= 1
 		if self.__history_frame_depth < 0 :
@@ -883,8 +882,9 @@ class GraphModel(object) :
 		if self.__history_frame_depth == 0:
 #			print "frame closed", self.__history_frame
 
-			print(here(), len(self.__history_frame), len(self.__undo_stack), len(self.__redo_stack))
-			self.__undo_stack.append(self.__history_frame)
+			if self.__history_frame or log_empty_frames :
+				print(here(), len(self.__history_frame), len(self.__undo_stack), len(self.__redo_stack))
+				self.__undo_stack.append(self.__history_frame)
 #			self.__undo_stack.insert(0, self.__history_frame)
 
 #			self.__history_frame_depth = 0
