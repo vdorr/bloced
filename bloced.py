@@ -319,6 +319,7 @@ class Block(Canvas, BlockBase) :
 		self.canvas = editor.canv
 		self.model = model
 		self.__labels = {}
+		self.mouse_down_at = None
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -393,7 +394,7 @@ class Block(Canvas, BlockBase) :
 			poly = get_term_poly(
 				x,#x-(term_size if t_side == E else 0),
 				y,#y-(term_size if t_side == S else 0),
-				term_size, t.get_side(self.model), t.direction, txt_width)
+				txt_height, t.get_side(self.model), t.direction, txt_width)
 
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
@@ -491,6 +492,8 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		self.offset = (e.x + xo, e.y + yo)
 		self.line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
+		self.model.begin_edit()
+
 
 	def blckMouseMove(self, sender, e) :
 		if self.selection :
@@ -500,6 +503,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			return None
 		xo, yo = tuple(self.canv.coords(sender.window))
 		self.canv.coords(self.line, self.offset[0], self.offset[1], e.x+xo, e.y+yo)
+
 
 	def __get_term_at(self, blck, dstx, dsty, filt_dir=None) :
 		xo1, yo1, ro1, bo1 = tuple(self.canv.bbox(blck.window))
@@ -516,6 +520,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		f_dstterms = [ t for t in dstterms if (filt_dir == None or t.direction == filt_dir) ]
 		return (blck, f_dstterms[0] if f_dstterms else None)
 
+
 	def __get_obj_at(self, dstx, dsty, filt_dir=None) :
 		a = 2
 		hits = self.canv.find_overlapping(dstx-a, dsty-a, dstx+a, dsty+a)
@@ -526,6 +531,7 @@ class BlockEditor(Frame, GraphModelListener) :
 #		print(hits)
 #		print "__get_obj_at: b:", hit_blocks, " w:", hit_wires
 		return ( hit_blocks[0] if hit_blocks else None, hit_wires[0] if hit_wires else None)
+
 
 	def blckMouseUp(self, sender, e) :
 		if not sender.movingObject :
@@ -552,18 +558,24 @@ class BlockEditor(Frame, GraphModelListener) :
 #				self.canv.tag_raise(blck.window)
 #			print "kvak2", sender.model, srcterm, blck.model, dstterm
 			if ( dstterm != None and blck != sender and srcterm != dstterm and
-			     self.model.can_connect(sender.model, srcterm, blck.model, dstterm) ) :
-				self.model.add_connection(sender.model, srcterm, blck.model, dstterm)
-		elif twire : # and srcterm.direction == INPUT_TERM :
-#TODO TODO TODO
-			return None
-#			self.model.can_connect(sender.model, srcterm, blck.model, dstterm)
-			print("blckMouseUp:", twire)
-#			sender.model, srcterm
-			proto = core.JointProto()
-			w, h = proto.default_size
-			b = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
-			self.model.add_block(b)
+					self.model.can_connect(sender.model, srcterm, blck.model, dstterm) ) :
+				self.model.add_connection(sender.model, srcterm, blck.model, dstterm, {})
+#				self.model.end_edit()
+#			else :
+#				self.model.end_edit()
+#		else :
+#			self.model.end_edit()
+
+#		elif twire : # and srcterm.direction == INPUT_TERM :
+##TODO TODO TODO
+#			return None
+##			self.model.can_connect(sender.model, srcterm, blck.model, dstterm)
+#			print("blckMouseUp:", twire)
+##			sender.model, srcterm
+#			proto = core.JointProto()
+#			w, h = proto.default_size
+#			b = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
+#			self.model.add_block(b)
 
 	# ----------------------------------------------------------------------------------------------------
 
@@ -609,11 +621,10 @@ class BlockEditor(Frame, GraphModelListener) :
 	def connection_changed(self, sb, st, tb, tt) :
 		line, linecoords = self.connection2line[(sb, st, tb, tt)]
 		meta = self.model.get_connection_meta(sb, st, tb, tt)
-		path = meta["path"]
-		self.connection2line[(sb, st, tb, tt)] = (line, path)
-#		print(here(1), "old:", linecoords)
-#		print(here(1), "new:", path)
-		self.canv.coords(line, *path)
+		if "path" in meta :
+			path = meta["path"]
+			self.connection2line[(sb, st, tb, tt)] = (line, path)
+			self.canv.coords(line, *path)
 
 	def connection_added(self, sb, st, tb, tt, deserializing=False) :
 		#TODO i/o arrow dir, make it cleaner
@@ -1784,6 +1795,10 @@ class BlockEditorWindow(object) :
 		self.__menu_vars = {}
 
 		self.root = Tk()
+
+		self.root.option_add("*Font", "sans 8")
+
+#		print tkFont.families()
 		self.root.protocol("WM_DELETE_WINDOW", self.__on_closing)
 #		print (tkFont.Font().actual())
 #		print tkFont.families()
@@ -1797,6 +1812,13 @@ class BlockEditorWindow(object) :
 #		mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
 #		mainframe.columnconfigure(0, weight=1)
 #		mainframe.rowconfigure(1, weight=1)
+
+
+
+		s = ttk.Style()
+		s.configure('.', font=("sans", 8))
+#TODO self.font_settings = ...
+
 
 		self.tabs = ttk.Notebook(self.root)
 		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
