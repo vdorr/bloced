@@ -33,10 +33,10 @@ workbench @unsynced thread access check decorator
 sane graph rewriting function
 move foreign blocks handling from core.py to separate module
 menu with known special sheets
-editor context menu
+DONE - editor context menu
 make operators variadic
 keep out of collisions in global vars names, take into account delays and temps
-select block with right-click
+DONE (rejected) - select block with right-click
 file menu - Revert
 editor move in grid
 editor show grid
@@ -45,12 +45,14 @@ target support packages
 tsp arduino
 tsp generic avr
 tsp incforth
-redo
+DONE - redo
 circumstance under which rerout wire
 store wire data for undo when changing block
-undo add wire
+DONE - undo add wire
 make graphic function (terms, labels) less crazy
 refactor variadic term placement
 somehow handle canvas size
 get rid of unnecessary undo logs (click on block, every move when moving with mouse)
+workbench change detection
+kill TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT and so on
 
