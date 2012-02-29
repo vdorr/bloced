@@ -186,7 +186,7 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 	glyph = translate(tx-sx, ty-sy, g)
 #	print(here(), glyph)
 
-	print here(), txt_width, txt_height
+#	print here(), txt_width, txt_height
 
 	l, t, w, h = mathutils.bounding_rect(glyph)
 
