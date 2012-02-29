@@ -202,7 +202,7 @@ if 0 :
 
 	class ImageLabel(object) :
 
-		def __init__(self, parent_block, name, text, pos) :
+		def __init__(self, parent_block, name, text, pos, font) :
 			if not hasattr(ImageLabel, "font") :
 				ImageLabel.font = ImageFont.load_default()
 				_, ImageLabel.txt_height = ImageLabel.font.getsize("jJ")
@@ -229,7 +229,7 @@ else :
 
 	class ImageLabel(object) :
 
-		def __init__(self, parent_block, name, text, pos) :
+		def __init__(self, parent_block, name, text, pos, font) :
 			txt_width = parent_block.editor.font.measure(text)
 			size = (txt_width, parent_block.editor.txt_height)
 			flipv, fliph, rot = parent_block.model.orientation
@@ -238,7 +238,8 @@ else :
 				pos = lbl_x, lbl_y
 			else :
 				lbl_x, lbl_y = pos
-			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=NW)
+			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=NW,
+				font=font)
 			self.__data = (None, text, pos, i)
 			self.canvas_item = i
 			self.text = text
@@ -307,7 +308,7 @@ class Block(Canvas, BlockBase) :
 			else :
 				self.__labels.pop(name)
 				self.delete(l.canvas_item)
-		lbl = ImageLabel(self, name, text, pos)
+		lbl = ImageLabel(self, name, text, pos, self.editor.font)
 		self.__labels[name] = lbl
 		return lbl.canvas_item
 
@@ -399,7 +400,8 @@ class Block(Canvas, BlockBase) :
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
-			txt = self.create_text(txtx, txty, text=term_label, anchor=NW, fill="black", tags=term_tag)
+			txt = self.create_text(txtx, txty, text=term_label, anchor=NW,
+				fill="black", tags=term_tag, font=self.editor.font)
 			self.bind_as_term(txt)
 
 			self.window2term[w] = t
@@ -1065,6 +1067,11 @@ class BlockEditor(Frame, GraphModelListener) :
 
 #		self.__changed = False # XXX destroy
 
+#		self.font = tkFont.nametofont("TkDefaultFont")
+		self.font = tkFont.Font(font=self.ui.font_settings)
+#		self.font_v = tkFont.nametofont("TkDefaultFont")
+		self.txt_height = self.font.metrics("linespace")
+
 		Frame.__init__(self, parent)
 
 		self.__paste_proto = None
@@ -1115,10 +1122,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		#XXX cursor: select, shift+cursor: move ?
 		
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
-
-		self.font = tkFont.nametofont("TkDefaultFont")
-#		self.font_v = tkFont.nametofont("TkDefaultFont")
-		self.txt_height = self.font.metrics("linespace")
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1794,9 +1797,15 @@ class BlockEditorWindow(object) :
 		self.__menu_items = {}
 		self.__menu_vars = {}
 
+		font_settings_t = namedtuple("font_settings", ("family", "size"))
+		self.font_settings = font_settings_t("sans", 8)
+
 		self.root = Tk()
 
-		self.root.option_add("*Font", "sans 8")
+		if 0 :
+			self.root.option_add("*Font", self.font_settings)
+			s = ttk.Style()
+			s.configure('.', font=self.font_settings)
 
 #		print tkFont.families()
 		self.root.protocol("WM_DELETE_WINDOW", self.__on_closing)
@@ -1812,13 +1821,6 @@ class BlockEditorWindow(object) :
 #		mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
 #		mainframe.columnconfigure(0, weight=1)
 #		mainframe.rowconfigure(1, weight=1)
-
-
-
-		s = ttk.Style()
-		s.configure('.', font=("sans", 8))
-#TODO self.font_settings = ...
-
 
 		self.tabs = ttk.Notebook(self.root)
 		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
