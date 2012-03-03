@@ -174,6 +174,16 @@ class FunctionCallProto(BlockPrototype):
 			values=[("Name", None)])
 
 
+class MuxProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "mux", [
+			In(-1, "x", W, .25, type_name="<infer>"),
+			In(-2, "a", W, .5, type_name="<infer>"),
+			In(-3, "b", W, .75, type_name="<infer>"),
+			Out(-1, "q", E, .5, type_name="<infer>"), ],
+			pure=True, category="Special")
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 class SBP(BlockPrototype) :
@@ -545,6 +555,7 @@ class BasicBlocksFactory(object) :
 			SBP("Sink", "Special", [ In(-1, "", W, .5, type_name="<infer>") ], pure=True),
 			PipeProto(),
 			PipeEndProto(),
+			MuxProto(),
 
 			BinaryOp("xor", "Logic", commutative=True),
 			BinaryOp("or", "Logic", commutative=True),
@@ -559,8 +570,7 @@ class BasicBlocksFactory(object) :
 			BinaryOp("div", "Arithmetic", commutative=False),
 			BinaryOp("mod", "Arithmetic", commutative=False),
 			SBP("divmod", "Arithmetic", [ In(-1, "n", W, .33),
-				In(-1, " jJ", W, .66),
-#				In(-1, "d", W, .66),
+				In(-2, "d", W, .66),
 				Out(-1, "q", E, .33), Out(-2, "r", E, .66) ], pure=True),
 			BinaryOp("lt", "Arithmetic", commutative=False),
 			BinaryOp("gt", "Arithmetic", commutative=False),

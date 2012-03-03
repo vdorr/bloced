@@ -63,3 +63,13 @@ void set_a_out(vm_word_t nr)
 	pinMode(nr, OUTPUT);
 }
 
+vm_dword_t time_ms()
+{
+	return millis();
+}
+
+vm_dword_t time_us()
+{
+	return micros();
+}
+

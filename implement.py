@@ -953,12 +953,18 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 
 	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
 	loop_call.value = (tsk_name, )
-	main_tsk_g = { loop_call : adjs_t([], []) }
+	init_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	init_call.value = ("init", )
+	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
+	first_call = loop_call
 	if "@setup" in special :
 		setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
 		setup_call.value = ("setup", )
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
+		first_call = setup_call
+	chain_blocks(main_tsk_g, init_call, first_call)
+
 	tsk_name = "main"
 	main_tsk_meta = { "endless_loop_wrap" : False}
 	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))

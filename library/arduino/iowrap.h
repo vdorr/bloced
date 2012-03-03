@@ -74,5 +74,10 @@ _VM_EXPORT_ vm_dword_t time_ms();
 */
 _VM_EXPORT_ vm_dword_t time_us();
 
+/**
+	<A return number of microseconds since start of machine>
+*/
+_VM_EXPORT_ void print(vm_word_t s);
+
 #endif
 

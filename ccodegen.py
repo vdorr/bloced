@@ -67,6 +67,9 @@ def __implement(g, n, args, outs) :
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
 		return "{0} = {1}".format(pipe_name, args[0])
+	elif n.prototype.__class__ == core.MuxProto :
+		assert(len(args)==3)
+		return "({0} ? {1} : {2})".format(*args)#XXX cast sometimes needed!!!
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
