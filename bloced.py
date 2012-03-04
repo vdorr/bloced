@@ -736,6 +736,9 @@ class BlockEditor(Frame, GraphModelListener) :
 		return filtered
 
 	def default_mousedown(self, ee) :
+
+		self.canv.focus_set()
+
 		e = event_t(self.canv.canvasx(ee.x), self.canv.canvasy(ee.y), ee.state)
 
 		self.canv.focus_set()
@@ -1059,6 +1062,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.end_paste_block()
 
 	def popup(self, e) :
+		self.canv.focus_set()
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
 
 	def __init__(self, ui, parent, workbench_getter) :
