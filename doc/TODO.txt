@@ -55,4 +55,5 @@ somehow handle canvas size
 get rid of unnecessary undo logs (click on block, every move when moving with mouse)
 workbench change detection
 kill TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT and so on
-
+use block meta when pasting from clipboard
+use fixed output type for comparison and logic blocks

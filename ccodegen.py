@@ -12,10 +12,10 @@ from implement import *
 
 __operators = {
 	"xor" :		lambda n, args : "(" + "^".join(args) + ")",
-	"or" :		lambda n, args : "(" + "|".join(args) + ")",
+	"or" :		lambda n, args : "(" + "||".join(args) + ")",
 	"nor" :		lambda n, args : "!(" + "|".join(args) + ")",
-	"and" :		lambda n, args : "(" + "&".join(args) + ")",
-	"nand" :	lambda n, args : "!(" + "&".join(args) + ")",
+	"and" :		lambda n, args : "(" + "&&".join(args) + ")",
+	"nand" :	lambda n, args : "!(" + "&&".join(args) + ")",
 	"not" :		lambda n, arg : "!(" + arg[0] + ")",
 	"add" :		lambda n, args : "(" + "+".join(args) + ")",
 	"sub" :		lambda n, args : "(" + "-".join(args) + ")",
@@ -36,7 +36,7 @@ def __implement(g, n, args, outs) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __operators :
-		assert(len(args) >= 2)
+		assert(len(args) >= 2 or n.prototype.type_name=="not")
 		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
 		return __operators[n.prototype.type_name](n, args)
 #	elif n.prototype.__class__ == core.PipeProto :
@@ -69,14 +69,14 @@ def __implement(g, n, args, outs) :
 		return "{0} = {1}".format(pipe_name, args[0])
 	elif n.prototype.__class__ == core.MuxProto :
 		assert(len(args)==3)
-		return "({0} ? {1} : {2})".format(*args)#XXX cast sometimes needed!!!
+		return "({0} ? {2} : {1})".format(*args)#XXX cast sometimes needed!!!
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
 def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
-		dummies, state_var_prefix, pipe_vars, libs_used, n, visited) :
+		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited) :
 #	print "__post_visit:", n.to_string()
 
 	if isinstance(n.prototype, core.ConstProto) :
@@ -99,22 +99,17 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 #		if out_term.virtual :
 #			continue
 		if out_term.type_name == "<inferred>" :
-#			if n.prototype.__class__ == core.PipeEndProto :
-#				pipe_name = block_value_by_name(n, "Name")
-#				pipe_index, pipe_type, pipe_default = pipe_vars[pipe_name]
-#				term_type = pipe_type
-#			else :
-				term_type = types[n, out_term, out_t_nr]
+			term_type = types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name
 #		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
 #			print "adding temps:", succs
-			slot = add_tmp_ref(tmp, succs,
-				slot_type=term_type)
+			expr_slot_type = term_type
+			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
 #TODO if all succs have same type different from out_term, cast now and store as new type
 #if storage permits, however
-			outs.append("&tmp%i"%slot)
+			outs.append("&{0}_tmp{1}".format(expr_slot_type, expr_slot))
 		elif len(succs) == 1 and len(outputs) == 1 :
 #			print "passing by"
 			pass
@@ -123,6 +118,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			outs.append("&"+term_type+"_dummy")
 
 	for in_term, in_t_nr, preds in inputs :
+#		print here(), n, preds
 		assert(len(preds)==1)
 
 #		if out_term.virtual :
@@ -137,9 +133,9 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		elif (n, in_term, in_t_nr) in subtrees :
 			args.append(subtrees.pop((n, in_term, in_t_nr)))
 		else :
-			slot = pop_tmp_ref(tmp, n, in_term, in_t_nr)
+			slot_type, slot = pop_tmp_ref(tmp, n, in_term, in_t_nr)
 			if slot != None:
-				args.append("tmp%i" % slot)
+				args.append("{0}_tmp{1}".format(slot_type, slot))
 			else :
 #				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
 				raise Exception("holy shit! %s not found, %s %s" %
@@ -148,19 +144,20 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 	if isinstance(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
-		if not del_out in visited :
-#			print here(), del_out.type_name
+		if not del_out in evaluated :
+			print here(), del_out.type_name
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
-			code.append("tmp{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
+			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
+#		print here(), del_out
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
 	elif isinstance(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_out)
-#		print "\tdel_in=", del_in, n.delay
-		if del_in in visited :
-			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
-			expr = "tmp%i" % slot
+#		print(here(), "del_in=", del_in, n.delay, visited.keys())
+		if del_in in evaluated : #visited :
+			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
 #	elif n.prototype.__class__ == core.PipeProto :
@@ -176,7 +173,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		expr = __implement(g, n, args, outs)#, types, known_types, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
-#	print "\texpr:", expr, "is_expr:", is_expr, "tmp=", tmp
+#	print "\texpr:", expr, "is_expr:", is_expr#, "tmp=", tmp
 
 	if is_expr :
 		((out_term, out_t_nr, succs), ) = outputs
@@ -187,9 +184,18 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		if len(outputs) == 0 :
 			code.append(expr + ";")
 		elif len(outputs) == 1 :
-			code.append("tmp%i = %s;" % (slot, expr))
+#			(out_term,) = [ trm for trm in n.terms if trm.direction == OUTPUT_TERM ]
+#			term_type = types[ n, out_term, 0 ]
+#			slot = add_tmp_ref(tmp, outputs[0][2], slot_type=term_type)
+#			print here(), n, out_term, term_type, "slot=", slot
+#			pprint(tmp)
+
+			code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
 			code.append(expr + ";")
+
+	evaluated[n] = True
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -205,11 +211,15 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	code = []
 	dummies = set()
 	state_var_prefix = task_name + "_"
+	evaluated = {}
 
 	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
-		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used)
+		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used, evaluated)
 
+#	pprint(g)
 	dft_alt(g, post_visit=post_visit_callback)
+
+#	pprint(tmp)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
@@ -249,8 +259,8 @@ def churn_task_code(task_name, cg_out) :
 #	print(dir(expd_dels.keys()[0]))
 	for d, i in zip(sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr), count()) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
-		del_in = expd_dels[d][0]
-		del_type = types[del_in, del_in.terms[0], 0]
+		del_out = expd_dels[d][1]
+		del_type = types[del_out, del_out.terms[0], 0]
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, int(d.value[0]), linesep))
 
@@ -258,7 +268,7 @@ def churn_task_code(task_name, cg_out) :
 	for slot_type in sorted(tmp.keys()) :
 		slot_cnt = tmp_max_slots_used(tmp, slot_type=slot_type)
 		if slot_cnt > 0 :
-			names = [ "tmp{0}".format(i) for i in range(slot_cnt) ]
+			names = [ "{0}_tmp{1}".format(slot_type, i) for i in range(slot_cnt) ]
 			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
 
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]

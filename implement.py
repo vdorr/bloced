@@ -756,13 +756,13 @@ def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
 
 
 def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
-	for _, t_tmp in tmp.items() :
+	for slot_type, t_tmp in tmp.items() :
 		for slot, nr in zip(t_tmp, count()) :
 			if slot != "empty" and (b, t, t_nr) in slot :
 				slot.remove((b, t, t_nr))
 				if len(slot) == 0 :
 					t_tmp[nr] = "empty"
-				return nr
+				return slot_type, nr
 	return None
 
 
