@@ -313,43 +313,11 @@ board_db
 
 	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
-	i_dirs = [ "-I" + d for d in ( idirs + board_idirs ) ]
-	l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
-
-	gcc_args = i_dirs + l_libs + [ optimization, "-mmcu=" + mcu,
-		"-DF_CPU=%s" % f_cpu, "-o", a_out ]
-	gcc_args += sources
-
-#TODO optional separate compile + link
-
-#  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
-	if success :
-		stdoutdata, stderrdata = streams
-		__print_streams("compiled", " ", stdoutdata, stderrdata)
-	else :
-		stdoutdata, stderrdata = streams
-		__print_streams("failed to execute avr-gcc", " ",
-			stdoutdata, stderrdata)
-		return (10, )
-
-
-
-
-#cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
-#	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
-#	if success :
-#		stdoutdata, stderrdata = streams
-#		__print_streams("compiled", " ", stdoutdata, stderrdata)
-#	else :
-#		stdoutdata, stderrdata = streams
-#		__print_streams("failed to execute avr-gcc", " ",
-#			stdoutdata, stderrdata)
-#		return (10, )
-
-
-
-
+	defs = { "F_CPU" : f_cpu }
+	rc = gcc_compile(run_loud, sources, a_out, mcu, optimization,
+		defines=defs, i_dirs=board_idirs+idirs)
+	if rc[0] :
+		return rc
 
 	success, rc, streams = run(["avr-size", a_out])
 	if success :
@@ -385,6 +353,53 @@ board_db
 			dry_run=dry_run)
 
 	return rc
+
+
+def gcc_compile(run, sources, a_out, mcu, optimization,
+		defines={},
+		i_dirs=[],
+		l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
+	) :
+	include_dirs = [ "-I" + d for d in i_dirs ]
+	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
+	args = include_dirs + l_libs + [ optimization, "-o", a_out , "-mmcu=" + mcu ] + defs + sources
+
+
+
+
+#TODO optional separate compile + link
+
+#  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
+	success, _, streams = run(["avr-gcc"] + args)
+	if success :
+		stdoutdata, stderrdata = streams
+		__print_streams("compiled", " ", stdoutdata, stderrdata)
+	else :
+		stdoutdata, stderrdata = streams
+		__print_streams("failed to execute avr-gcc", " ",
+			stdoutdata, stderrdata)
+		return (10, )
+
+
+
+
+#cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
+#	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
+#	if success :
+#		stdoutdata, stderrdata = streams
+#		__print_streams("compiled", " ", stdoutdata, stderrdata)
+#	else :
+#		stdoutdata, stderrdata = streams
+#		__print_streams("failed to execute avr-gcc", " ",
+#			stdoutdata, stderrdata)
+#		return (10, )
+
+
+
+
+
+	return (0, )
+
 
 
 def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
