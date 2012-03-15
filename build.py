@@ -362,15 +362,52 @@ def gcc_compile(run, sources, a_out, mcu, optimization,
 	) :
 	include_dirs = [ "-I" + d for d in i_dirs ]
 	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
-	args = include_dirs + l_libs + [ optimization, "-o", a_out , "-mmcu=" + mcu ] + defs + sources
+	common_args = include_dirs + l_libs + [ optimization, "-o", a_out , "-mmcu=" + mcu ] + defs
+
+	if True :
+
+		args = common_args
+
+		gcc_compile_sources(run, sources, args)
+
+	else :
+		for source in sources :
+
+			args = [] + common_args
+
+			gcc_compile_sources(run, (source,), args)
 
 
+		#cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
+		#	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
+		#	if success :
+		#		stdoutdata, stderrdata = streams
+		#		__print_streams("compiled", " ", stdoutdata, stderrdata)
+		#	else :
+		#		stdoutdata, stderrdata = streams
+		#		__print_streams("failed to execute avr-gcc", " ",
+		#			stdoutdata, stderrdata)
+		#		return (10, )
 
 
-#TODO optional separate compile + link
+	return (0, )
+
+
+def gcc_compile_sources(run, sources, common_args) :
+
+	print sources
+	ext = sources[0].split(os.path.extsep)[-1].lower()
+#TODO assert all the same type
+	if ext == "c" :
+		compiler = "avr-gcc"
+	elif ext == "cpp" :
+		compiler = "avr-g++"
+	else :
+		return (1, )
+
 
 #  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-	success, _, streams = run(["avr-gcc"] + args)
+	success, _, streams = run([compiler] + common_args + sources)
 	if success :
 		stdoutdata, stderrdata = streams
 		__print_streams("compiled", " ", stdoutdata, stderrdata)
@@ -379,26 +416,6 @@ def gcc_compile(run, sources, a_out, mcu, optimization,
 		__print_streams("failed to execute avr-gcc", " ",
 			stdoutdata, stderrdata)
 		return (10, )
-
-
-
-
-#cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
-#	success, _, streams = run_loud(["avr-gcc"] + gcc_args)
-#	if success :
-#		stdoutdata, stderrdata = streams
-#		__print_streams("compiled", " ", stdoutdata, stderrdata)
-#	else :
-#		stdoutdata, stderrdata = streams
-#		__print_streams("failed to execute avr-gcc", " ",
-#			stdoutdata, stderrdata)
-#		return (10, )
-
-
-
-
-
-	return (0, )
 
 
 
