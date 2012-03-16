@@ -394,7 +394,7 @@ def gcc_compile(run, sources, a_out, mcu, optimization,
 
 		print "linking!!!!"
 #		cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
-		success, _, streams = run(["avr-gcc", optimization, "-o", a_out, "-lm"] + link_libs + objects)
+		success, _, streams = run(["avr-gcc", "-Wl", optimization, "-o", a_out, "-lm", "--gc-sections"] + objects + link_libs)
 		if success :
 			stdoutdata, stderrdata = streams
 			__print_streams("linked", " ", stdoutdata, stderrdata)
@@ -422,7 +422,7 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 
 
 #  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-	success, _, streams = run([compiler] +(['-o', out] if out else []) + common_args + sources)
+	success, _, streams = run([compiler, "-w", "-ffunction-sections", "-fdata-sections"] +(['-o', out] if out else []) + common_args + sources)
 	if success :
 		stdoutdata, stderrdata = streams
 		__print_streams("compiled", " ", stdoutdata, stderrdata)
