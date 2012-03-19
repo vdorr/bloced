@@ -11,7 +11,7 @@ import fnmatch
 import re
 from pprint import pprint
 from collections import namedtuple, OrderedDict
-from itertools import islice
+from itertools import islice, count
 import shutil
 
 try :
@@ -308,8 +308,8 @@ board_db
 		len(sources), src_total, len(idirs), idir_total))
 
 	run = partial(__run_external, workdir=workdir, redir=True)
-	run_loud = partial(__run_external, workdir=workdir, redir=False)
-#	run_loud = run
+#	run_loud = partial(__run_external, workdir=workdir, redir=False)
+	run_loud = run
 
 	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
@@ -377,24 +377,34 @@ def gcc_compile(run, sources, a_out, mcu, optimization,
 
 		objects = []
 
-		for source in sources :
+#TODO use temp files!!!
+		for source, i in zip(sources, count()) :
 
-			args = ["-c"] + common_args
+			args = ["-g", "-c", "-w"] + common_args
 
 #			out = source + os.path.extsep + "o"
 #			out=os.path.join(wd, source+os.path.extsep+"o")
 
 			ext = source.split(os.path.extsep)[-1].lower()
-			out = source[:-len(ext)] + "o"
+			out = str(i) + os.path.extsep + "o"
+#			out = source[:-len(ext)] + "o"
 
-			rc = gcc_compile_sources(run, [source], args)
+			rc = gcc_compile_sources(run, [source, "-ffunction-sections", "-fdata-sections", "-o", out], args)
 
 			if rc[0] == 0 :
-				objects.append("-L"+out)
+				print "compiled:", out
+				objects.append(
+#"-L"+
+os.path.split(out)[-1])
 
-		print "linking!!!!"
+		print "linking!!!!", objects
 #		cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
-		success, _, streams = run(["avr-gcc", "-Wl", optimization, "-o", a_out, "-lm", "--gc-sections"] + objects + link_libs)
+
+		success, _, streams = run(["avr-gcc",
+"-Wl,--gc-sections",
+optimization, "-o", a_out, "-lm", #"--gc-sections"
+] + objects + link_libs)
+
 		if success :
 			stdoutdata, stderrdata = streams
 			__print_streams("linked", " ", stdoutdata, stderrdata)
@@ -422,7 +432,12 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 
 
 #  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-	success, _, streams = run([compiler, "-w", "-ffunction-sections", "-fdata-sections"] +(['-o', out] if out else []) + common_args + sources)
+
+	success, _, streams = run([compiler, "-g",
+#"-w",
+#"-ffunction-sections", "-fdata-sections"
+] +(['-o', out] if out else []) + common_args + sources)
+
 	if success :
 		stdoutdata, stderrdata = streams
 		__print_streams("compiled", " ", stdoutdata, stderrdata)
