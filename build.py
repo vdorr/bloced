@@ -315,7 +315,9 @@ board_db
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
 	defs = { "F_CPU" : f_cpu }
 	rc = gcc_compile(run_loud, sources, a_out, mcu, optimization,
-		defines=defs, i_dirs=board_idirs+idirs)
+		defines=defs,
+		i_dirs=board_idirs+idirs,
+		l_libs = [])#[ "/usr/lib/avr/lib/libc.a" ]
 	if rc[0] :
 		return rc
 
@@ -358,52 +360,65 @@ board_db
 def gcc_compile(run, sources, a_out, mcu, optimization,
 		defines={},
 		i_dirs=[],
-		l_libs = []#[ "/usr/lib/avr/lib/libc.a" ]
+		l_libs = [],
+		l_dirs=[]
 	) :
+
 	include_dirs = [ "-I" + d for d in i_dirs ]
-	link_libs = [ "-L" + d for d in l_libs ]
+	link_libs = [ "-l" + d for d in l_libs ]
+	link_dirs = [ "-L" + d for d in l_dirs ]
 	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
 	common_args = include_dirs + l_libs + [ optimization, "-mmcu=" + mcu ] + defs
 
-	wd = os.getcwd()
+#XXX
+	single_batch = False
 
-	if False :
-
-		args = common_args
-
-		gcc_compile_sources(run, sources, args, out=a_out)
-
+	if single_batch :
+		gcc_compile_sources(run, sources, common_args, out=a_out)
 	else :
+
+		workdir = tempfile.mkdtemp()
+		print("gcc_compile working directory '{0}'".format(workdir))
+
 
 		objects = []
 
-#TODO use temp files!!!
+		args = ["-g", "-c", "-w"] + common_args
+
+		rc = None
+
 		for source, i in zip(sources, count()) :
 
-			args = ["-g", "-c", "-w"] + common_args
+			if 0 :
+#				out = source + os.path.extsep + "o"
+				out=os.path.join(workdir, source + os.path.extsep + "o")
+			else :
+				ext = source.split(os.path.extsep)[-1].lower()
+				out = str(i) + os.path.extsep + "o"
+	#			out = source[:-len(ext)] + "o"
 
-#			out = source + os.path.extsep + "o"
-#			out=os.path.join(wd, source+os.path.extsep+"o")
+			rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
+				"-fdata-sections", "-o", out])
 
-			ext = source.split(os.path.extsep)[-1].lower()
-			out = str(i) + os.path.extsep + "o"
-#			out = source[:-len(ext)] + "o"
-
-			rc = gcc_compile_sources(run, [source, "-ffunction-sections", "-fdata-sections", "-o", out], args)
+#			print rc
 
 			if rc[0] == 0 :
 				print "compiled:", out
-				objects.append(
-#"-L"+
-os.path.split(out)[-1])
+				objects.append(os.path.split(out)[-1])
+			else :
+				break
 
-		print "linking!!!!", objects
-#		cmdline = "avr-gcc -Os -Wl,--gc-sections %(files)s -L%(link_dir)s -lm"
+		if rc is None :
+#			print("linking!!!!", objects)
+			#from build_arduino.py
+			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections",
+				optimization, "-o", a_out, "-lm",] +
+				objects + link_libs + link_dirs)
 
-		success, _, streams = run(["avr-gcc",
-"-Wl,--gc-sections",
-optimization, "-o", a_out, "-lm", #"--gc-sections"
-] + objects + link_libs)
+		shutil.rmtree(workdir)
+
+		if not rc is None :
+			return rc
 
 		if success :
 			stdoutdata, stderrdata = streams
@@ -419,24 +434,30 @@ optimization, "-o", a_out, "-lm", #"--gc-sections"
 
 
 def gcc_compile_sources(run, sources, common_args, out=None) :
+	"""
+	compile one or multiple source files of same type (c or c++) with gcc
+	"""
+	if not len(sources) :
+		return (1001, "no_sources")
 
-	print sources
-	ext = sources[0].split(os.path.extsep)[-1].lower()
-#TODO assert all the same type
+	extensions = [ s.split(os.path.extsep)[-1].lower() for s in sources ]
+	ext = extensions[0]
+
+	if len(extensions) > 1 and not all( e == ext for e in extensions) :
+		return (1002, "sources_not_of_single_type")
+
 	if ext == "c" :
 		compiler = "avr-gcc"
-	elif ext == "cpp" :
+	elif ext in ( "cpp", "c++", "cxx" ) :
 		compiler = "avr-g++"
 	else :
-		return (1, )
-
-
-#  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections -mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-
-	success, _, streams = run([compiler, "-g",
-#"-w",
-#"-ffunction-sections", "-fdata-sections"
-] +(['-o', out] if out else []) + common_args + sources)
+		return (1003, "unknown_source_type")
+#from build_arduino.py
+#  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections
+#-mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
+	success, _, streams = run([compiler, "-g", "-w",
+		"-ffunction-sections", "-fdata-sections"] +
+		(['-o', out] if out else []) + common_args + sources)
 
 	if success :
 		stdoutdata, stderrdata = streams
@@ -446,8 +467,7 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 		stdoutdata, stderrdata = streams
 		__print_streams("failed to execute avr-gcc", " ",
 			stdoutdata, stderrdata)
-		return (10, )
-
+		return (10, "gcc_failed")
 
 
 def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
