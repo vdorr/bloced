@@ -234,25 +234,25 @@ def build(board, workdir,
 		a_out="a.out",
 		a_hex="a.hex" ) :
 	"""
-boards_txt
-	path to arduino-style boards.txt
-	at least this or board_db must be supplied
-skip_programming
-	compile, create hex, but do not start programming driver
-dry_run
-	as above, but use dry run of driver (avrdude -n)
-ignore_file
-	path to file with ignored file, applied to all source dirs, including auxiliary
-	one glob per line, lines starting with # are skipped
-aux_src_dirs
-	list of tuples (str, bool) (directory, recurse)
-board_db
-	appended to data from boards.txt, usefull if there is no boards.txt
-	{ "uno" : {
-		"name":"uno board",
-		"build.mcu" : "atmega328p", #for avrdude/dfu-programmer
-		"build.f_cpu" : "16000000L",
-		"upload.maximum_size" : "32000" } }
+	boards_txt
+		path to arduino-style boards.txt
+		at least this or board_db must be supplied
+	skip_programming
+		compile, create hex, but do not start programming driver
+	dry_run
+		as above, but use dry run of driver (avrdude -n)
+	ignore_file
+		path to file with ignored file, applied to all source dirs, including
+		auxiliary one glob per line, lines starting with # are skipped
+	aux_src_dirs
+		list of tuples (str, bool) (directory, recurse)
+	board_db
+		appended to data from boards.txt, usefull if there is no boards.txt
+		{ "uno" : {
+			"name":"uno board",
+			"build.mcu" : "atmega328p", #for avrdude/dfu-programmer
+			"build.f_cpu" : "16000000L",
+			"upload.maximum_size" : "32000" } }
 	"""
 
 	board_info = board_db
@@ -307,19 +307,22 @@ board_db
 		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total))
 
-	run = partial(__run_external, workdir=workdir, redir=True)
-#	run_loud = partial(__run_external, workdir=workdir, redir=False)
-	run_loud = run
+	redir_streams = True
 
 	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
 	defs = { "F_CPU" : f_cpu }
-	rc = gcc_compile(run_loud, sources, a_out, mcu, optimization,
+	rc = gcc_compile(redir_streams, sources, os.path.join(workdir, a_out),
+		mcu, optimization,
 		defines=defs,
 		i_dirs=board_idirs+idirs,
 		l_libs = [])#[ "/usr/lib/avr/lib/libc.a" ]
 	if rc[0] :
 		return rc
+
+	run = partial(__run_external, workdir=workdir, redir=True)
+#	run_loud = partial(__run_external, workdir=workdir, redir=False)
+#	run_loud = run
 
 	success, rc, streams = run(["avr-size", a_out])
 	if success :
@@ -357,61 +360,57 @@ board_db
 	return rc
 
 
-def gcc_compile(run, sources, a_out, mcu, optimization,
+def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 		defines={},
 		i_dirs=[],
-		l_libs = [],
-		l_dirs=[]
-	) :
-
+		l_libs=[],
+		l_dirs=[]) :
+	print " a_out=",  a_out
 	include_dirs = [ "-I" + d for d in i_dirs ]
 	link_libs = [ "-l" + d for d in l_libs ]
 	link_dirs = [ "-L" + d for d in l_dirs ]
 	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
 	common_args = include_dirs + l_libs + [ optimization, "-mmcu=" + mcu ] + defs
-
 #XXX
 	single_batch = False
 
 	if single_batch :
+		workdir = os.getcwd()
+		run = partial(__run_external, workdir=workdir, redir=redir_streams)
 		gcc_compile_sources(run, sources, common_args, out=a_out)
 	else :
-
-		workdir = tempfile.mkdtemp()
-		print("gcc_compile working directory '{0}'".format(workdir))
-
-
 		objects = []
-
 		args = ["-g", "-c", "-w"] + common_args
-
 		rc = None
+		workdir = tempfile.mkdtemp()
+		run = partial(__run_external, workdir=workdir, redir=redir_streams)
+		print("gcc_compile working directory '{0}'".format(workdir))
+		try :
+			for source, i in zip(sources, count()) :
+#				if 1 :
+#	#				out = source + os.path.extsep + "o"
+##					out=os.path.join(workdir, source + os.path.extsep + "o")
+#					out = os.path.join(workdir, str(i) + os.path.extsep + "o")
+#				else :
+#					ext = source.split(os.path.extsep)[-1].lower()
+#					out = str(i) + os.path.extsep + "o"
+#		#			out = source[:-len(ext)] + "o"
+				out = os.path.join(workdir, str(i) + os.path.extsep + "o")
+#				print "out file:", out
+				rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
+					"-fdata-sections"], out=out)
+#				print rc
+				if rc[0] == 0 :
+					print "compiled:", out
+					objects.append(os.path.split(out)[-1])
+				else :
+					break
+		except Exception :
+			rc = (666, )
 
-		for source, i in zip(sources, count()) :
-
-			if 0 :
-#				out = source + os.path.extsep + "o"
-				out=os.path.join(workdir, source + os.path.extsep + "o")
-			else :
-				ext = source.split(os.path.extsep)[-1].lower()
-				out = str(i) + os.path.extsep + "o"
-	#			out = source[:-len(ext)] + "o"
-
-			rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
-				"-fdata-sections", "-o", out])
-
-#			print rc
-
-			if rc[0] == 0 :
-				print "compiled:", out
-				objects.append(os.path.split(out)[-1])
-			else :
-				break
-
-		if rc is None :
-#			print("linking!!!!", objects)
-			#from build_arduino.py
-			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections",
+		if rc is None or not rc[0] :
+#			print "linker output file :", a_out
+			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
 				optimization, "-o", a_out, "-lm",] +
 				objects + link_libs + link_dirs)
 
@@ -428,9 +427,12 @@ def gcc_compile(run, sources, a_out, mcu, optimization,
 			__print_streams("failed to link with avr-gcc", " ",
 				stdoutdata, stderrdata)
 			return (10, )
-
-
 	return (0, )
+
+
+def __extract_extensions(l, lower=True) :
+	return [ (e.lower() if lower else e) for e in
+		(s.split(os.path.extsep)[-1] for s in l) ]
 
 
 def gcc_compile_sources(run, sources, common_args, out=None) :
@@ -440,7 +442,7 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 	if not len(sources) :
 		return (1001, "no_sources")
 
-	extensions = [ s.split(os.path.extsep)[-1].lower() for s in sources ]
+	extensions = __extract_extensions(sources)
 	ext = extensions[0]
 
 	if len(extensions) > 1 and not all( e == ext for e in extensions) :
@@ -456,8 +458,8 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 #  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections
 #-mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
 	success, _, streams = run([compiler, "-g", "-w",
-		"-ffunction-sections", "-fdata-sections"] +
-		(['-o', out] if out else []) + common_args + sources)
+		"-ffunction-sections", "-fdata-sections"] + common_args + sources +
+		(['-o', out] if out else []))
 
 	if success :
 		stdoutdata, stderrdata = streams
