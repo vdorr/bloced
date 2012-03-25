@@ -365,16 +365,22 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 		i_dirs=[],
 		l_libs=[],
 		l_dirs=[]) :
-	print " a_out=",  a_out
+	"""
+	compile batch of c and/or c++ sources
+	"""
+	if not len(sources) :
+		return (2001, "no_sources")
 	include_dirs = [ "-I" + d for d in i_dirs ]
 	link_libs = [ "-l" + d for d in l_libs ]
 	link_dirs = [ "-L" + d for d in l_dirs ]
 	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
 	common_args = include_dirs + l_libs + [ optimization, "-mmcu=" + mcu ] + defs
-#XXX
-	single_batch = False
+
+	extensions = __extract_extensions(sources)
+	single_batch = all(e == extensions[0] for e in extensions)
 
 	if single_batch :
+		print("gcc compiling in single batch")
 		workdir = os.getcwd()
 		run = partial(__run_external, workdir=workdir, redir=redir_streams)
 		gcc_compile_sources(run, sources, common_args, out=a_out)
@@ -387,19 +393,9 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 		print("gcc_compile working directory '{0}'".format(workdir))
 		try :
 			for source, i in zip(sources, count()) :
-#				if 1 :
-#	#				out = source + os.path.extsep + "o"
-##					out=os.path.join(workdir, source + os.path.extsep + "o")
-#					out = os.path.join(workdir, str(i) + os.path.extsep + "o")
-#				else :
-#					ext = source.split(os.path.extsep)[-1].lower()
-#					out = str(i) + os.path.extsep + "o"
-#		#			out = source[:-len(ext)] + "o"
 				out = os.path.join(workdir, str(i) + os.path.extsep + "o")
-#				print "out file:", out
 				rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
 					"-fdata-sections"], out=out)
-#				print rc
 				if rc[0] == 0 :
 					print "compiled:", out
 					objects.append(os.path.split(out)[-1])
@@ -409,7 +405,6 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 			rc = (666, )
 
 		if rc is None or not rc[0] :
-#			print "linker output file :", a_out
 			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
 				optimization, "-o", a_out, "-lm",] +
 				objects + link_libs + link_dirs)
@@ -437,7 +432,7 @@ def __extract_extensions(l, lower=True) :
 
 def gcc_compile_sources(run, sources, common_args, out=None) :
 	"""
-	compile one or multiple source files of same type (c or c++) with gcc
+	compile one or multiple source files of the same type (c or c++) with gcc/g++
 	"""
 	if not len(sources) :
 		return (1001, "no_sources")
