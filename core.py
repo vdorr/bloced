@@ -177,10 +177,10 @@ class FunctionCallProto(BlockPrototype):
 class MuxProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "mux", [
-			In(-1, "x", W, .25, type_name="<infer>"),
-			In(-2, "a", W, .5, type_name="<infer>"),
-			In(-3, "b", W, .75, type_name="<infer>"),
-			Out(-1, "q", E, .5, type_name="<infer>"), ],
+			In(-1, "x", W, .25, type_name="<inferred>"),
+			In(-2, "a", W, .5, type_name="<inferred>"),
+			In(-3, "b", W, .75, type_name="<inferred>"),
+			Out(-1, "q", E, .5, type_name="<inferred>"), ],
 			pure=True, category="Special")
 
 
