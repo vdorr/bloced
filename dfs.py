@@ -20,6 +20,8 @@ S = "s"
 W = "w"
 E = "e"
 
+#XXX these consts must go!
+
 INPUT_TERM = 1
 OUTPUT_TERM = 2
 
@@ -969,121 +971,6 @@ class BlockPrototype(object) :
 		self.__pure = pure
 		self.__values = values
 		self.__library = library
-
-# ------------------------------------------------------------------------------------------------------------
-
-def guess_block_size(terms_N, terms_S, terms_W, terms_E) :
-	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * TERM_SIZE
-	mc_width = mc_width if mc_width >= MIN_BLOCK_WIDTH else MIN_BLOCK_WIDTH
-	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * TERM_SIZE
-	mc_height = mc_height if mc_height >= MIN_BLOCK_HEIGHT else MIN_BLOCK_HEIGHT
-	return mc_width, mc_height
-
-def __mc_term_info(model, tb) :
-	(x, y), _ = tb.get_term_and_lbl_pos(tb.terms[0], 0, 0, 0)
-	return (tb, (tb.left+x, tb.top+y))
-
-#def __mc_assign_side(tb, k, w, u, x, y) :
-#	sides = {
-#		(True, True) : N,
-#		(False, False) : S,
-#		(True, False) : W,
-#		(False, True) : E
-#	}
-#	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
-#	return sides[y>(k * x), y>((-k * (x-w))+u)]
-
-def __mc_assign_side(tb, center_x, center_y, x, y) :
-	sides = {
-		(True, True) : S,
-		(True, False) : N,
-		(False, True) : E,
-		(False, False) : W
-	}
-	side = tb.terms[0].get_side(tb)
-	vertical = side in (N, S)
-#	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
-	return sides[vertical, y > center_y if vertical else x > center_x ]
-
-def __mc_assign_positions(term_sides, side) :
-	assert(side in (N, S, W, E))
-	terms = [ (tb, sd, y if side in (N, S) else x) for tb, sd, (x, y) in term_sides if sd == side ]
-	terms.sort(key=lambda tb_sd_y: tb_sd_y[2])#(tb, sd, y): y)
-	step = 1.0 / (len(terms) + 1)
-	term_positions = [ (tb, sd, (i + 1) * step) for (tb, sd, p), i in zip(terms, count()) ]
-#	print "step=", step, "term_positions=", term_positions
-	return term_positions
-
-def try_mkmac(model) :
-#	inputs = [ b for b in model.blocks if isinstance(b.prototype, InputProto) ]
-#	outputs = [ b for b in model.blocks if isinstance(b.prototype, OutputProto) ]
-
-	terms = [ __mc_term_info(model, b)
-		for b in model.blocks if b.prototype.__class__ in (InputProto, OutputProto) ]
-	print("try_mkmac:", terms)
-
-	def __sizes(rct0, rct1) :
-		(l0, t0, r0, b0), (l1, t1, r1, b1) = rct0, rct1
-		return (l1 if l1 < l0 else l0,
-			t1 if t1 < t0 else t0,
-			r1 if r1 > r0 else r0,
-			b1 if b1 > b0 else b0)
-	if terms :
-		#TODO use mathutils.bounding_rect
-		(l, t, r, b) = reduce(__sizes, [ (x, y, x, y) for _, (x, y) in terms ])
-	else :
-		(l, t, r, b) = (0, 0, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT)
-#	(l, t, r, b) = (l-1, t-1, r+1, b+1)
-
-#	k = float(b) / float(r)# (l,t) (r,b)
-##	k = float(b-t) / float(r-l)# (l,t) (r,b)
-##	kb = float(t-b) / float(r-l) # (l,b) (r,t)
-	print("try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t)
-
-	term_sides = [ (tb, __mc_assign_side(tb, l+((r-l)/2), t+((b-t)/2), x, y), (x, y)) for tb, (x, y) in terms]
-#	xxx = [ (tb, __mc_assign_side(tb, k, (r-l)/2, (b-t), x, y)) for tb, (x, y) in terms]
-	print("try_mkmac: sides=", term_sides)
-
-#	term_WE = [ (tb, side) for tb, side in term_sides if side in (W, E) ]
-#	term_NS = [ (tb, side) for tb, side in term_sides if side in (N, S) ]
-
-#	term_W = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == W ]
-#	term_E = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == E ]
-#	term_S = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == S ]
-#	term_N = [ (tb, side, x, y) for tb, side, (x, y) in term_sides if side == N ]
-
-#	term_W = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == W ]
-#	term_W = sorted(term_W, key=lambda (tb, side, y): y)
-#	step = 1.0 / (len(term_W) + 1)
-#	term_positions = [ (tb, side, (i + 1) * step) for (tb, side, p), i in zip(term_W, count()) ]
-#	print "step=", step, "term_positions=", term_positions
-
-#	term_E = [ (tb, side, y) for tb, side, (x, y) in term_sides if side == E ]
-#	term_S = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == S ]
-#	term_N = [ (tb, side, x) for tb, side, (x, y) in term_sides if side == N ]
-
-	terms_W = __mc_assign_positions(term_sides, W)
-	terms_E = __mc_assign_positions(term_sides, E)
-	terms_S = __mc_assign_positions(term_sides, S)
-	terms_N = __mc_assign_positions(term_sides, N)
-
-	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * TERM_SIZE
-	mc_width = mc_width if mc_width >= MIN_BLOCK_WIDTH else MIN_BLOCK_WIDTH
-	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * TERM_SIZE
-	mc_height = mc_height if mc_height >= MIN_BLOCK_HEIGHT else MIN_BLOCK_HEIGHT
-
-	mc_width, mc_height = guess_block_size(terms_N, terms_S, terms_W, terms_E)
-
-	term_positions = terms_N + terms_S + terms_W + terms_E
-
-	print("term_positions=", mc_width, mc_height, term_positions)
-
-	mc_name = None # TODO
-	terminals = None
-
-	return mc_width, mc_height, mc_name, terminals
-#	graph, delays = make_dag(model, {})
-#	pprint(graph)
 
 # ------------------------------------------------------------------------------------------------------------
 
