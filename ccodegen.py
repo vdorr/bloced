@@ -206,7 +206,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
 
-	tmp = temp_init(core.KNOWN_TYPES)
+	tmp = temp_init(known_types)
 	subtrees = {}
 	code = []
 	dummies = set()
@@ -224,7 +224,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta)
+	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta, known_types)
 
 
 #def merge_codegen_output(a, b) :
@@ -252,7 +252,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 def churn_task_code(task_name, cg_out) :
 #TODO list known meta values
 
-	code, types, tmp, expd_dels, global_vars, dummies, meta = cg_out
+	code, types, tmp, expd_dels, global_vars, dummies, meta, known_types = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
@@ -261,8 +261,9 @@ def churn_task_code(task_name, cg_out) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
+		del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
-			del_type, state_var_prefix, i, int(d.value[0]), linesep))
+			del_type, state_var_prefix, i, del_init, linesep))
 
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :

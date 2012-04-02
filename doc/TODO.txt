@@ -57,3 +57,5 @@ workbench change detection
 kill TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT and so on
 use block meta when pasting from clipboard
 use fixed output type for comparison and logic blocks
+loop detection
+type truncation detection (especially with Delay)
