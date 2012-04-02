@@ -6,6 +6,7 @@ import hparser
 from collections import namedtuple
 from itertools import groupby, count, islice, dropwhile
 from pprint import pprint
+from serializer import unpickle_dfs_model, unpickle_workbench
 
 #from implement import here, KNOWN_TYPES
 
@@ -513,6 +514,22 @@ def try_mkmac(model) :
 #	graph, delays = make_dag(model, {})
 #	pprint(graph)
 
+
+def load_workbech_modules(lib_name, input_files) :
+	fname, = input_files
+	w = Workbench(
+		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True)
+	blockfactory = w.blockfactory
+	try :
+		with open(fname, "rb") as f :
+			unpickle_workbench(f, w)
+	except :
+		print(here(), "error loading workbench file", fname)
+		return None
+
+	return []
+
 #-------------------------------------------------------------------------------------------------------------
 
 
@@ -546,8 +563,9 @@ def read_lib_dir(path) :
 #			src_type = "sheet"
 			pass#TODO
 		if ext == "w" :
-#			blocks = [ ]
-#			src_type = "workbench:sheet"
+			blocks = load_workbech_modules(lib_name, [ filepath ])
+#			include_files.append(f)
+			src_type = "workbench_sheets"
 			pass#TODO
 		elif ext == "h" :
 			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
