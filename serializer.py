@@ -36,7 +36,8 @@ def unpickle_dfs_model(f, lib=None) :
 
 #TODO for use with clipboard and undo pass blocks and other components separately
 #TODO move to dfs.py
-#TODO import/export filters? (could be used to suck in something completely different, or to generate some completely different shit)
+#TODO import/export filters? (could be used to suck in something completely different,
+#    or to generate some completely different shit)
 def get_dfs_model_data(m) :
 	return get_dfs_model_data2(m.blocks, m.connections, m.connections_meta, dfs.GraphModel.get_meta(m))
 

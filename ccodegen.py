@@ -1,16 +1,17 @@
 
 import dfs
-from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
 from functools import partial
 from itertools import count
 from pprint import pprint
-from implement import *
+from itertools import groupby
+from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, here, \
+	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used
 
 # ------------------------------------------------------------------------------------------------------------
 
-__operators = {
+__OPS = {
 	"xor" :		lambda n, args : "(" + "^".join(args) + ")",
 	"or" :		lambda n, args : "(" + "||".join(args) + ")",
 	"nor" :		lambda n, args : "!(" + "|".join(args) + ")",
@@ -35,10 +36,10 @@ def __implement(g, n, args, outs) :
 #, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
-	if n.prototype.type_name in __operators :
+	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name=="not")
-		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
-		return __operators[n.prototype.type_name](n, args)
+		assert(len([t for t in n.terms if t.direction==dfs.OUTPUT_TERM]) == 1)
+		return __OPS[n.prototype.type_name](n, args)
 #	elif n.prototype.__class__ == core.PipeProto :
 #		assert(len(args) == 1)
 #		assert(not outs)

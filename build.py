@@ -66,7 +66,7 @@ def list_resources(workdir, recurse, ignore=lambda fn: False,
 		src_total += len(src_files)
 		sources += [ fn for fn in src_files if not ignore(fn) ]
 		if any([ re_hdr.match(fn) for fn in files ]) :
-			++idir_total
+			idir_total += 1
 			idir = os.path.join(workdir, root)
 			if not ignore(idir) :
 				include_dirs.append(idir)

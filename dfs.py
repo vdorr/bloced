@@ -1,15 +1,14 @@
 
+"""
+serialiazable model of graph, part of editor bussiness logic, definitions for presentation layer
+"""
+
 from itertools import dropwhile, islice, count
 from sys import version_info
 if version_info.major == 3 :
 	from functools import reduce
 else :
 	from Queue import Queue, Empty as QueueEmpty
-
-
-"""
-serialiazable model of graph, part of editor bussiness logic, definitions for presentation layer
-"""
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -927,53 +926,6 @@ class GraphModel(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockPrototype(object) :
-
-	# to be shown in bloced
-	type_name = property(lambda self: self.__type_name)
-
-	# to be used in code to execute block
-	exe_name = property(lambda self: self.__exe_name)
-
-	terms = property(lambda self: self.__terms)
-
-	inputs = property(lambda self: [ t for t in self.__terms if t.direction == INPUT_TERM ] )
-
-	outputs = property(lambda self: [ t for t in self.__terms if t.direction == OUTPUT_TERM ] )
-	
-	category = property(lambda self: self.__category)
-	
-	default_size = property(lambda self: self.__default_size)
-
-	commutative = property(lambda self: self.__commutative)
-
-	pure = property(lambda self: self.__pure)
-
-	values = property(lambda self: self.__values)
-
-	library = property(lambda self: self.__library)
-
-	def __init__(self, type_name, terms,
-			exe_name=None,
-			default_size=(64,64),
-			category="all",
-			commutative=False,
-			pure=False,
-			values=None,
-			library=None) :
-		self.__category = category
-		#TODO return self.type_name if not self.exe_name else self.exe_name
-		self.__type_name = type_name
-		self.__terms = terms
-		self.__default_size = default_size
-		self.__exe_name = exe_name
-		self.__commutative = commutative
-		self.__pure = pure
-		self.__values = values
-		self.__library = library
-
-# ------------------------------------------------------------------------------------------------------------
-
 import core
 import build
 import ccodegen
@@ -982,7 +934,9 @@ from threading import Thread, Lock
 import time
 import sys
 import os
-from implement import implement_dfs, implement_workbench, here
+#from implement import implement_dfs, implement_workbench, here
+import implement
+def here(*a) : pass
 from sys import version_info
 if version_info.major == 3 :
 	from io import StringIO
@@ -1070,8 +1024,8 @@ class Workbench(object) :
 
 		out_fobj = StringIO()
 		try :
-#			implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
-			implement_workbench(sheets, meta,
+#			implement.implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
+			implement.implement_workbench(sheets, meta,
 				ccodegen, core.KNOWN_TYPES, self.blockfactory, out_fobj)
 		except Exception as e:
 			self.__messages.put(("status", (("build", False, str(e)), {})))
@@ -1137,10 +1091,6 @@ class Workbench(object) :
 
 	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
-
-
-	def get_state_info(self) :
-		return ("", "")#left, right
 
 
 	def get_state_info(self) :
@@ -1313,7 +1263,7 @@ class Workbench(object) :
 
 	def is_valid_name(self, a) :
 		first = set("@_abcdefghijklmnopqrstuvwxyz")	
-		other = first.union("012345679")
+		other = first.union(":012345679")
 		s = a.lower()
 		return s and s[0] in first and all([ c in other for c in s ])
 
@@ -1371,11 +1321,13 @@ class Workbench(object) :
 			status_callback=None,
 			ports_callback=None,
 			monitor_callback=None,
-			change_callback=None ) :
+			change_callback=None,
+			do_create_block_factory=True) :
 
 		"""
 		default value for ALL meta is None, stick with it
 		"""
+
 		self.__persistent = ( "__port", "__board" )
 
 		self.__board = None
@@ -1396,8 +1348,10 @@ class Workbench(object) :
 
 		self.__ports = []
 
-		self.blockfactory = core.create_block_factory(
-			scan_dir=lib_dir)
+		self.blockfactory = None
+		if do_create_block_factory :
+			self.blockfactory = core.create_block_factory(
+				scan_dir=lib_dir)
 
 		self.__sheets = {}
 		self.__meta = {}
