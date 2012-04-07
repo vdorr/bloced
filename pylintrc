@@ -1,0 +1,15 @@
+#[MESSAGES CONTROL]
+#disable-msg=C0103
+
+[FORMAT]
+max-line-length=110
+indent-string='	'
+
+[BASIC]
+inlinevar-rgx=[A-Za-z_][A-Za-z0-9_]*$
+variable-rgx=[A-Za-z_][A-Za-z0-9_]*$
+argument-rgx=[A-Za-z_][A-Za-z0-9_]*$
+const-rgx=((([A-Z_][A-Z0-9_]*)|(__.*__))$)|([A-Za-z_][A-Za-z0-9_]{1,30}_t$)
+
+[DESIGN]
+min-public-methods=0
