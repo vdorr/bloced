@@ -13,3 +13,4 @@ const-rgx=((([A-Z_][A-Z0-9_]*)|(__.*__))$)|([A-Za-z_][A-Za-z0-9_]{1,30}_t$)
 
 [DESIGN]
 min-public-methods=0
+max-args=24

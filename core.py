@@ -582,24 +582,41 @@ def load_macroes_from_workbench(w, input_files) :
 	return []
 
 
-def load_workbench_library(lib_name, input_files) :
+#def load_workbench_libraryOLD(lib_name, input_files) :
 
+#	fname, = input_files
+#	w = dfs.Workbench(
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+#		passive=True,
+#		do_create_block_factory=False)
+#	blockfactory = w.blockfactory
+#	try :
+#		with open(fname, "rb") as f :
+#			serializer.unpickle_workbench(f, w)
+#			blocks = load_macroes_from_workbench(w, input_files)
+#	except Exception as e :
+#		print(here(), "error loading workbench file", fname, e)
+#		return None
+#	else :
+#		return blocks
+
+
+def load_workbench_library(lib_name, input_files) :
 	fname, = input_files
-	w = dfs.Workbench(
-		lib_dir=os.path.join(os.getcwd(), "library"),
-		passive=True,
-		do_create_block_factory=False)
-	blockfactory = w.blockfactory
 	try :
 		with open(fname, "rb") as f :
-			serializer.unpickle_workbench(f, w)
-			blocks = load_macroes_from_workbench(w, input_files)
+			version, meta, resources = serializer.unpickle_workbench_data(f)
 	except Exception as e :
 		print(here(), "error loading workbench file", fname, e)
 		return None
-	else :
-		return blocks
 
+	for r_type, r_version, r_name, resrc in resources :
+		if r_type == serializer.RES_TYPE_SHEET :
+			if r_version == serializer.RES_TYPE_SHEET_VERSION :
+				print fname, r_name
+
+
+	return []#blocks
 
 #-------------------------------------------------------------------------------------------------------------
 
@@ -635,7 +652,7 @@ def read_lib_dir(path) :
 #			src_type = "sheet"
 			pass#TODO
 		if ext == "w" :
-			if 0 :
+			if True :
 				blocks = load_workbench_library(lib_name, [ filepath ])
 #				include_files.append(f)
 				src_type = "workbench_sheets"
