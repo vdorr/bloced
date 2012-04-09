@@ -7,9 +7,7 @@ from collections import namedtuple
 from itertools import groupby, count, islice, dropwhile
 from pprint import pprint
 import serializer
-
-def here(depth=0) :
-	pass
+from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -221,7 +219,7 @@ class FunctionCallProto(BlockPrototype):
 class MuxProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "mux", [
-			dfs.In(-1, "x", dfs.W, .25, type_name="<inferred>"),
+			dfs.In(-1, "x", dfs.W, .25, type_name="<inferred>"),#XXX should be binary
 			dfs.In(-2, "a", dfs.W, .5, type_name="<inferred>"),
 			dfs.In(-3, "b", dfs.W, .75, type_name="<inferred>"),
 			dfs.Out(-1, "q", dfs.E, .5, type_name="<inferred>"), ],
@@ -600,9 +598,13 @@ def load_macroes_from_workbench(w, input_files) :
 #	else :
 #		return blocks
 
-
 def load_workbench_library(lib_name, input_files) :
+	"""
+	lib_name - full library name, example 'logic.flipflops'
+	"""
+
 	fname, = input_files
+
 	try :
 		with open(fname, "rb") as f :
 			version, meta, resources = serializer.unpickle_workbench_data(f)
@@ -610,10 +612,16 @@ def load_workbench_library(lib_name, input_files) :
 		print(here(), "error loading workbench file", fname, e)
 		return None
 
+	used_types = set()
+#XXX type_names must be unique -> need to extend them with library path, including c modules
 	for r_type, r_version, r_name, resrc in resources :
-		if r_type == serializer.RES_TYPE_SHEET :
-			if r_version == serializer.RES_TYPE_SHEET_VERSION :
+		if (r_type == serializer.RES_TYPE_SHEET and
+			r_version == serializer.RES_TYPE_SHEET_VERSION and
+			is_macro_name(r_name) ) :
+				types, struct, meta = resrc
+				used_types.update({ type_name for _, type_name in types })
 				print fname, r_name
+				#TODO get non-built-in types and create list of dependencies
 
 
 	return []#blocks
@@ -630,11 +638,23 @@ def read_be_lib_file(path) :
 	pass
 
 
-def read_lib_dir(path) :
+def lib_name_from_path(lib_basedir, path) :
+	libname = []
+	relpath = os.path.relpath(path, lib_basedir)
+	while not relpath in ("", os.path.pardir, os.path.curdir) :
+		relpath, libname_part = os.path.split(relpath)
+		libname.insert(0, libname_part)
+	return ".".join(libname)
+
+
+def read_lib_dir(lib_basedir, path) :
+	"""
+	load libraries from path, contained in lib_basedir, both have to be absolute paths
+	"""
 
 	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
 
-	lib_name = os.path.split(path)[-1]
+	lib_name = lib_name_from_path(lib_basedir, path)
 
 	items = []
 	include_files = []
@@ -642,10 +662,12 @@ def read_lib_dir(path) :
 
 	for f in filenames :
 
-		ext = f.split(os.path.extsep)[-1]
-		fbasename = f[0:(len(f)-len(ext)-len(os.path.extsep))]
+		fbasename, ext = os.path.splitext(f)
+		ext = ext.lstrip(os.path.extsep).lower()
 		filepath = os.path.join(root, f)
 
+		if ext in ("bloc", "w") :
+			lib_name = ".".join((lib_name, fbasename))
 
 		if ext == "bloc" :
 #			blocks = [ load_macro(filepath) ] #TODO not implemented at all
@@ -693,11 +715,12 @@ class BasicBlocksFactory(object) :
 #			pass
 
 
-	def load_library(self, basedir) :
+	def load_library(self, lib_basedir) :
+		basedir = os.path.abspath(lib_basedir)
 		(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 		for d in dirnames :
-			path = os.path.join(basedir, d)
-			lib = read_lib_dir(path)
+			path = os.path.abspath(os.path.join(basedir, d))
+			lib = read_lib_dir(basedir, path)
 			self.libs.append(lib)
 			self.__blocks += [ proto for item, proto in lib.items ]
 		return (True, )

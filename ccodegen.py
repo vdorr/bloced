@@ -6,8 +6,9 @@ from functools import partial
 from itertools import count
 from pprint import pprint
 from itertools import groupby
-from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, here, \
+from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
 	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used
+from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
