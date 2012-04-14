@@ -647,6 +647,16 @@ def lib_name_from_path(lib_basedir, path) :
 	return ".".join(libname)
 
 
+def __lib_path_and_name(root, lib_base_name, f) :
+	fbasename, ext = os.path.splitext(f)
+	ext = ext.lstrip(os.path.extsep).lower()
+	filepath = os.path.join(root, f)
+	lib_name = lib_base_name
+	if ext in ("bloc", "w") :
+		lib_name = ".".join((lib_base_name, fbasename))
+	return ext, lib_name, filepath
+
+
 def read_lib_dir(lib_basedir, path) :
 	"""
 	load libraries from path, contained in lib_basedir, both have to be absolute paths
@@ -654,20 +664,25 @@ def read_lib_dir(lib_basedir, path) :
 
 	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
 
-	lib_name = lib_name_from_path(lib_basedir, path)
+	lib_base_name = lib_name_from_path(lib_basedir, path)
 
 	items = []
 	include_files = []
 	blocks = tuple()
 
-	for f in filenames :
+#	for f in filenames :
 
-		fbasename, ext = os.path.splitext(f)
-		ext = ext.lstrip(os.path.extsep).lower()
-		filepath = os.path.join(root, f)
+#		fbasename, ext = os.path.splitext(f)
+#		ext = ext.lstrip(os.path.extsep).lower()
+#		filepath = os.path.join(root, f)
 
-		if ext in ("bloc", "w") :
-			lib_name = ".".join((lib_name, fbasename))
+#		if ext in ("bloc", "w") :
+#			lib_name = ".".join((lib_name, fbasename))
+
+
+	sublibs = [ __lib_path_and_name(root, lib_base_name, f) for f in filenames ]
+
+	for ext, lib_name, filepath in sublibs :
 
 		if ext == "bloc" :
 #			blocks = [ load_macro(filepath) ] #TODO not implemented at all
