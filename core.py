@@ -856,8 +856,13 @@ class BasicBlocksFactory(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+__factory_instance = None
+
 def create_block_factory(**args) :
-	return BasicBlocksFactory(**args)
+	global __factory_instance
+	if __factory_instance is None :
+		__factory_instance = BasicBlocksFactory(**args)
+	return __factory_instance
 
 # ----------------------------------------------------------------------------
 
