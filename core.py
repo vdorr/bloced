@@ -639,15 +639,15 @@ def load_workbench_library(lib_name, input_files) :
 #XXX type_names must be unique -> need to extend them with library path, including c modules
 	for r_type, r_version, r_name, resrc in resources :
 		if (r_type == serializer.RES_TYPE_SHEET and
-			r_version == serializer.RES_TYPE_SHEET_VERSION and
-			is_macro_name(r_name) ) :
-				types, struct, meta = resrc
-				for nr, block_type in types :
-#					print nr, block_type
-					lib_name, type_name = split_full_type_name(block_type)
-					if lib_name :
-						print here(), nr, lib_name, type_name
-						used_libs.update((lib_name,))
+				r_version == serializer.RES_TYPE_SHEET_VERSION and
+				is_macro_name(r_name) ) :
+			types, struct, meta = resrc
+			for nr, block_type in types :
+#				print nr, block_type
+				lib_name, type_name = split_full_type_name(block_type)
+				if lib_name :
+					print here(), nr, lib_name, type_name
+					used_libs.update((lib_name,))
 #				print fname, r_name
 
 	print here(), used_libs
