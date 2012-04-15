@@ -603,24 +603,30 @@ def load_workbench_library(lib_name, input_files) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-#XXX
-	return []
-#XXX
 	fname, = input_files
 
-	w = dfs.Workbench(
-		lib_dir=os.path.join(os.getcwd(), "library"),
-		passive=True,
-		do_create_block_factory=False)
+##XXX
+#	return []
+##XXX
 
-	with open(fname, "rb") as f :
-#		version, meta, resources = serializer.unpickle_workbench_data(f)
-		serializer.unpickle_workbench(f, w)
+#	w = dfs.Workbench(
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+#		passive=True,
+#		do_create_block_factory=False)
 
-#	try_mkmac(model)
+#	with open(fname, "rb") as f :
+##		version, meta, resources = serializer.unpickle_workbench_data(f)
+#		serializer.unpickle_workbench(f, w)
 
-	print here(), w.sheets
-	return []
+##	try_mkmac(model)
+
+#	print here(), w.sheets
+#	return []
+
+
+
+
+
 
 	try :
 		with open(fname, "rb") as f :
@@ -629,22 +635,22 @@ def load_workbench_library(lib_name, input_files) :
 		print(here(), "error loading workbench file", fname, e)
 		return None
 
-	used_types = set()
+	used_libs = set()
 #XXX type_names must be unique -> need to extend them with library path, including c modules
 	for r_type, r_version, r_name, resrc in resources :
 		if (r_type == serializer.RES_TYPE_SHEET and
 			r_version == serializer.RES_TYPE_SHEET_VERSION and
 			is_macro_name(r_name) ) :
 				types, struct, meta = resrc
-				_, block_meta, _ = meta
 				for nr, block_type in types :
-					print nr, block_type
-#					if block_type in ("Macro") :
-#						print block_meta[nr]
+#					print nr, block_type
+					lib_name, type_name = split_full_type_name(block_type)
+					if lib_name :
+						print here(), nr, lib_name, type_name
+						used_libs.update((lib_name,))
+#				print fname, r_name
 
-#				used_types.update({ type_name for _, type_name in types })
-				print fname, r_name
-
+	print here(), used_libs
 
 	return []#blocks
 
@@ -654,6 +660,13 @@ def load_workbench_library(lib_name, input_files) :
 be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
 be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
+
+
+def split_full_type_name(full_type) :
+	type_name_parts = full_type.split(".")
+	type_name = type_name_parts[-1]
+	lib_name = ".".join(type_name_parts[:-1])
+	return lib_name, type_name
 
 
 def read_be_lib_file(path) :
@@ -692,16 +705,6 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 	include_files = []
 	blocks = tuple()
 
-#	for f in filenames :
-
-#		fbasename, ext = os.path.splitext(f)
-#		ext = ext.lstrip(os.path.extsep).lower()
-#		filepath = os.path.join(root, f)
-
-#		if ext in ("bloc", "w") :
-#			lib_name = ".".join((lib_name, fbasename))
-
-
 	sublibs = tuple(__lib_path_and_name(root, lib_base_name, f) for f in filenames)
 
 	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
@@ -720,35 +723,6 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 		items.extend([ (be_lib_block_t(lib_name, filepath, "w", b.type_name, b.type_name), b)
 			for b in blocks ])
 
-#	for ext, lib_name, filepath in sublibs :
-
-#		if ext == "bloc" :
-##			blocks = [ load_macro(filepath) ] #TODO not implemented at all
-##			src_type = "sheet"
-#			pass#TODO
-#		if ext == "w" :
-#			if True :
-#				blocks = load_workbench_library(lib_name, [ filepath ])
-##				include_files.append(f)
-#				src_type = "workbench_sheets"
-#		elif ext == "h" :
-#			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
-#			include_files.append(f)
-#			src_type = "c"
-#		elif ext == "hpp" :
-##			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
-##			include_files.append(filepath)
-##			src_type = "c++"
-#			pass#TODO
-#		else :
-##			print(f)
-##			blocks = False
-#			continue
-
-#		items.extend([ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
-#			for b in blocks ])
-
-
 	return be_library_t(
 		name=lib_base_name,
 		path=path,
@@ -760,19 +734,7 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-#def compare_type_name(a, b, fuzzy=True) :
-#	if fuzzy :
-#		return
-#	else :
-#		return cmp(a, b)
-
-
 class BasicBlocksFactory(object) :
-
-
-#	def load_lib_dir(self, path) :
-#		for dirname, dirnames, filenames in os.walk(path) :
-#			pass
 
 
 	def load_library(self, lib_basedir) :
@@ -787,10 +749,7 @@ class BasicBlocksFactory(object) :
 
 
 	def get_block_by_name(self, full_type, fuzzy=True) :
-
-		type_name_parts = full_type.split(".")
-		type_name = type_name_parts[-1]
-		lib_name = ".".join(type_name_parts[:-1])
+		lib_name, type_name = split_full_type_name(full_type)
 #		print here(), full_type, lib_name
 
 		hits = tuple(p for p in self.__blocks
@@ -808,12 +767,6 @@ class BasicBlocksFactory(object) :
 			return exact[0] if exact else hits[0]
 		else :
 			return hits[0]
-
-#		p = list(islice(dropwhile(lambda proto: proto.type_name != type_name,
-#			self.__blocks), 0, 1))
-#		if not p :
-#			raise Exception("type_name '" + type_name + "' not found")
-#		return p[0]#.__class__()
 
 
 	block_list = property(lambda self: self.__blocks)
