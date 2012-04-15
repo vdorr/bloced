@@ -4,7 +4,7 @@ import os
 import sys
 import hparser
 from collections import namedtuple
-from itertools import groupby, count, islice, dropwhile
+from itertools import groupby, count, islice
 from pprint import pprint
 import serializer
 from utils import here
@@ -840,7 +840,7 @@ def create_block_factory(**args) :
 # ----------------------------------------------------------------------------
 
 def main() :
-	pprint(read_lib_dir("/home/vd/personal/bloced/library/arduino"))
+	pprint(read_lib_dir(os.path.abspath("library"), "/home/vd/personal/bloced/library/arduino"))
 	sys.exit(0)
 
 #	OUTPUT_TERM, INPUT_TERM = 666, 667
@@ -854,6 +854,7 @@ def main() :
 			srcs = srcf.readlines()
 			srcf.close()
 			exports = extract_exports(srcs, KNOWN_TYPES)
+			pprint(exports)
 		elif sys.argv[1] == "libscantest" :
 # python core.py libscantest
 			if len(sys.argv) == 2 :
