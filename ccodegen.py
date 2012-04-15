@@ -263,7 +263,7 @@ def churn_task_code(task_name, cg_out) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
-		del_init = parse_literal(d.value[0], known_types=known_types, variables={})
+		_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, del_init, linesep))
 
