@@ -53,6 +53,14 @@ def __term_nfo(t0) :
 	return (t0[0].name, t0[1]) if isinstance(t0, tuple) else t0.name
 
 
+def __get_block_full_type(block) :
+#	print here(), block.prototype.library, block.prototype.type_name
+	full_type = block.prototype.type_name
+	if not block.prototype.library is None :
+		full_type = block.prototype.library + "." + full_type
+	return full_type
+
+
 def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 	"""
 	convert content of GraphModel to tuple (types, struct, meta) of simple, serializable types
@@ -72,7 +80,7 @@ def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 	struct = [ ((n[b0], __term_nfo(t0)), [ (n[b1], __term_nfo(t1)) for b1, t1 in vals ])
 			for (b0, t0), vals in connections.items() ]
 
-	types = [ (nr, block.prototype.type_name) for block, nr in n.items() ]
+	types = [ (nr, __get_block_full_type(block)) for block, nr in n.items() ]
 
 	conn_meta = [ ((n[b0], __term_nfo(t0), n[b1], __term_nfo(t1)), v)
 		for (b0, t0, b1, t1), v in connections_meta.items() ]

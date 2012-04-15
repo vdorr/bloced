@@ -598,12 +598,29 @@ def load_macroes_from_workbench(w, input_files) :
 #	else :
 #		return blocks
 
+
 def load_workbench_library(lib_name, input_files) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-
+#XXX
+	return []
+#XXX
 	fname, = input_files
+
+	w = dfs.Workbench(
+		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True,
+		do_create_block_factory=False)
+
+	with open(fname, "rb") as f :
+#		version, meta, resources = serializer.unpickle_workbench_data(f)
+		serializer.unpickle_workbench(f, w)
+
+#	try_mkmac(model)
+
+	print here(), w.sheets
+	return []
 
 	try :
 		with open(fname, "rb") as f :
@@ -619,9 +636,14 @@ def load_workbench_library(lib_name, input_files) :
 			r_version == serializer.RES_TYPE_SHEET_VERSION and
 			is_macro_name(r_name) ) :
 				types, struct, meta = resrc
-				used_types.update({ type_name for _, type_name in types })
+				_, block_meta, _ = meta
+				for nr, block_type in types :
+					print nr, block_type
+#					if block_type in ("Macro") :
+#						print block_meta[nr]
+
+#				used_types.update({ type_name for _, type_name in types })
 				print fname, r_name
-				#TODO get non-built-in types and create list of dependencies
 
 
 	return []#blocks
@@ -657,7 +679,7 @@ def __lib_path_and_name(root, lib_base_name, f) :
 	return ext, lib_name, filepath
 
 
-def read_lib_dir(lib_basedir, path) :
+def read_lib_dir(lib_basedir, path, peek=False) :
 	"""
 	load libraries from path, contained in lib_basedir, both have to be absolute paths
 	"""
@@ -680,39 +702,55 @@ def read_lib_dir(lib_basedir, path) :
 #			lib_name = ".".join((lib_name, fbasename))
 
 
-	sublibs = [ __lib_path_and_name(root, lib_base_name, f) for f in filenames ]
+	sublibs = tuple(__lib_path_and_name(root, lib_base_name, f) for f in filenames)
 
-	for ext, lib_name, filepath in sublibs :
+	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
 
-		if ext == "bloc" :
-#			blocks = [ load_macro(filepath) ] #TODO not implemented at all
-#			src_type = "sheet"
-			pass#TODO
-		if ext == "w" :
-			if True :
-				blocks = load_workbench_library(lib_name, [ filepath ])
-#				include_files.append(f)
-				src_type = "workbench_sheets"
-		elif ext == "h" :
-			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
-			include_files.append(f)
-			src_type = "c"
-		elif ext == "hpp" :
-#			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
-#			include_files.append(filepath)
-#			src_type = "c++"
-			pass#TODO
-		else :
-#			print(f)
-#			blocks = False
-			continue
-
-		items.extend([ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
+	for ext, lib_name, filepath in c_libs :
+		blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+		include_files.append(filepath)
+		items.extend([ (be_lib_block_t(lib_name, filepath, "c", b.type_name, b.type_name), b)
 			for b in blocks ])
+
+	w_libs = tuple(sl for sl in sublibs if sl[0] == "w")
+
+	for ext, lib_name, filepath in w_libs :
+		blocks = load_workbench_library(lib_name, [ filepath ])
+#		include_files.append(f)
+		items.extend([ (be_lib_block_t(lib_name, filepath, "w", b.type_name, b.type_name), b)
+			for b in blocks ])
+
+#	for ext, lib_name, filepath in sublibs :
+
+#		if ext == "bloc" :
+##			blocks = [ load_macro(filepath) ] #TODO not implemented at all
+##			src_type = "sheet"
+#			pass#TODO
+#		if ext == "w" :
+#			if True :
+#				blocks = load_workbench_library(lib_name, [ filepath ])
+##				include_files.append(f)
+#				src_type = "workbench_sheets"
+#		elif ext == "h" :
+#			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+#			include_files.append(f)
+#			src_type = "c"
+#		elif ext == "hpp" :
+##			blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+##			include_files.append(filepath)
+##			src_type = "c++"
+#			pass#TODO
+#		else :
+##			print(f)
+##			blocks = False
+#			continue
+
+#		items.extend([ (be_lib_block_t(lib_name, filepath, src_type, b.type_name, b.type_name), b)
+#			for b in blocks ])
 
 
 	return be_library_t(
-		name=lib_name,
+		name=lib_base_name,
 		path=path,
 		allowed_targets=None,#TODO
 		include_files=include_files,
@@ -720,6 +758,13 @@ def read_lib_dir(lib_basedir, path) :
 
 
 # ------------------------------------------------------------------------------------------------------------
+
+
+#def compare_type_name(a, b, fuzzy=True) :
+#	if fuzzy :
+#		return
+#	else :
+#		return cmp(a, b)
 
 
 class BasicBlocksFactory(object) :
@@ -741,60 +786,34 @@ class BasicBlocksFactory(object) :
 		return (True, )
 
 
-#	def load_library_OLD(self, basedir) :
-#		try :
-#			(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-#		except :
-#			print("load_library: failed to scan ", basedir)
+	def get_block_by_name(self, full_type, fuzzy=True) :
 
-#			return (False, )
+		type_name_parts = full_type.split(".")
+		type_name = type_name_parts[-1]
+		lib_name = ".".join(type_name_parts[:-1])
+#		print here(), full_type, lib_name
 
-#		lib_name = os.path.split(dirname)[-1]
+		hits = tuple(p for p in self.__blocks
+			if p.type_name == type_name and
+			(True if fuzzy else (p.library == lib_name or (not p.library and not lib_name))))
 
-##		print lib_name, dirname, dirnames, filenames
+		if not hits :
+			raise Exception("type_name '" + full_type + "' not found")
 
-#		MY_FILE_EXTENSION = "bloc"#XXX
+		if not fuzzy and len(hits) > 1 :
+			raise Exception("multiple hits for type_name '" + full_type + "'")
 
-#		for f in filenames :
-##			fname_split = f.split(os.path.extsep)
-##			ext = fname_split[-1]
-##			fname = fname_split[:-1]
-#			ext = f.split(os.path.extsep)[-1]
-#			fname = f[0:(len(f)-len(ext)-len(os.path.extsep))]
-#			if ext == MY_FILE_EXTENSION :
-#				try :
-#					blocks = [ load_macro(f) ] #TODO not implemented at all
-#				except :
-#					print("failed to load " + f)
-#				else :
-#					if blocks == None :
-#						continue #XXX
-#					self.__blocks += blocks
-#			elif ext == "c" and (fname + os.path.extsep + "h") in filenames : #XXX too naive!
-#				try :
-#					blocks = load_c_module(lib_name, [os.path.join(dirname, f),
-#						os.path.join(dirname, fname + os.path.extsep + "h")])
-#				except :
-#					print("failed to load " + f)
-#					raise
-#				else :
-#					if blocks == None :
-#						continue #XXX
-#					self.__blocks += blocks
-#		for d in dirnames :
-#			self.load_library(os.path.join(dirname, d))
+		if fuzzy :
+			exact = tuple(p for p in hits if p.library == lib_name)
+			return exact[0] if exact else hits[0]
+		else :
+			return hits[0]
 
-#		self.__blocks += []
-
-#		return (True, )
-
-
-	def get_block_by_name(self, type_name) :
-		p = list(islice(dropwhile(lambda proto: proto.type_name != type_name,
-			self.__blocks), 0, 1))
-		if not p :
-			raise Exception("type_name '" + type_name + "' not found")
-		return p[0]#.__class__()
+#		p = list(islice(dropwhile(lambda proto: proto.type_name != type_name,
+#			self.__blocks), 0, 1))
+#		if not p :
+#			raise Exception("type_name '" + type_name + "' not found")
+#		return p[0]#.__class__()
 
 
 	block_list = property(lambda self: self.__blocks)
@@ -803,6 +822,7 @@ class BasicBlocksFactory(object) :
 	def __init__(self, scan_dir=None) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
+#TODO use (ordered) dictionary
 		self.__blocks = [
 			JointProto(),
 			ConstProto(),
