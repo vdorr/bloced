@@ -261,15 +261,6 @@ class BinaryOp(BlockPrototype) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO TODO TODO
-class StatefulBP(BlockPrototype) :
-	def __init__(self, type_name, terms, exe_name=None) :
-		BlockPrototype.__init__(self, type_name, terms,
-			exe_name=type_name if not exe_name else exe_name)
-#TODO TODO TODO
-
-# ----------------------------------------------------------------------------
-
 class CFunctionProto(BlockPrototype):
 	pass
 #	def __init__(self) :
@@ -731,6 +722,17 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 		items=items)
 
 
+def load_libraries(lib_basedir) :
+	basedir = os.path.abspath(lib_basedir)
+	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+	libs = []
+	for d in dirnames :
+		path = os.path.abspath(os.path.join(basedir, d))
+		lib = read_lib_dir(basedir, path)
+		libs.append(lib)
+	return libs
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 
@@ -738,12 +740,9 @@ class BasicBlocksFactory(object) :
 
 
 	def load_library(self, lib_basedir) :
-		basedir = os.path.abspath(lib_basedir)
-		(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-		for d in dirnames :
-			path = os.path.abspath(os.path.join(basedir, d))
-			lib = read_lib_dir(basedir, path)
-			self.libs.append(lib)
+		libs = load_libraries(lib_basedir)
+		self.libs += libs
+		for lib in libs :
 			self.__blocks += [ proto for item, proto in lib.items ]
 		return (True, )
 
@@ -813,16 +812,6 @@ class BasicBlocksFactory(object) :
 			BinaryOp("eq", "Arithmetic", commutative=False),
 			BinaryOp("lte", "Arithmetic", commutative=False),
 			BinaryOp("gte", "Arithmetic", commutative=False),
-
-#			SBP("load", "Memory", [ ]),
-#			SBP("store", "Memory", [ ]),
-#			SBP("load_nv", "Memory", [ ]),
-#			SBP("store_nv", "Memory", [ ]),
-
-			SBP("di", "Process IO", [ dfs.In(0, "nr", dfs.W, .5, type_name="vm_word_t"),
-				dfs.Out(0, "y", dfs.E, .5, type_name="vm_word_t") ], exe_name="io_di"),
-			SBP("do", "Process IO", [ dfs.In(-1, "nr", dfs.W, .33, type_name="vm_word_t"),
-				dfs.In(-2, "x", dfs.W, .66, type_name="vm_word_t") ], exe_name="io_do"),
 		]
 		if scan_dir :
 			self.load_library(scan_dir)
