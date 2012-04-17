@@ -422,20 +422,28 @@ def __is_header(fname) :
 	return ext.lower() in HEADER_EXTS
 
 
-c_lib_data_t = namedtuple("c_lib_data", ("name", "path", "headers", "blocks", ))
+#c_lib_data_t = namedtuple("c_lib_data", ("name", "path", "headers", "blocks", ))
 
 
-def load_c_module(lib_name, input_files) :
+def load_c_module(lib_name, header) :
 #TODO use directory path or single file instead of list of files
-#	print "load_c_module:", input_files
-#	exports = [ (fn, extract_vmex(fn)) for fn in input_files ]
-	header = [ fn for fn in input_files if __is_header(fn) ][-1]
+#	header_list = [ fn for fn in input_files if __is_header(fn) ]
+#	assert(len(header_list)==1)
+#	header, = header_list
 	exports = extract_vmex(header, KNOWN_TYPES)
-#	print("library '%s' exports %i functions" % (lib_name, len(exports)))
-#	pprint(exports)
-#TODO now produce prototypes
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
 	return protos#TODO c_lib_data_t(lib_name)
+
+
+#def scan_c_module(lib_name, path, input_files) :
+
+#	header_list = [ fn for fn in input_files if __is_header(fn) ]
+#	exports = extract_vmex(header, KNOWN_TYPES)
+#	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
+#	return lib_info_t(
+#		path=path,
+#		files=header_list,#XXX what about sources?
+#		using_types=None)
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -564,11 +572,11 @@ def is_macro_name(s) :
 	return s.strip().startswith("@macro:")
 
 
-def load_macroes_from_workbench(w, input_files) :
-	for (name, sheet) in w.sheets.items() :
-		if is_macro_name(name) :
-			print name, sheet
-	return []
+#def load_macroes_from_workbench(w, input_files) :
+#	for (name, sheet) in w.sheets.items() :
+#		if is_macro_name(name) :
+#			print(name, sheet)
+#	return []
 
 
 #def load_workbench_libraryOLD(lib_name, input_files) :
@@ -637,13 +645,50 @@ def load_workbench_library(lib_name, input_files) :
 #				print nr, block_type
 				lib_name, type_name = split_full_type_name(block_type)
 				if lib_name :
-					print here(), nr, lib_name, type_name
+					print(here(), nr, lib_name, type_name)
 					used_libs.update((lib_name,))
 #				print fname, r_name
 
-	print here(), used_libs
+	print(here(), used_libs)
 
 	return []#blocks
+
+
+
+
+
+def get_workbench_dependencies(fname) :
+	"""
+	return set of block types immediately needed by workbench file fname
+	these block types may have other dependencies
+	"""
+	try :
+		with open(fname, "rb") as f :
+			version, meta, resources = serializer.unpickle_workbench_data(f)
+	except Exception as e :
+		print(here(), "error loading workbench file", fname, e)
+		return None
+
+	used_types = set()
+#XXX type_names must be unique -> need to extend them with library path, including c modules
+	for r_type, r_version, r_name, resrc in resources :
+		if (r_type == serializer.RES_TYPE_SHEET and
+				r_version == serializer.RES_TYPE_SHEET_VERSION and
+				is_macro_name(r_name) ) :
+			types, struct, meta = resrc
+			for nr, block_type in types :
+#				print nr, block_type
+				lib_name, type_name = split_full_type_name(block_type)
+				if lib_name :
+#					print(here(), nr, lib_name, type_name)
+					used_types.update((block_type,))
+#				print fname, r_name
+
+#	print(here(), used_types)
+
+	return used_types
+
+
 
 #-------------------------------------------------------------------------------------------------------------
 
@@ -700,8 +745,8 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 
 	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
 
-	for ext, lib_name, filepath in c_libs :
-		blocks = load_c_module(lib_name, [ filepath ])#XXX first gather all files
+	for ext, lib_name, filepath in c_libs :#XXX XXX XXX WRONG!!!!!!!!! do not test lib type this way - is there actually something like library type?! XXX XXX XXX
+		blocks = load_c_module(lib_name, filepath)#XXX first gather all files
 		include_files.append(filepath)
 		items.extend([ (be_lib_block_t(lib_name, filepath, "c", b.type_name, b.type_name), b)
 			for b in blocks ])
@@ -722,15 +767,135 @@ def read_lib_dir(lib_basedir, path, peek=False) :
 		items=items)
 
 
-def load_libraries(lib_basedir) :
+
+lib_file_info_t = namedtuple("lib_file_info", ("path", "file_type", "using_types"))
+
+
+lib_info_t = namedtuple("lib_info", ("lib_name", "path", "files", "using_types"))
+
+
+def __get_lib_file_info(ext, lib_name, filepath) :
+	"""
+	return instance of lib_file_info_t if filepath is valid library file, None otherwise
+	"""
+
+	if ext in ("c", "h", "cpp", "hpp") :
+		file_type = "c"
+	elif ext in ("w", ) :
+		file_type = "w"
+	else :
+		return None
+#		raise Exception(here(), "unknown lib file extension '" + ext + "'")
+
+	using_types = set()
+
+	if file_type == "w" :
+		dependencies = get_workbench_dependencies(filepath)
+		using_types.update(dependencies)
+
+	return lib_file_info_t(
+		path=filepath,
+		file_type=file_type,
+		using_types=tuple(using_types))
+
+
+def scan_library(lib_basedir, path) :
+	"""
+	return instance of lib_info_t with list of instances of lib_file_info_t
+	"""
+
+	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
+
+	lib_base_name = lib_name_from_path(lib_basedir, path)
+
+	items = []
+	include_files = []
+	blocks = tuple()
+
+	sublibs = (__lib_path_and_name(root, lib_base_name, f) for f in filenames)
+
+	files = []
+	for ext, lib_name, filepath in sublibs :
+		file_info = __get_lib_file_info(ext, lib_name, filepath)
+		if not file_info is None :
+			files.append(file_info)
+
+	return lib_info_t(
+		lib_name=lib_base_name,
+		path=path,
+		files=(files),
+		using_types=tuple())
+
+
+def load_library(lib):
+	"""
+	return blocks loaded from library described by lib_info_t instance lib
+	"""
+	lib_blocks = []
+	for file_info in sorted(lib.files) :
+#		print "!!!"
+#		pprint(file_info)
+		if file_info.file_type == "c" :
+			if __is_header(file_info.path) :
+				blocks = load_c_module(lib.lib_name, file_info.path)
+				lib_blocks += lib_blocks
+		elif file_info.file_type == "w" :
+#TODO
+			pass
+		else :
+			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
+	return lib_blocks
+
+
+def sort_libs(libs) :
+	"""
+	return list of libs topologicaly sorted by their dependencies
+	"""
+#TODO
+	return libs
+
+
+def load_librariesNEW(lib_basedir) :
+	basedir = os.path.abspath(lib_basedir)
+	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+
+	libs = []
+	for d in dirnames :
+		path = os.path.abspath(os.path.join(basedir, d))
+		lib = scan_library(basedir, path)
+		libs.append(lib)
+
+	#TODO now do topological sorting
+
+	loaded_libs = [ load_library(lib) for lib in libs ]
+
+	return loaded_libs
+
+
+def load_librariesOLD(lib_basedir) :
 	basedir = os.path.abspath(lib_basedir)
 	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 	libs = []
 	for d in dirnames :
 		path = os.path.abspath(os.path.join(basedir, d))
+
+
+		print "------------------------>"
+		xxx = scan_library(lib_basedir, path)
+		load_library(xxx)
+		pprint(xxx)
+		print "<<======================="
+
+
+
 		lib = read_lib_dir(basedir, path)
 		libs.append(lib)
 	return libs
+
+
+def load_libraries(lib_basedir) :
+	return load_librariesOLD(lib_basedir)
+#	return load_librariesNEW(lib_basedir)
 
 
 # ------------------------------------------------------------------------------------------------------------
