@@ -397,7 +397,7 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 				rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
 					"-fdata-sections"], out=out)
 				if rc[0] == 0 :
-					print "compiled:", out
+					print("compiled:" + out)
 					objects.append(os.path.split(out)[-1])
 				else :
 					break

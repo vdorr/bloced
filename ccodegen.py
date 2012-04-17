@@ -147,7 +147,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in evaluated :
-			print here(), del_out.type_name
+#			print(here(), del_out.type_name)
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
