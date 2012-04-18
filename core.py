@@ -695,6 +695,7 @@ def get_workbench_dependencies(fname) :
 
 be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
+
 be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
 
 
@@ -849,10 +850,38 @@ def load_library(lib):
 
 def sort_libs(libs) :
 	"""
-	return list of libs topologicaly sorted by their dependencies
+	from list of lib_info_t generate list of lib names topologicaly sorted by their dependencies
 	"""
-#TODO
-	return libs
+
+	g = {}
+	s = []
+
+	for lib in libs :
+		deps = set()
+		for file_info in lib.files :
+			for full_type in file_info.using_types :
+				lib_name, type_name = split_full_type_name(full_type)
+				deps.add(lib_name)
+		if deps :
+			g[lib.lib_name] = deps
+		else :
+			s.append(lib.lib_name)
+
+	reached = set(s)
+	while g :
+		removed = []
+		for k, v in g.items() :
+			if v.issubset(reached) :
+				s.append(k)
+				removed.append(k)
+				reached.add(k)
+		if g and not removed :
+			print(here() + " probable cyclic dependency")
+			return None
+		for k in removed :
+			g.pop(k)
+
+	return s
 
 
 def load_librariesNEW(lib_basedir) :
@@ -876,20 +905,28 @@ def load_librariesOLD(lib_basedir) :
 	basedir = os.path.abspath(lib_basedir)
 	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 	libs = []
+
+	lib_info = []
+
 	for d in dirnames :
 		path = os.path.abspath(os.path.join(basedir, d))
 
 
-		print "------------------------>"
+#		print "------------------------>"
 		xxx = scan_library(lib_basedir, path)
-		load_library(xxx)
-		pprint(xxx)
-		print "<<======================="
+		lib_info.append(xxx)
+#		load_library(xxx)
+#		pprint(xxx)
+#		print "<<======================="
 
 
 
 		lib = read_lib_dir(basedir, path)
 		libs.append(lib)
+
+
+	sort_libs(lib_info)
+
 	return libs
 
 
