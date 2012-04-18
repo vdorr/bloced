@@ -1,10 +1,9 @@
 
 import dfs
 import os
-import sys
 import hparser
 from collections import namedtuple
-from itertools import groupby, count, islice
+from itertools import count, islice
 from pprint import pprint
 import serializer
 from utils import here
@@ -1026,38 +1025,38 @@ def create_block_factory(**args) :
 
 # ----------------------------------------------------------------------------
 
-def main() :
-	pprint(read_lib_dir(os.path.abspath("library"), "/home/vd/personal/bloced/library/arduino"))
-	sys.exit(0)
+#def main() :
+#	pprint(read_lib_dir(os.path.abspath("library"), "/home/vd/personal/bloced/library/arduino"))
+#	sys.exit(0)
 
-#	OUTPUT_TERM, INPUT_TERM = 666, 667
-	if len(sys.argv) > 1 :
-		if sys.argv[1] == "librariantest" :
-			if len(sys.argv) == 2 :
-				source = "iowrap.h"
-			else :
-				source = sys.argv[2]
-			srcf = open(source, "r")
-			srcs = srcf.readlines()
-			srcf.close()
-			exports = extract_exports(srcs, KNOWN_TYPES)
-			pprint(exports)
-		elif sys.argv[1] == "libscantest" :
-# python core.py libscantest
-			if len(sys.argv) == 2 :
-				lib_dir = "library"
-			else :
-				lib_dir = sys.argv[2]
-			librarian = BasicBlocksFactory()
-			librarian.load_library(os.path.join(os.getcwd(), lib_dir))
+##	OUTPUT_TERM, INPUT_TERM = 666, 667
+#	if len(sys.argv) > 1 :
+#		if sys.argv[1] == "librariantest" :
+#			if len(sys.argv) == 2 :
+#				source = "iowrap.h"
+#			else :
+#				source = sys.argv[2]
+#			srcf = open(source, "r")
+#			srcs = srcf.readlines()
+#			srcf.close()
+#			exports = extract_exports(srcs, KNOWN_TYPES)
+#			pprint(exports)
+#		elif sys.argv[1] == "libscantest" :
+## python core.py libscantest
+#			if len(sys.argv) == 2 :
+#				lib_dir = "library"
+#			else :
+#				lib_dir = sys.argv[2]
+#			librarian = BasicBlocksFactory()
+#			librarian.load_library(os.path.join(os.getcwd(), lib_dir))
 
-			for cat, b_iter in groupby(librarian.block_list, lambda b: b.category) :
-				print(cat)
-				for proto in b_iter :
-					print("\t" + proto.type_name)
+#			for cat, b_iter in groupby(librarian.block_list, lambda b: b.category) :
+#				print(cat)
+#				for proto in b_iter :
+#					print("\t" + proto.type_name)
 
 
-if __name__ == "__main__" :
-	main()
+#if __name__ == "__main__" :
+#	main()
 
 
