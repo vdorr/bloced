@@ -832,20 +832,28 @@ def load_library(lib):
 	"""
 	return blocks loaded from library described by lib_info_t instance lib
 	"""
-	lib_blocks = []
+	lib_items = []
+	include_files = []
 	for file_info in sorted(lib.files) :
-#		print "!!!"
-#		pprint(file_info)
 		if file_info.file_type == "c" :
 			if __is_header(file_info.path) :
+				include_files.append(file_info.path)
 				blocks = load_c_module(lib.lib_name, file_info.path)
-				lib_blocks += lib_blocks
+				items = [ (be_lib_block_t(lib.lib_name, file_info.path, "c", b.type_name, b.type_name), b)
+					for b in blocks ]
+				lib_items.extend(items)
 		elif file_info.file_type == "w" :
 #TODO
 			pass
 		else :
 			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
-	return lib_blocks
+
+	return be_library_t(
+		name=lib.lib_name,
+		path=lib.path,
+		allowed_targets=None,#TODO
+		include_files=tuple(include_files),#f.path for f in lib.files),
+		items=lib_items)
 
 
 def sort_libs(libs) :
@@ -888,15 +896,20 @@ def load_librariesNEW(lib_basedir) :
 	basedir = os.path.abspath(lib_basedir)
 	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 
-	libs = []
+	libs = {}
 	for d in dirnames :
 		path = os.path.abspath(os.path.join(basedir, d))
 		lib = scan_library(basedir, path)
-		libs.append(lib)
+		libs[lib.lib_name] = lib
 
-	#TODO now do topological sorting
+	sorted_libs = sort_libs(libs.values())
 
-	loaded_libs = [ load_library(lib) for lib in libs ]
+	loaded_libs = []
+
+	for l in sorted_libs :
+		loaded_libs.append(load_library(libs[l]))
+
+#	print here(), loaded_libs
 
 	return loaded_libs
 
@@ -905,35 +918,19 @@ def load_librariesOLD(lib_basedir) :
 	basedir = os.path.abspath(lib_basedir)
 	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 	libs = []
-
-	lib_info = []
-
 	for d in dirnames :
 		path = os.path.abspath(os.path.join(basedir, d))
-
-
-#		print "------------------------>"
-		xxx = scan_library(lib_basedir, path)
-		lib_info.append(xxx)
-#		load_library(xxx)
-#		pprint(xxx)
-#		print "<<======================="
-
-
-
 		lib = read_lib_dir(basedir, path)
 		libs.append(lib)
-
-
-	sort_libs(lib_info)
-
 	return libs
 
 
 def load_libraries(lib_basedir) :
-	return load_librariesOLD(lib_basedir)
-#	return load_librariesNEW(lib_basedir)
-
+	x = load_librariesNEW(lib_basedir)
+#	print here(), x
+#	x = load_librariesOLD(lib_basedir)
+#	print here(), x
+	return x
 
 # ------------------------------------------------------------------------------------------------------------
 
