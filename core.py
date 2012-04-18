@@ -729,44 +729,43 @@ def __lib_path_and_name(root, lib_base_name, f) :
 	return ext, lib_name, filepath
 
 
-def read_lib_dir(lib_basedir, path, peek=False) :
-	"""
-	load libraries from path, contained in lib_basedir, both have to be absolute paths
-	"""
+#def read_lib_dir(lib_basedir, path, peek=False) :
+#	"""
+#	load libraries from path, contained in lib_basedir, both have to be absolute paths
+#	"""
 
-	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
+#	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
 
-	lib_base_name = lib_name_from_path(lib_basedir, path)
+#	lib_base_name = lib_name_from_path(lib_basedir, path)
 
-	items = []
-	include_files = []
-	blocks = tuple()
+#	items = []
+#	include_files = []
+#	blocks = tuple()
 
-	sublibs = tuple(__lib_path_and_name(root, lib_base_name, f) for f in filenames)
+#	sublibs = tuple(__lib_path_and_name(root, lib_base_name, f) for f in filenames)
 
-	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
+#	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
 
-	for ext, lib_name, filepath in c_libs :#XXX XXX XXX WRONG!!!!!!!!! do not test lib type this way - is there actually something like library type?! XXX XXX XXX
-		blocks = load_c_module(lib_name, filepath)#XXX first gather all files
-		include_files.append(filepath)
-		items.extend([ (be_lib_block_t(lib_name, filepath, "c", b.type_name, b.type_name), b)
-			for b in blocks ])
+#	for ext, lib_name, filepath in c_libs :#XXX XXX XXX WRONG!!!!!!!!! do not test lib type this way - is there actually something like library type?! XXX XXX XXX
+#		blocks = load_c_module(lib_name, filepath)#XXX first gather all files
+#		include_files.append(filepath)
+#		items.extend([ (be_lib_block_t(lib_name, filepath, "c", b.type_name, b.type_name), b)
+#			for b in blocks ])
 
-	w_libs = tuple(sl for sl in sublibs if sl[0] == "w")
+#	w_libs = tuple(sl for sl in sublibs if sl[0] == "w")
 
-	for ext, lib_name, filepath in w_libs :
-		blocks = load_workbench_library(lib_name, [ filepath ])
-#		include_files.append(f)
-		items.extend([ (be_lib_block_t(lib_name, filepath, "w", b.type_name, b.type_name), b)
-			for b in blocks ])
+#	for ext, lib_name, filepath in w_libs :
+#		blocks = load_workbench_library(lib_name, [ filepath ])
+##		include_files.append(f)
+#		items.extend([ (be_lib_block_t(lib_name, filepath, "w", b.type_name, b.type_name), b)
+#			for b in blocks ])
 
-	return be_library_t(
-		name=lib_base_name,
-		path=path,
-		allowed_targets=None,#TODO
-		include_files=include_files,
-		items=items)
-
+#	return be_library_t(
+#		name=lib_base_name,
+#		path=path,
+#		allowed_targets=None,#TODO
+#		include_files=include_files,
+#		items=items)
 
 
 lib_file_info_t = namedtuple("lib_file_info", ("path", "file_type", "using_types"))
@@ -892,7 +891,7 @@ def sort_libs(libs) :
 	return s
 
 
-def load_librariesNEW(lib_basedir) :
+def load_libraries(lib_basedir) :
 	basedir = os.path.abspath(lib_basedir)
 	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 
@@ -914,23 +913,23 @@ def load_librariesNEW(lib_basedir) :
 	return loaded_libs
 
 
-def load_librariesOLD(lib_basedir) :
-	basedir = os.path.abspath(lib_basedir)
-	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-	libs = []
-	for d in dirnames :
-		path = os.path.abspath(os.path.join(basedir, d))
-		lib = read_lib_dir(basedir, path)
-		libs.append(lib)
-	return libs
+#def load_librariesOLD(lib_basedir) :
+#	basedir = os.path.abspath(lib_basedir)
+#	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+#	libs = []
+#	for d in dirnames :
+#		path = os.path.abspath(os.path.join(basedir, d))
+#		lib = read_lib_dir(basedir, path)
+#		libs.append(lib)
+#	return libs
 
 
-def load_libraries(lib_basedir) :
-	x = load_librariesNEW(lib_basedir)
-#	print here(), x
-#	x = load_librariesOLD(lib_basedir)
-#	print here(), x
-	return x
+#def load_libraries(lib_basedir) :
+#	x = load_librariesNEW(lib_basedir)
+##	print here(), x
+##	x = load_librariesOLD(lib_basedir)
+##	print here(), x
+#	return x
 
 # ------------------------------------------------------------------------------------------------------------
 
