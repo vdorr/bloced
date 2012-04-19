@@ -1315,7 +1315,7 @@ class Workbench(object) :
 		self.add_sheet(sheet=sheet, name=new_name)
 
 
-	@catch_all
+#	@catch_all
 	def __init__(self, lib_dir=None,
 			passive=True,
 			status_callback=None,
