@@ -424,12 +424,12 @@ def __is_header(fname) :
 #c_lib_data_t = namedtuple("c_lib_data", ("name", "path", "headers", "blocks", ))
 
 
-def load_c_module(lib_name, header) :
+def load_c_module(lib_name, file_path) :
 #TODO use directory path or single file instead of list of files
 #	header_list = [ fn for fn in input_files if __is_header(fn) ]
 #	assert(len(header_list)==1)
 #	header, = header_list
-	exports = extract_vmex(header, KNOWN_TYPES)
+	exports = extract_vmex(file_path, KNOWN_TYPES)
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
 	return protos#TODO c_lib_data_t(lib_name)
 
@@ -571,90 +571,25 @@ def is_macro_name(s) :
 	return s.strip().startswith("@macro:")
 
 
-#def load_macroes_from_workbench(w, input_files) :
-#	for (name, sheet) in w.sheets.items() :
-#		if is_macro_name(name) :
-#			print(name, sheet)
-#	return []
-
-
-#def load_workbench_libraryOLD(lib_name, input_files) :
-
-#	fname, = input_files
-#	w = dfs.Workbench(
-#		lib_dir=os.path.join(os.getcwd(), "library"),
-#		passive=True,
-#		do_create_block_factory=False)
-#	blockfactory = w.blockfactory
-#	try :
-#		with open(fname, "rb") as f :
-#			serializer.unpickle_workbench(f, w)
-#			blocks = load_macroes_from_workbench(w, input_files)
-#	except Exception as e :
-#		print(here(), "error loading workbench file", fname, e)
-#		return None
-#	else :
-#		return blocks
-
-
-def load_workbench_library(lib_name, input_files) :
+def load_workbench_library(lib_name, file_path) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-	fname, = input_files
 
-##XXX
-#	return []
-##XXX
+	w = dfs.Workbench(
+		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True,
+		do_create_block_factory=False)
 
-#	w = dfs.Workbench(
-#		lib_dir=os.path.join(os.getcwd(), "library"),
-#		passive=True,
-#		do_create_block_factory=False)
+	with open(file_path, "rb") as f :
+		serializer.unpickle_workbench(f, w)
 
-#	with open(fname, "rb") as f :
-##		version, meta, resources = serializer.unpickle_workbench_data(f)
-#		serializer.unpickle_workbench(f, w)
+	for (name, sheet) in w.sheets.items() :
+		if is_macro_name(name) :
+			print(here(), name, sheet)
+			try_mkmac(sheet)
 
-##	try_mkmac(model)
-
-#	print here(), w.sheets
-#	return []
-
-
-
-
-
-
-	try :
-		with open(fname, "rb") as f :
-			version, meta, resources = serializer.unpickle_workbench_data(f)
-	except Exception as e :
-		print(here(), "error loading workbench file", fname, e)
-		return None
-
-	used_libs = set()
-#XXX type_names must be unique -> need to extend them with library path, including c modules
-	for r_type, r_version, r_name, resrc in resources :
-		if (r_type == serializer.RES_TYPE_SHEET and
-				r_version == serializer.RES_TYPE_SHEET_VERSION and
-				is_macro_name(r_name) ) :
-			types, struct, meta = resrc
-			for nr, block_type in types :
-#				print nr, block_type
-				lib_name, type_name = split_full_type_name(block_type)
-				if lib_name :
-					print(here(), nr, lib_name, type_name)
-					used_libs.update((lib_name,))
-#				print fname, r_name
-
-	print(here(), used_libs)
-
-	return []#blocks
-
-
-
-
+	return []
 
 def get_workbench_dependencies(fname) :
 	"""
@@ -676,17 +611,11 @@ def get_workbench_dependencies(fname) :
 				is_macro_name(r_name) ) :
 			types, struct, meta = resrc
 			for nr, block_type in types :
-#				print nr, block_type
 				lib_name, type_name = split_full_type_name(block_type)
 				if lib_name :
-#					print(here(), nr, lib_name, type_name)
 					used_types.update((block_type,))
-#				print fname, r_name
-
-#	print(here(), used_types)
 
 	return used_types
-
 
 
 #-------------------------------------------------------------------------------------------------------------
@@ -833,18 +762,21 @@ def load_library(lib):
 	lib_items = []
 	include_files = []
 	for file_info in sorted(lib.files) :
+
+		blocks = []
+
 		if file_info.file_type == "c" :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
 				blocks = load_c_module(lib.lib_name, file_info.path)
-				items = [ (be_lib_block_t(lib.lib_name, file_info.path, "c", b.type_name, b.type_name), b)
-					for b in blocks ]
-				lib_items.extend(items)
 		elif file_info.file_type == "w" :
-#TODO
-			pass
+			blocks = load_workbench_library(lib.lib_name, file_info.path)
 		else :
 			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
+
+		items = [ (be_lib_block_t(lib.lib_name, file_info.path, "c", b.type_name, b.type_name), b)
+			for b in blocks ]
+		lib_items.extend(items)
 
 	return be_library_t(
 		name=lib.lib_name,
@@ -890,26 +822,26 @@ def sort_libs(libs) :
 	return s
 
 
-def load_libraries(lib_basedir) :
-	basedir = os.path.abspath(lib_basedir)
-	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+#def load_libraries(lib_basedir) :
+#	basedir = os.path.abspath(lib_basedir)
+#	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
 
-	libs = {}
-	for d in dirnames :
-		path = os.path.abspath(os.path.join(basedir, d))
-		lib = scan_library(basedir, path)
-		libs[lib.lib_name] = lib
+#	libs = {}
+#	for d in dirnames :
+#		path = os.path.abspath(os.path.join(basedir, d))
+#		lib = scan_library(basedir, path)
+#		libs[lib.lib_name] = lib
 
-	sorted_libs = sort_libs(libs.values())
+#	sorted_libs = sort_libs(libs.values())
 
-	loaded_libs = []
+#	loaded_libs = []
 
-	for l in sorted_libs :
-		loaded_libs.append(load_library(libs[l]))
+#	for l in sorted_libs :
+#		loaded_libs.append(load_library(libs[l]))
 
-#	print here(), loaded_libs
+##	print here(), loaded_libs
 
-	return loaded_libs
+#	return loaded_libs
 
 
 #def load_librariesOLD(lib_basedir) :
@@ -937,10 +869,34 @@ class BasicBlocksFactory(object) :
 
 
 	def load_library(self, lib_basedir) :
-		libs = load_libraries(lib_basedir)
-		self.libs += libs
-		for lib in libs :
-			self.__blocks += [ proto for item, proto in lib.items ]
+#		libs = load_libraries(lib_basedir)
+#		self.libs += libs
+#		for lib in libs :
+#			self.__blocks += [ proto for item, proto in lib.items ]
+
+		basedir = os.path.abspath(lib_basedir)
+		(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+
+		libs = {}
+		for d in dirnames :
+			path = os.path.abspath(os.path.join(basedir, d))
+			lib = scan_library(basedir, path)
+			libs[lib.lib_name] = lib
+
+		sorted_libs = sort_libs(libs.values())
+
+#		loaded_libs = []
+
+		for l in sorted_libs :
+			loaded = load_library(libs[l])
+			self.libs.append(loaded)
+			self.__blocks += [ proto for item, proto in loaded.items ]
+
+	#	print here(), loaded_libs
+
+#		return loaded_libs
+
+
 		return (True, )
 
 
@@ -968,7 +924,7 @@ class BasicBlocksFactory(object) :
 	block_list = property(lambda self: self.__blocks)
 
 
-	def __init__(self, scan_dir=None) :
+	def __init__(self) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
 #TODO use (ordered) dictionary
@@ -1010,17 +966,18 @@ class BasicBlocksFactory(object) :
 			BinaryOp("lte", "Arithmetic", commutative=False),
 			BinaryOp("gte", "Arithmetic", commutative=False),
 		]
-		if scan_dir :
-			self.load_library(scan_dir)
+
 
 # ------------------------------------------------------------------------------------------------------------
 
 __factory_instance = None
 
-def create_block_factory(**args) :
+def create_block_factory(scan_dir=None) :
 	global __factory_instance
 	if __factory_instance is None :
-		__factory_instance = BasicBlocksFactory(**args)
+		__factory_instance = BasicBlocksFactory()
+		if scan_dir :
+			__factory_instance.load_library(scan_dir)
 	return __factory_instance
 
 # ----------------------------------------------------------------------------
