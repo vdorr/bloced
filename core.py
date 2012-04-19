@@ -265,8 +265,9 @@ class CFunctionProto(BlockPrototype):
 # ----------------------------------------------------------------------------
 
 class MacroProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "Macro", [], category="External")
+	pass
+#	def __init__(self) :
+#		BlockPrototype.__init__(self, "Macro", [], category="External")
 
 # ----------------------------------------------------------------------------
 
@@ -536,18 +537,68 @@ def try_mkmac(model) :
 
 	term_positions = terms_N + terms_S + terms_W + terms_E
 
-	print("term_positions=", mc_width, mc_height, term_positions)
+#	print("term_positions=", mc_width, mc_height, term_positions)
 
-	mc_name = None # TODO
-	terminals = None
-
-	return mc_width, mc_height, mc_name, terminals
+	return mc_width, mc_height, term_positions
 #	graph, delays = make_dag(model, {})
 #	pprint(graph)
 
 
 def is_macro_name(s) :
 	return s.strip().startswith("@macro:")
+
+
+def get_macro_name(s) :
+	if not is_macro_name(s) :
+		return None
+	return s.split(":")[-1]
+
+
+def __create_macro(lib_name, block_name, sheet) :
+
+	width, height, terms = try_mkmac(sheet)
+
+#	for t, side, pos in terms :
+#		term_name, = t.value
+
+#		variadic = False #TODO infer from connected block
+#		commutative = False #TODO infer from connected block
+#		type_name = "<inferred>" #TODO infer from connected block
+
+#		print(here(), term_name, side, pos)
+
+	terms_in = [ (t.value[0], dfs.INPUT_TERM, False, False, "<inferred>", pos, side)
+		for t, side, pos in terms if t.prototype.__class__ == InputProto ]
+	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, "<inferred>", pos, side)
+		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
+
+	inputs = [ dfs.In(-i, name, side, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative)
+		for (name, direction, variadic, commutative, type_name, pos, side), i
+			in zip(terms_in, count()) ]
+	outputs = [ dfs.Out(-i, name, side, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative)
+		for (name, direction, variadic, commutative, type_name, pos, side), i
+			in zip(terms_out, count()) ]
+
+
+#	inputs = [ dfs.In(-i, name, dfs.W, pos,
+#			type_name=type_name, variadic=variadic, commutative=commutative)
+#		for (name, direction, variadic, commutative, type_name), pos, i
+#			in zip(terms_in, in_terms_pos, count()) ]
+#	outputs = [ dfs.Out(-i, name, dfs.E, pos,
+#			type_name=type_name, variadic=variadic, commutative=commutative)
+#		for (name, direction, variadic, commutative, type_name), pos, i
+#			in zip(terms_out, out_terms_pos, count()) ]
+
+	proto = MacroProto(block_name,
+			inputs + outputs,
+			exe_name=block_name,
+			default_size=(width, height),
+			category=lib_name,
+			library=lib_name)
+
+	return proto
 
 
 def load_workbench_library(lib_name, file_path) :
@@ -563,12 +614,16 @@ def load_workbench_library(lib_name, file_path) :
 	with open(file_path, "rb") as f :
 		serializer.unpickle_workbench(f, w)
 
+	blocks = []
+
 	for (name, sheet) in w.sheets.items() :
 		if is_macro_name(name) :
 			print(here(), name, sheet)
-			try_mkmac(sheet)
+			block_name = get_macro_name(name)
+			proto = __create_macro(lib_name, block_name, sheet)
+			blocks.append(proto)
 
-	return []
+	return blocks
 
 
 def get_workbench_dependencies(fname) :
