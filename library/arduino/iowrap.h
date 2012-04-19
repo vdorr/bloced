@@ -1,4 +1,6 @@
 
+/** @file */ 
+
 #ifndef __ARDUINO_IOWRAP_H__
 #define __ARDUINO_IOWRAP_H__
 
@@ -7,13 +9,13 @@ typedef int vm_word_t;
 typedef long vm_dword_t;
 
 /**
-	<A read digital input>
+	read digital input
 	@param nr number of pin
 */
 _VM_EXPORT_ vm_word_t d_in(vm_word_t nr);
 
 /**
-	<A write digital output>
+	write digital output
 	@param nr number of pin
 	@param v output value 0..1
 */
@@ -21,7 +23,7 @@ _VM_EXPORT_ void d_out(vm_word_t nr, vm_word_t v);
 
 
 /**
-	<A read analog input>
+	read analog input
 	@param nr number of pin
 	@param a_ref ADC reference voltage
 	    0 DEFAULT: the default analog reference of 5 volts (on 5V Arduino boards) or 3.3 volts (on 3.3V Arduino boards)
@@ -34,48 +36,48 @@ _VM_EXPORT_ void d_out(vm_word_t nr, vm_word_t v);
 _VM_EXPORT_ vm_word_t a_in(vm_word_t nr, vm_word_t a_ref);
 
 /**
-	<A write analog output>
+	write analog output
 	@param nr number of pin
 	@param dc output value from 0 (always off) to 255 (always on)
 */
 _VM_EXPORT_ void a_out(vm_word_t nr, vm_word_t dc);
 
 /**
-	<A set port as digital input>
+	set port as digital input
 	@param nr number of pin
 */
 _VM_EXPORT_ void set_d_in(vm_word_t nr);
 
 /**
-	<A set port as digital output>
+	set port as digital output
 	@param nr number of pin
 */
 _VM_EXPORT_ void set_d_out(vm_word_t nr);
 
 /**
-	<A set port as analog input>
+	set port as analog input
 	@param nr number of pin
 */
 _VM_EXPORT_ void set_a_in(vm_word_t nr);
 
 /**
-	<A set port as analog output>
+	set port as analog output
 	@param nr number of pin
 */
 _VM_EXPORT_ void set_a_out(vm_word_t nr);
 
 /**
-	<A return number of milliseconds since start of machine>
+	return number of milliseconds since start of machine
 */
 _VM_EXPORT_ vm_dword_t time_ms();
 
 /**
-	<A return number of microseconds since start of machine>
+	return number of microseconds since start of machine
 */
 _VM_EXPORT_ vm_dword_t time_us();
 
 /**
-	<A return number of microseconds since start of machine>
+	return number of microseconds since start of machine
 */
 _VM_EXPORT_ void print(vm_word_t s);
 
