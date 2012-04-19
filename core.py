@@ -10,8 +10,6 @@ from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
-#XXX XXX XXX
-
 #TODO fetch type informations from some "machine support package"
 
 type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
@@ -26,7 +24,6 @@ KNOWN_TYPES = {
 	"void" : None,
 }
 
-#XXX XXX XXX
 # ------------------------------------------------------------------------------------------------------------
 
 class BlockPrototype(object) :
@@ -192,7 +189,7 @@ class PipeEndProto(BlockPrototype):
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
-#TODO
+
 class GlobalWriteProto(BlockPrototype):
 	def __init__(self, type_name) :
 		BlockPrototype.__init__(self, "GlobalWrite",
@@ -421,28 +418,10 @@ def __is_header(fname) :
 	return ext.lower() in HEADER_EXTS
 
 
-#c_lib_data_t = namedtuple("c_lib_data", ("name", "path", "headers", "blocks", ))
-
-
 def load_c_module(lib_name, file_path) :
-#TODO use directory path or single file instead of list of files
-#	header_list = [ fn for fn in input_files if __is_header(fn) ]
-#	assert(len(header_list)==1)
-#	header, = header_list
 	exports = extract_vmex(file_path, KNOWN_TYPES)
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
-	return protos#TODO c_lib_data_t(lib_name)
-
-
-#def scan_c_module(lib_name, path, input_files) :
-
-#	header_list = [ fn for fn in input_files if __is_header(fn) ]
-#	exports = extract_vmex(header, KNOWN_TYPES)
-#	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
-#	return lib_info_t(
-#		path=path,
-#		files=header_list,#XXX what about sources?
-#		using_types=None)
+	return protos
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -591,6 +570,7 @@ def load_workbench_library(lib_name, file_path) :
 
 	return []
 
+
 def get_workbench_dependencies(fname) :
 	"""
 	return set of block types immediately needed by workbench file fname
@@ -634,8 +614,8 @@ def split_full_type_name(full_type) :
 	return lib_name, type_name
 
 
-def read_be_lib_file(path) :
-	pass
+#def read_be_lib_file(path) :
+#	pass
 
 
 def lib_name_from_path(lib_basedir, path) :
@@ -655,45 +635,6 @@ def __lib_path_and_name(root, lib_base_name, f) :
 	if ext in ("bloc", "w") :
 		lib_name = ".".join((lib_base_name, fbasename))
 	return ext, lib_name, filepath
-
-
-#def read_lib_dir(lib_basedir, path, peek=False) :
-#	"""
-#	load libraries from path, contained in lib_basedir, both have to be absolute paths
-#	"""
-
-#	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
-
-#	lib_base_name = lib_name_from_path(lib_basedir, path)
-
-#	items = []
-#	include_files = []
-#	blocks = tuple()
-
-#	sublibs = tuple(__lib_path_and_name(root, lib_base_name, f) for f in filenames)
-
-#	c_libs = tuple(sl for sl in sublibs if sl[0] in ("h", "hpp"))
-
-#	for ext, lib_name, filepath in c_libs :#XXX XXX XXX WRONG!!!!!!!!! do not test lib type this way - is there actually something like library type?! XXX XXX XXX
-#		blocks = load_c_module(lib_name, filepath)#XXX first gather all files
-#		include_files.append(filepath)
-#		items.extend([ (be_lib_block_t(lib_name, filepath, "c", b.type_name, b.type_name), b)
-#			for b in blocks ])
-
-#	w_libs = tuple(sl for sl in sublibs if sl[0] == "w")
-
-#	for ext, lib_name, filepath in w_libs :
-#		blocks = load_workbench_library(lib_name, [ filepath ])
-##		include_files.append(f)
-#		items.extend([ (be_lib_block_t(lib_name, filepath, "w", b.type_name, b.type_name), b)
-#			for b in blocks ])
-
-#	return be_library_t(
-#		name=lib_base_name,
-#		path=path,
-#		allowed_targets=None,#TODO
-#		include_files=include_files,
-#		items=items)
 
 
 lib_file_info_t = namedtuple("lib_file_info", ("path", "file_type", "using_types"))
@@ -732,13 +673,9 @@ def scan_library(lib_basedir, path) :
 	return instance of lib_info_t with list of instances of lib_file_info_t
 	"""
 
-	(root, dirnames, filenames), = tuple(islice(os.walk(path), 1))
+	(root, _, filenames), = tuple(islice(os.walk(path), 1))
 
 	lib_base_name = lib_name_from_path(lib_basedir, path)
-
-	items = []
-	include_files = []
-	blocks = tuple()
 
 	sublibs = (__lib_path_and_name(root, lib_base_name, f) for f in filenames)
 
@@ -822,46 +759,6 @@ def sort_libs(libs) :
 	return s
 
 
-#def load_libraries(lib_basedir) :
-#	basedir = os.path.abspath(lib_basedir)
-#	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-
-#	libs = {}
-#	for d in dirnames :
-#		path = os.path.abspath(os.path.join(basedir, d))
-#		lib = scan_library(basedir, path)
-#		libs[lib.lib_name] = lib
-
-#	sorted_libs = sort_libs(libs.values())
-
-#	loaded_libs = []
-
-#	for l in sorted_libs :
-#		loaded_libs.append(load_library(libs[l]))
-
-##	print here(), loaded_libs
-
-#	return loaded_libs
-
-
-#def load_librariesOLD(lib_basedir) :
-#	basedir = os.path.abspath(lib_basedir)
-#	(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
-#	libs = []
-#	for d in dirnames :
-#		path = os.path.abspath(os.path.join(basedir, d))
-#		lib = read_lib_dir(basedir, path)
-#		libs.append(lib)
-#	return libs
-
-
-#def load_libraries(lib_basedir) :
-#	x = load_librariesNEW(lib_basedir)
-##	print here(), x
-##	x = load_librariesOLD(lib_basedir)
-##	print here(), x
-#	return x
-
 # ------------------------------------------------------------------------------------------------------------
 
 
@@ -875,7 +772,7 @@ class BasicBlocksFactory(object) :
 #			self.__blocks += [ proto for item, proto in lib.items ]
 
 		basedir = os.path.abspath(lib_basedir)
-		(dirname, dirnames, filenames), = tuple(islice(os.walk(basedir), 1))
+		(_, dirnames, _), = tuple(islice(os.walk(basedir), 1))
 
 		libs = {}
 		for d in dirnames :
@@ -973,6 +870,10 @@ class BasicBlocksFactory(object) :
 __factory_instance = None
 
 def create_block_factory(scan_dir=None) :
+	"""
+	returns instance of block factory with built-in blocks and blocks loaded from scan_dir
+	scan_dir is processed only at first call
+	"""
 	global __factory_instance
 	if __factory_instance is None :
 		__factory_instance = BasicBlocksFactory()
@@ -980,40 +881,5 @@ def create_block_factory(scan_dir=None) :
 			__factory_instance.load_library(scan_dir)
 	return __factory_instance
 
-# ----------------------------------------------------------------------------
-
-#def main() :
-#	pprint(read_lib_dir(os.path.abspath("library"), "/home/vd/personal/bloced/library/arduino"))
-#	sys.exit(0)
-
-##	OUTPUT_TERM, INPUT_TERM = 666, 667
-#	if len(sys.argv) > 1 :
-#		if sys.argv[1] == "librariantest" :
-#			if len(sys.argv) == 2 :
-#				source = "iowrap.h"
-#			else :
-#				source = sys.argv[2]
-#			srcf = open(source, "r")
-#			srcs = srcf.readlines()
-#			srcf.close()
-#			exports = extract_exports(srcs, KNOWN_TYPES)
-#			pprint(exports)
-#		elif sys.argv[1] == "libscantest" :
-## python core.py libscantest
-#			if len(sys.argv) == 2 :
-#				lib_dir = "library"
-#			else :
-#				lib_dir = sys.argv[2]
-#			librarian = BasicBlocksFactory()
-#			librarian.load_library(os.path.join(os.getcwd(), lib_dir))
-
-#			for cat, b_iter in groupby(librarian.block_list, lambda b: b.category) :
-#				print(cat)
-#				for proto in b_iter :
-#					print("\t" + proto.type_name)
-
-
-#if __name__ == "__main__" :
-#	main()
-
+# ------------------------------------------------------------------------------------------------------------
 
