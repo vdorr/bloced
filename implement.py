@@ -234,35 +234,6 @@ def join_taps(g) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#macro_t = namedtuple("macro_t", ("snippet", "mappings"))
-
-#def __instantiate_macro(g, library, mac) :
-#	assert(mac.value != None)
-#	snippet, mappings = library[mac.value]
-#	for b, (p, s) in snippet :
-#		pass
-#	return {}
-
-#def __expand_macro(g, library, mac) :
-#	assert(mac.value != None)
-#	mac_name = str(mac.value)
-#	mg = library[mac_name]
-
-#	subgraph, mapping = __instantiate_macro(g, library, mac)
-
-##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
-#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
-#		for it, it_nr in get_terms_flattened(mac) }
-#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
-
-#	__replace_block_with_subgraph(g, mac, subgraph, map_in, map_out)
-
-#def __expand_macroes(g, library) :
-#	for mac in [ b for b in g if isinstance(b.prototype, MacroProto) ] :
-#		__expand_macro(g, library, mac)
-
-# ------------------------------------------------------------------------------------------------------------
-
 def t_unpack(term) :
 	return term if isinstance(term, tuple) else (term, 0) # XXX XXX use 0 instead of None?
 
@@ -892,6 +863,74 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+#macro_t = namedtuple("macro_t", ("snippet", "mappings"))
+
+#def __instantiate_macro(g, library, mac) :
+#	assert(mac.value != None)
+#	snippet, mappings = library[mac.value]
+#	for b, (p, s) in snippet :
+#		pass
+#	return {}
+
+#def __expand_macro(g, library, mac) :
+#	assert(mac.value != None)
+#	mac_name = str(mac.value)
+#	mg = library[mac_name]
+
+#	subgraph, mapping = __instantiate_macro(g, library, mac)
+
+##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
+#		for it, it_nr in get_terms_flattened(mac) }
+#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+#	__replace_block_with_subgraph(g, mac, subgraph, map_in, map_out)
+
+#def __expand_macroes(g, library) :
+#	for mac in [ b for b in g if isinstance(b.prototype, MacroProto) ] :
+#		__expand_macro(g, library, mac)
+
+
+def __instantiate_macro(n, known_types) :#library, full_name) :
+#	info = library.get_block_and_lib(full_name)
+#	if not info is None :
+#		xxx = core.get_block_data(*info)
+#		print here(), info
+	graph, delays = make_dag(n.prototype.data, None, known_types, do_join_taps=False)
+	types = infer_types(graph, delays, known_types=known_types)
+
+	print here()
+
+
+def __expand_macro(g, library, n, known_types, cache) :
+	name = n.prototype.exe_name
+	full_name = n.prototype.library + "." + name
+
+	block = __instantiate_macro(n, known_types)#TODO cache
+
+	print here(), block
+
+#	print here(), full_name, full_name in cache
+#	if full_name in cache :
+#		block = cache[full_name]
+#	else :
+#		block = __instantiate_macro(library, full_name)
+#		cache[full_name] = block
+
+
+def expand_macroes(g, library, known_types, block_cache=None) :
+	cache = block_cache_init() if block_cache is None else block_cache
+	macroes = (b for b in g if isinstance(b.prototype, core.MacroProto))
+	for n in macroes :
+		__expand_macro(g, library, n, known_types, cache)
+
+
+def block_cache_init() :
+	return {}
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
@@ -914,8 +953,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 
 	g_protos = init_pipe_protos(known_types)
 	pipe_replacement = {}
-
 	graph_data = []
+	block_cache = block_cache_init()
 
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
 	for name, sheet_list in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
@@ -937,6 +976,9 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
+#XXX
+	expand_macroes(graph, lib, known_types, block_cache=block_cache)
+#XXX
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
 	extract_pipes(graph, known_types, g_protos, pipe_replacement)

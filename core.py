@@ -52,6 +52,8 @@ class BlockPrototype(object) :
 
 	library = property(lambda self: self.__library)
 
+	data = property(lambda self: self.__data)
+
 	def __init__(self, type_name, terms,
 			exe_name=None,
 			default_size=(64,64),
@@ -59,7 +61,8 @@ class BlockPrototype(object) :
 			commutative=False,
 			pure=False,
 			values=None,
-			library=None) :
+			library=None,
+			data=None) :
 		self.__category = category
 		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
@@ -70,6 +73,7 @@ class BlockPrototype(object) :
 		self.__pure = pure
 		self.__values = values
 		self.__library = library
+		self.__data = data
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -481,7 +485,7 @@ def try_mkmac(model) :
 
 	terms = [ __mc_term_info(model, b)
 		for b in model.blocks if b.prototype.__class__ in (InputProto, OutputProto) ]
-	print("try_mkmac:", terms)
+#	print("try_mkmac:", terms)
 
 	def __sizes(rct0, rct1) :
 		(l0, t0, r0, b0), (l1, t1, r1, b1) = rct0, rct1
@@ -499,11 +503,11 @@ def try_mkmac(model) :
 #	k = float(b) / float(r)# (l,t) (r,b)
 ##	k = float(b-t) / float(r-l)# (l,t) (r,b)
 ##	kb = float(t-b) / float(r-l) # (l,b) (r,t)
-	print("try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t)
+#	print("try_mkmac: l, t, r, b, w,h=", l, t, r, b, r-l, b-t)
 
 	term_sides = [ (tb, __mc_assign_side(tb, l+((r-l)/2), t+((b-t)/2), x, y), (x, y)) for tb, (x, y) in terms]
 #	xxx = [ (tb, __mc_assign_side(tb, k, (r-l)/2, (b-t), x, y)) for tb, (x, y) in terms]
-	print("try_mkmac: sides=", term_sides)
+#	print("try_mkmac: sides=", term_sides)
 
 #	term_WE = [ (tb, side) for tb, side in term_sides if side in (W, E) ]
 #	term_NS = [ (tb, side) for tb, side in term_sides if side in (N, S) ]
@@ -596,7 +600,8 @@ def __create_macro(lib_name, block_name, sheet) :
 			exe_name=block_name,
 			default_size=(width, height),
 			category=lib_name,
-			library=lib_name)
+			library=lib_name,
+			data=sheet)
 
 	return proto
 
@@ -618,7 +623,7 @@ def load_workbench_library(lib_name, file_path) :
 
 	for (name, sheet) in w.sheets.items() :
 		if is_macro_name(name) :
-			print(here(), name, sheet)
+#			print(here(), name, sheet)
 			block_name = get_macro_name(name)
 			proto = __create_macro(lib_name, block_name, sheet)
 			blocks.append(proto)
@@ -817,6 +822,14 @@ def sort_libs(libs) :
 # ------------------------------------------------------------------------------------------------------------
 
 
+def get_block_data(lib, block) :
+#	print here(), lib, block
+	pprint(block)
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+
 class BasicBlocksFactory(object) :
 
 
@@ -871,6 +884,18 @@ class BasicBlocksFactory(object) :
 			return exact[0] if exact else hits[0]
 		else :
 			return hits[0]
+
+
+	def get_block_and_lib(self, full_type) :
+		lib_name, type_name = split_full_type_name(full_type)
+		libs_found = [ l for l in self.libs if l.name == lib_name ]
+		if not len(libs_found) :
+			return None
+		lib = libs_found[0]
+		blocks_found = [ (item, proto) for item, proto in lib.items if item.name == type_name ]
+		if not len(blocks_found) :
+			return None
+		return lib, blocks_found[0]
 
 
 	block_list = property(lambda self: self.__blocks)
