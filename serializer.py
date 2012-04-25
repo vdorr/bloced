@@ -199,12 +199,23 @@ def get_workbench_data(w) :
 def unpickle_workbench(f, w) :
 	"""
 	read pickled serialized Workbench data from file-like object f,
-	and load it into supplied Workbench instance
+	and load it into supplied Workbench instance w
 	"""
 	try :
 		version, meta, resources = unpickle_workbench_data(f)
 	except Exception as e :
 		return (False, "load_error", e)
+
+	return restore_workbench((version, meta, resources), w)
+
+
+#TODO this is not the right place for method like this
+def restore_workbench(data, w) :
+	"""
+	load data into supplied Workbench instance w
+	"""
+
+	version, meta, resources = data
 
 	w.set_meta(meta)
 

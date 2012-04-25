@@ -558,6 +558,8 @@ def get_macro_name(s) :
 	return s.split(":")[-1]
 
 
+lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "cooked_workbench", "cooked_sheet"))
+
 def __create_macro(lib_name, block_name, sheet) :
 
 	width, height, terms = try_mkmac(sheet)
@@ -601,7 +603,7 @@ def __create_macro(lib_name, block_name, sheet) :
 			default_size=(width, height),
 			category=lib_name,
 			library=lib_name,
-			data=sheet)
+			data=lib_block_data_t(None, None, None, sheet))
 
 	return proto
 
@@ -611,13 +613,15 @@ def load_workbench_library(lib_name, file_path) :
 	lib_name - full library name, example 'logic.flipflops'
 	"""
 
+	with open(file_path, "rb") as f :
+		data = serializer.unpickle_workbench_data(f)
+
 	w = dfs.Workbench(
 		lib_dir=os.path.join(os.getcwd(), "library"),
 		passive=True,
 		do_create_block_factory=False)
 
-	with open(file_path, "rb") as f :
-		serializer.unpickle_workbench(f, w)
+	serializer.restore_workbench(data, w)
 
 	blocks = []
 
