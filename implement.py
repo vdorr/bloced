@@ -358,9 +358,11 @@ def compare_types(known_types, a, b) :
 
 def infer_block_type(block, preds, types, known_types) :
 	inferred = None
+	print here(), block
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
 			inherited = types[block, t, t_nr]
+			print here(), inherited
 			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
 				inferred = inherited
 #	return sorted(inherited,
@@ -393,17 +395,18 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 			types[n, t, t_nr] = infer_block_type(n, p, types, known_types)
 
 
-def infer_types(g, expd_dels, known_types) :
+def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 	"""
 	types of outputs are inferred from types of inferred (in fact, inherited) inputs
 	block with inferred output type must have at least one inferred input type
 	if block have more than one inferred input type, highest priority type is used for all outputs
 	type of Delay is derived from initial value
+	optional allready_inferred contains types allready inferred in form { m, mt, mt_nr : type_name, ... }
 	"""
 	delays = {}
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value[0]
-	types = {}
+	types = {} if allready_inferred is None else allready_inferred
 	dft_alt(g,
 		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
 		post_visit=partial(__infer_types_post_visit, g, types, known_types),
@@ -559,6 +562,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		except ValueError : #StopIteration :
 			stack.pop(-1)
 			post_visit(n, visited)
+
 
 def dft(g, v,
 		pre_visit = lambda *a, **b: None,
@@ -891,24 +895,58 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 #		__expand_macro(g, library, mac)
 
 
-def __instantiate_macro(n, known_types) :#library, full_name) :
+import serializer #XXX move!!!
+
+
+def __load_macro_from_lib_data(full_name, lib_data) :
+	pass
+
+
+def __instantiate_macro(n, library, known_types) :#library, full_name) :
 #	info = library.get_block_and_lib(full_name)
 #	if not info is None :
 #		xxx = core.get_block_data(*info)
 #		print here(), info
-	graph, delays = make_dag(n.prototype.data, None, known_types, do_join_taps=False)
-	types = infer_types(graph, delays, known_types=known_types)
 
-	print here()
+#	raw_workbench, raw_sheet, cooked_workbench, cooked_sheet = n.prototype.data
 
+#	graph, delays = make_dag(cooked_sheet, None, known_types, do_join_taps=False)
+#	types = infer_types(graph, delays, known_types=known_types)
+
+#	print here()
+
+	return None
 
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
 
-	block = __instantiate_macro(n, known_types)#TODO cache
+#	block = __instantiate_macro(n, library, known_types)#TODO cache
+	block = None
 
-	print here(), block
+	lib_data = library.get_block_and_lib(full_name)
+
+	if lib_data is None :
+		return None #XXX raise Exception
+
+	lib, (item, proto) = lib_data
+
+	with open(item.file_path) as f :
+		w_data = serializer.unpickle_workbench_data(f)
+
+	print here(), full_name, item.file_path
+
+	sheet_data, = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, "@macro:" + name))
+
+	if sheet_data is None :
+		return None #XXX raise Exception
+
+	print here(), len( sheet_data)
+
+	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
+	graph, delays = make_dag(sheet, None, known_types, do_join_taps=False)
+
+	print here(), graph
 
 #	print here(), full_name, full_name in cache
 #	if full_name in cache :

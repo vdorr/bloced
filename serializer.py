@@ -209,6 +209,33 @@ def unpickle_workbench(f, w) :
 	return restore_workbench((version, meta, resources), w)
 
 
+def get_resource(data, res_type, res_version, res_name) :
+	"""
+	return iterator with resources of given type name and version
+	"""
+	version, _, resources = data
+	if not check_w_data_legality(data) :
+		raise Exception("container_version_mismatch")
+	for r_type, r_version, r_name, resrc in resources :
+		if ((res_type is None or r_type == res_type) and
+		    (res_version is None or r_version == res_version) and
+		    (res_name is None or r_name == res_name)) :
+			yield resrc
+
+
+def check_resource_legality(data, resource) :
+	"""
+	check if resource has valid type and version
+	"""
+#TODO
+	pass
+
+
+def check_w_data_legality(data) :
+	version, _, _ = data
+	return version == CONTAINER_VERSION #XXX lower than or equal ?
+
+
 #TODO this is not the right place for method like this
 def restore_workbench(data, w) :
 	"""
@@ -234,6 +261,7 @@ def restore_workbench(data, w) :
 	return (True, "ok", w)
 
 
+
 def unpickle_workbench_data(f) :
 	"""
 	return tuple (version, meta, resources) of Workbench data read from pickle file-like object f
@@ -241,7 +269,7 @@ def unpickle_workbench_data(f) :
 	raises Exception if something fails (unpickling or container version check)
 	"""
 	version, meta, resources = pickle.load(f)
-	if version != CONTAINER_VERSION :
+	if not check_w_data_legality((version, meta, resources)) :
 		raise Exception("container_version_mismatch")
 	return version, meta, resources
 
