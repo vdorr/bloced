@@ -919,7 +919,7 @@ def __expand_macro(g, library, n, known_types, cache) :
 	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
-	print here(), gm
+#	print here(), gm
 
 #	print here(), full_name, full_name in cache
 #	if full_name in cache :
@@ -928,8 +928,11 @@ def __expand_macro(g, library, n, known_types, cache) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
-	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == InputProto }
-	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == OutputProto }
+	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
+	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
+
+#	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
+
 
 	p, s = g[n]
 
@@ -940,8 +943,9 @@ def __expand_macro(g, library, n, known_types, cache) :
 	map_in = {}
 	for it, it_nr, preds in p :
 		m_block, (m_p, m_s) = inputs[it.name]
+#		print here(), m_block, (m_p, m_s)
 		assert(not m_p)
-		_, _, input_succs = m_s
+		(_, _, input_succs), = m_s
 		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
 
 #		for b, t, nr in preds :
@@ -949,12 +953,16 @@ def __expand_macro(g, library, n, known_types, cache) :
 
 	map_out = {}
 	for ot, ot_nr, succs in s :
-		m_block, (m_p, m_s) = inputs[it.name]
+		m_block, (m_p, m_s) = outputs[ot.name]
+#		print here(), m_block, (m_p, m_s)
 		assert(not m_s)
-		_, _, output_preds = m_p
-		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
+		(_, _, output_preds), = m_p
+#		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
+		assert(len(output_preds)==1)
+		map_out[ot, ot_nr] = output_preds[0]
 
-	print here(), map_in, map_out
+	print here(), map_in
+	print here(), map_out
 
 
 ##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
