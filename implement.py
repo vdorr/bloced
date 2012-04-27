@@ -867,33 +867,6 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-#macro_t = namedtuple("macro_t", ("snippet", "mappings"))
-
-#def __instantiate_macro(g, library, mac) :
-#	assert(mac.value != None)
-#	snippet, mappings = library[mac.value]
-#	for b, (p, s) in snippet :
-#		pass
-#	return {}
-
-#def __expand_macro(g, library, mac) :
-#	assert(mac.value != None)
-#	mac_name = str(mac.value)
-#	mg = library[mac_name]
-
-#	subgraph, mapping = __instantiate_macro(g, library, mac)
-
-##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
-#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
-#		for it, it_nr in get_terms_flattened(mac) }
-#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
-
-#	__replace_block_with_subgraph(g, mac, subgraph, map_in, map_out)
-
-#def __expand_macroes(g, library) :
-#	for mac in [ b for b in g if isinstance(b.prototype, MacroProto) ] :
-#		__expand_macro(g, library, mac)
-
 
 import serializer #XXX move!!!
 
@@ -944,9 +917,9 @@ def __expand_macro(g, library, n, known_types, cache) :
 	print here(), len( sheet_data)
 
 	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
-	graph, delays = make_dag(sheet, None, known_types, do_join_taps=False)
+	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
-	print here(), graph
+	print here(), gm
 
 #	print here(), full_name, full_name in cache
 #	if full_name in cache :
@@ -955,12 +928,57 @@ def __expand_macro(g, library, n, known_types, cache) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
+	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == InputProto }
+	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == OutputProto }
+
+	p, s = g[n]
+
+	#XXX to handle variadic terms map p -> inputs
+
+	#TODO remove_block(g, n)
+
+	map_in = {}
+	for it, it_nr, preds in p :
+		m_block, (m_p, m_s) = inputs[it.name]
+		assert(not m_p)
+		_, _, input_succs = m_s
+		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
+
+#		for b, t, nr in preds :
+#			map_in[it, it_nr] = []
+
+	map_out = {}
+	for ot, ot_nr, succs in s :
+		m_block, (m_p, m_s) = inputs[it.name]
+		assert(not m_s)
+		_, _, output_preds = m_p
+		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
+
+	print here(), map_in, map_out
+
+
+##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
+#		for it, it_nr in get_terms_flattened(mac) }
+#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
+
+	return delays #XXX possible return via argument
+
+
 
 def expand_macroes(g, library, known_types, block_cache=None) :
+
 	cache = block_cache_init() if block_cache is None else block_cache
-	macroes = (b for b in g if isinstance(b.prototype, core.MacroProto))
-	for n in macroes :
-		__expand_macro(g, library, n, known_types, cache)
+
+	prev_batch = set()
+	macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	while macroes != prev_batch :
+		for n in sorted(macroes) :
+			__expand_macro(g, library, n, known_types, cache)
+		prev_batch = set(macroes)
+		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
 
 
 def block_cache_init() :
