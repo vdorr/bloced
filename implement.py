@@ -192,91 +192,26 @@ def __replace_block(g, n, subgraph, map_in, map_out) :
 	p, s = g.pop(n)
 	g.update(subgraph)
 
-	npreds = { (t, n) : values for t, n, values in p }
-	nsuccs = { (t, n) : values for t, n, values in s }
-
-
-#	__check_mapping_sanity(map_in, dfs.INPUT_TERM)
-#	__check_mapping_sanity(map_out, dfs.OUTPUT_TERM)
-
-
-
-#TODO now are cycles symetric and should be merged into one
-
-#	for (in_t, in_t_nr), succs in map_in.items() :
-#		assert(in_t.direction == dfs.INPUT_TERM)
-#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
-#		for b, t, nr in succs :
-#			assert(t.direction == dfs.INPUT_TERM)
-#			assert(t_pred.direction == dfs.OUTPUT_TERM)
-#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
-
-#	for (out_t, out_t_nr), preds in map_out.items() :
-#		assert(out_t.direction == dfs.OUTPUT_TERM)
-#		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
-#		for b, t, nr in preds :
-#			assert(t.direction == dfs.OUTPUT_TERM)
-#			assert(t_succ.direction == dfs.INPUT_TERM)
-#			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-#			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
-
-
 	for in_t, in_t_nr, values in p :
 		assert(in_t.direction == dfs.INPUT_TERM)
-		succs = map_in[in_t, in_t_nr]
-		for b, t, nr in succs :
-			assert(t.direction == dfs.INPUT_TERM)
-			for b_pred, t_pred, t_pred_nr in values :
+		succs = map_in[in_t, in_t_nr] if (in_t, in_t_nr) in map_in else []
+		for b_pred, t_pred, t_pred_nr in values :
+			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
+			for b, t, nr in succs :
+				assert(t.direction == dfs.INPUT_TERM)
 				assert(t_pred.direction == dfs.OUTPUT_TERM)
 				__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 	for out_t, out_t_nr, values in s :
 		assert(out_t.direction == dfs.OUTPUT_TERM)
-		preds = map_out[out_t, out_t_nr]
-		for b, t, nr in preds :
-			assert(t.direction == dfs.OUTPUT_TERM)
-
-	for (out_t, out_t_nr), preds in map_out.items() :
-		assert(out_t.direction == dfs.OUTPUT_TERM)
-		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
-		for b, t, nr in preds :
-			assert(t.direction == dfs.OUTPUT_TERM)
-			assert(t_succ.direction == dfs.INPUT_TERM)
-			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
-
-#	for (in_t, in_t_nr), succs in map_in.items() :
-#		assert(in_t.direction == dfs.INPUT_TERM)
-#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
-#		for b, t, nr in succs :
-#			assert(t.direction == dfs.INPUT_TERM)
-#			assert(t_pred.direction == dfs.OUTPUT_TERM)
-#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
-
-	for (out_t, out_t_nr), preds in map_out.items() :
-		assert(out_t.direction == dfs.OUTPUT_TERM)
-		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
-		for b, t, nr in preds :
-			assert(t.direction == dfs.OUTPUT_TERM)
-			assert(t_succ.direction == dfs.INPUT_TERM)
-			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
-
-##	print "__replace_block_with_subgraph(3):", map_out.items()[0]
-#	for (out_t, out_t_nr), preds in map_out.items() :
-#		assert(out_t.direction == dfs.OUTPUT_TERM)
-##TODO now are cycles symetric and should be merged into one
-#		for b, t, nr in preds :
-#			assert(t.direction == dfs.OUTPUT_TERM)
-#			succs = nsuccs[(out_t, out_t_nr)]
-#			for b_succ, t_succ, t_succ_nr in succs :
-#	#			print b, t, "->", b_succ, t_succ
-#				assert(t_succ.direction == dfs.INPUT_TERM)
-#				__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-#				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+		preds = map_out[out_t, out_t_nr] if (out_t, out_t_nr) in map_out else []
+		for b_succ, t_succ, t_succ_nr in values :
+			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
+			for b, t, nr in preds :
+				assert(t.direction == dfs.OUTPUT_TERM)
+				__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
 	return None
 
