@@ -191,14 +191,16 @@ def __replace_block(g, n, subgraph, map_in, map_out) :
 	p, s = g.pop(n)
 	g.update(subgraph)
 
+#TODO unify loops
+
 	for in_t, in_t_nr, values in p :
 		assert(in_t.direction == dfs.INPUT_TERM)
 		succs = map_in[in_t, in_t_nr] if (in_t, in_t_nr) in map_in else []
 		for b_pred, t_pred, t_pred_nr in values :
+			assert(t_pred.direction == dfs.OUTPUT_TERM)
 			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
 			for b, t, nr in succs :
 				assert(t.direction == dfs.INPUT_TERM)
-				assert(t_pred.direction == dfs.OUTPUT_TERM)
 				__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
@@ -206,6 +208,7 @@ def __replace_block(g, n, subgraph, map_in, map_out) :
 		assert(out_t.direction == dfs.OUTPUT_TERM)
 		preds = map_out[out_t, out_t_nr] if (out_t, out_t_nr) in map_out else []
 		for b_succ, t_succ, t_succ_nr in values :
+			assert(t_succ.direction == dfs.INPUT_TERM)
 			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
 			for b, t, nr in preds :
 				assert(t.direction == dfs.OUTPUT_TERM)
@@ -912,52 +915,27 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-import serializer #XXX move!!!
-
-
-def __load_macro_from_lib_data(full_name, lib_data) :
-	pass
-
-
-def __instantiate_macro(n, library, known_types) :#library, full_name) :
-#	info = library.get_block_and_lib(full_name)
-#	if not info is None :
-#		xxx = core.get_block_data(*info)
-#		print here(), info
-
-#	raw_workbench, raw_sheet, cooked_workbench, cooked_sheet = n.prototype.data
-
-#	graph, delays = make_dag(cooked_sheet, None, known_types, do_join_taps=False)
-#	types = infer_types(graph, delays, known_types=known_types)
-
-#	print here()
-
-	return None
+import serializer #TODO move!!!
 
 
 def remove_block(g, n) :
-
+	"""
+	remove block n from graph g
+	"""
 	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
 	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
-##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
-#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
-#		for it, it_nr in get_terms_flattened(mac) }
-#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
-
 	__replace_block(g, n, {}, map_in, map_out)
 
 
+#TODO break down to smaller functions, maybe use memoizing decorator
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
 
-#	block = __instantiate_macro(n, library, known_types)#TODO cache
-	block = None
-
 	lib_data = library.get_block_and_lib(full_name)
 
 	if lib_data is None :
-		return None #XXX raise Exception
+		return None #TODO raise Exception
 
 	lib, (item, proto) = lib_data
 
@@ -969,15 +947,12 @@ def __expand_macro(g, library, n, known_types, cache) :
 	sheet_data, = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, "@macro:" + name))
 
 	if sheet_data is None :
-		return None #XXX raise Exception
-
-	print here(), len( sheet_data)
+		return None #TODO raise Exception
 
 	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
-	pprint(gm)
-
+#TODO
 #	print here(), full_name, full_name in cache
 #	if full_name in cache :
 #		block = cache[full_name]
@@ -996,46 +971,28 @@ def __expand_macro(g, library, n, known_types, cache) :
 		print here(), name
 		remove_block(gm, b)
 
-	pprint(gm)
-
 	p, s = g[n]
 
 	#XXX to handle variadic terms map p -> inputs
 
-	#TODO remove_block(g, n)
-
 	map_in = {}
 	for it, it_nr, preds in p :
 		m_block, (m_p, m_s) = inputs[it.name]
-#		print here(), m_block, (m_p, m_s)
 		assert(not m_p)
 		(_, _, input_succs), = m_s
 		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
 
-#		for b, t, nr in preds :
-#			map_in[it, it_nr] = []
-
 	map_out = {}
 	for ot, ot_nr, succs in s :
 		m_block, (m_p, m_s) = outputs[ot.name]
-#		print here(), m_block, (m_p, m_s)
 		assert(not m_s)
 		(_, _, output_preds), = m_p
-#		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
 		assert(len(output_preds)==1)
 		map_out[ot, ot_nr] = output_preds[0]
 
-	print here(), map_in
-	print here(), map_out
-
-
-##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
-#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
-#		for it, it_nr in get_terms_flattened(mac) }
-#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
-
 	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
 
+#TODO handle delays!!!
 	return delays #XXX possible return via argument
 
 
