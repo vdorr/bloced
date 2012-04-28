@@ -123,7 +123,6 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tu
 
 # to implement __expand_joints_new and macro expansion
 
-#XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
 	replace single block from g with subgraph, subgraph may be empty dict and function might be used
@@ -131,42 +130,153 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
 	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
-#	print "map_in=", map_in
-#	print "map_out=", map_out
+	return __replace_block(g, n, subgraph, map_in,
+		{ k : (v,) for k, v in map_out.items() })
+
+
+def __check_mapping_sanity(mapping, dir_from, use_assert=True) :
+	def check(term) :
+		if use_assert :
+			assert(term.direction == dir_from)
+		else :
+			return term.direction == dir_from
+	for (in_t, in_t_nr), succs in mapping.items() :
+		check(in_t.direction)
+		for b, t, nr in succs :
+			check(t.direction)
+
+
+def __do_replace_block(g, n, n_terms, subgraph, mapping, direction) :
+
+	def neighbourhood(block) :
+		if direction == dfs.INPUT_TERM :
+			return g[block].s
+		elif direction == dfs.OUTPUT_TERM :
+			return g[block].p
+		else :
+			raise Exception()
+
+	for n_t, n_t_nr, n_succs in n_terms :
+
+#		assert((n_t, n_t_nr) in mapping)
+		if (n_t, n_t_nr) in mapping :
+			replacement = mapping[n_t, n_t_nr]
+		else :
+			replacement = tuple()
+
+		for b, t, nr in n_succs :
+			__neighbourhood_safe_replace(neighbourhood(b), t, nr, (n, n_t, n_t_nr), None) #remove connection to n
+
+		for b, t, nr in replacement :
+			__neighbourhood_safe_replace(g[b_pred].s, n_t, n_t_nr, (n, n_t, n_t_nr), (b, t, nr))
+			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+
+
+	for (n_t, n_t_nr), succs in mapping.items() :
+		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
+		for b, t, nr in succs :
+			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+
+
+
+#XXX because of symmetry, there should be only single map
+def __replace_block(g, n, subgraph, map_in, map_out) :
+	"""
+	replace single block from g with subgraph, subgraph may be empty dict and function might be used
+	to map block terminal to other blocks in g
+	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	map_out = { (n_out_term, n_out_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	"""
 
 	p, s = g.pop(n)
 	g.update(subgraph)
 
-#	print "__replace_block_with_subgraph(1)"
-#	pprint(p)
-#	print "__replace_block_with_subgraph(2)"
-
 	npreds = { (t, n) : values for t, n, values in p }
 	nsuccs = { (t, n) : values for t, n, values in s }
 
-	for (in_t, in_t_nr), succs in map_in.items() :
+
+#	__check_mapping_sanity(map_in, dfs.INPUT_TERM)
+#	__check_mapping_sanity(map_out, dfs.OUTPUT_TERM)
+
+
+
+#TODO now are cycles symetric and should be merged into one
+
+#	for (in_t, in_t_nr), succs in map_in.items() :
+#		assert(in_t.direction == dfs.INPUT_TERM)
+#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
+#		for b, t, nr in succs :
+#			assert(t.direction == dfs.INPUT_TERM)
+#			assert(t_pred.direction == dfs.OUTPUT_TERM)
+#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+
+#	for (out_t, out_t_nr), preds in map_out.items() :
+#		assert(out_t.direction == dfs.OUTPUT_TERM)
+#		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
+#		for b, t, nr in preds :
+#			assert(t.direction == dfs.OUTPUT_TERM)
+#			assert(t_succ.direction == dfs.INPUT_TERM)
+#			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+#			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+
+
+	for in_t, in_t_nr, values in p :
 		assert(in_t.direction == dfs.INPUT_TERM)
-		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
+		succs = map_in[in_t, in_t_nr]
 		for b, t, nr in succs :
 			assert(t.direction == dfs.INPUT_TERM)
-			assert(t_pred.direction == dfs.OUTPUT_TERM)
-#			print b_pred, t_pred, "->", b, t
-			#XXX something should be move outside this loop
-#			__neighbourhood_safe_replace(neighbourhood, bt, old_pair, new_pair)
-#			print "666:", g[b_pred].s, t_pred, t_pred_nr, t_pred==g[b_pred].s[0][0]
-			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+			for b_pred, t_pred, t_pred_nr in values :
+				assert(t_pred.direction == dfs.OUTPUT_TERM)
+				__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
-#	print "__replace_block_with_subgraph(3):", map_out.items()[0]
-	for (out_t, out_t_nr), (b, t, nr) in map_out.items() :
+	for out_t, out_t_nr, values in s :
 		assert(out_t.direction == dfs.OUTPUT_TERM)
-		assert(t.direction == dfs.OUTPUT_TERM)
-		succs = nsuccs[(out_t, out_t_nr)]
-		for b_succ, t_succ, t_succ_nr in succs :
-#			print b, t, "->", b_succ, t_succ
+		preds = map_out[out_t, out_t_nr]
+		for b, t, nr in preds :
+			assert(t.direction == dfs.OUTPUT_TERM)
+
+	for (out_t, out_t_nr), preds in map_out.items() :
+		assert(out_t.direction == dfs.OUTPUT_TERM)
+		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
+		for b, t, nr in preds :
+			assert(t.direction == dfs.OUTPUT_TERM)
 			assert(t_succ.direction == dfs.INPUT_TERM)
 			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+
+#	for (in_t, in_t_nr), succs in map_in.items() :
+#		assert(in_t.direction == dfs.INPUT_TERM)
+#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
+#		for b, t, nr in succs :
+#			assert(t.direction == dfs.INPUT_TERM)
+#			assert(t_pred.direction == dfs.OUTPUT_TERM)
+#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+
+	for (out_t, out_t_nr), preds in map_out.items() :
+		assert(out_t.direction == dfs.OUTPUT_TERM)
+		((b_succ, t_succ, t_succ_nr),) = nsuccs[(out_t, out_t_nr)]
+		for b, t, nr in preds :
+			assert(t.direction == dfs.OUTPUT_TERM)
+			assert(t_succ.direction == dfs.INPUT_TERM)
+			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+
+##	print "__replace_block_with_subgraph(3):", map_out.items()[0]
+#	for (out_t, out_t_nr), preds in map_out.items() :
+#		assert(out_t.direction == dfs.OUTPUT_TERM)
+##TODO now are cycles symetric and should be merged into one
+#		for b, t, nr in preds :
+#			assert(t.direction == dfs.OUTPUT_TERM)
+#			succs = nsuccs[(out_t, out_t_nr)]
+#			for b_succ, t_succ, t_succ_nr in succs :
+#	#			print b, t, "->", b_succ, t_succ
+#				assert(t_succ.direction == dfs.INPUT_TERM)
+#				__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+#				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
 	return None
 
@@ -890,6 +1000,19 @@ def __instantiate_macro(n, library, known_types) :#library, full_name) :
 
 	return None
 
+
+def remove_block(g, n) :
+
+	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
+	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
+##	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
+#		for it, it_nr in get_terms_flattened(mac) }
+#	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
+
+	__replace_block(g, n, {}, map_in, map_out)
+
+
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
@@ -919,7 +1042,7 @@ def __expand_macro(g, library, n, known_types, cache) :
 	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
-#	print here(), gm
+	pprint(gm)
 
 #	print here(), full_name, full_name in cache
 #	if full_name in cache :
@@ -931,8 +1054,15 @@ def __expand_macro(g, library, n, known_types, cache) :
 	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
 	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
 
-#	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
+	for name, (b, _) in inputs.items() :
+		print here(), name
+		remove_block(gm, b)
 
+	for name, (b, _) in outputs.items() :
+		print here(), name
+		remove_block(gm, b)
+
+	pprint(gm)
 
 	p, s = g[n]
 
