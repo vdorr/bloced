@@ -134,50 +134,49 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 		{ k : (v,) for k, v in map_out.items() })
 
 
-def __check_mapping_sanity(mapping, dir_from, use_assert=True) :
-	def check(term) :
-		if use_assert :
-			assert(term.direction == dir_from)
-		else :
-			return term.direction == dir_from
-	for (in_t, in_t_nr), succs in mapping.items() :
-		check(in_t.direction)
-		for b, t, nr in succs :
-			check(t.direction)
+#def __check_mapping_sanity(mapping, dir_from, use_assert=True) :
+#	def check(term) :
+#		if use_assert :
+#			assert(term.direction == dir_from)
+#		else :
+#			return term.direction == dir_from
+#	for (in_t, in_t_nr), succs in mapping.items() :
+#		check(in_t.direction)
+#		for b, t, nr in succs :
+#			check(t.direction)
 
 
-def __do_replace_block(g, n, n_terms, subgraph, mapping, direction) :
+#def __do_replace_block(g, n, n_terms, subgraph, mapping, direction) :
 
-	def neighbourhood(block) :
-		if direction == dfs.INPUT_TERM :
-			return g[block].s
-		elif direction == dfs.OUTPUT_TERM :
-			return g[block].p
-		else :
-			raise Exception()
+#	def neighbourhood(block) :
+#		if direction == dfs.INPUT_TERM :
+#			return g[block].s
+#		elif direction == dfs.OUTPUT_TERM :
+#			return g[block].p
+#		else :
+#			raise Exception()
 
-	for n_t, n_t_nr, n_succs in n_terms :
+#	for n_t, n_t_nr, n_succs in n_terms :
 
-#		assert((n_t, n_t_nr) in mapping)
-		if (n_t, n_t_nr) in mapping :
-			replacement = mapping[n_t, n_t_nr]
-		else :
-			replacement = tuple()
+##		assert((n_t, n_t_nr) in mapping)
+#		if (n_t, n_t_nr) in mapping :
+#			replacement = mapping[n_t, n_t_nr]
+#		else :
+#			replacement = tuple()
 
-		for b, t, nr in n_succs :
-			__neighbourhood_safe_replace(neighbourhood(b), t, nr, (n, n_t, n_t_nr), None) #remove connection to n
+#		for b, t, nr in n_succs :
+#			__neighbourhood_safe_replace(neighbourhood(b), t, nr, (n, n_t, n_t_nr), None) #remove connection to n
 
-		for b, t, nr in replacement :
-			__neighbourhood_safe_replace(g[b_pred].s, n_t, n_t_nr, (n, n_t, n_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+#		for b, t, nr in replacement :
+#			__neighbourhood_safe_replace(g[b_pred].s, n_t, n_t_nr, (n, n_t, n_t_nr), (b, t, nr))
+#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 
-	for (n_t, n_t_nr), succs in mapping.items() :
-		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
-		for b, t, nr in succs :
-			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
-
+#	for (n_t, n_t_nr), succs in mapping.items() :
+#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
+#		for b, t, nr in succs :
+#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 
 #XXX because of symmetry, there should be only single map
