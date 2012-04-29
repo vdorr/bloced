@@ -1,5 +1,5 @@
 
-#include "wiring.h"
+#include "Arduino.h"
 #include "iowrap.h"
 
 /*
