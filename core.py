@@ -823,6 +823,32 @@ def sort_libs(libs) :
 	return s
 
 
+def load_library_sheet(library, full_name, sheet_name) :
+	"""
+	search library for item full_name and return sheet with sheet_name from this context
+	raises Exception if there is problem, returns None if just not found
+	"""
+	lib_data = library.get_block_and_lib(full_name)
+
+	if lib_data is None :
+		raise Exception("library item '" + full_name + "' not found")
+
+	lib, (item, proto) = lib_data
+
+	with open(item.file_path) as f :
+		w_data = serializer.unpickle_workbench_data(f)
+
+	res_found = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, sheet_name))
+
+	if res_found is None :
+		raise Exception("can not load library item '" + full_name + "'")
+
+	sheet_data, = res_found
+	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
+
+	return sheet
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 

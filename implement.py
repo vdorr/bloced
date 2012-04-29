@@ -146,22 +146,22 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 #			check(t.direction)
 
 
-def neighbourhood_from_term_dir(ps, direction) :
-	"""
-	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
-	"""
-	p, s = ps
-	if direction == dfs.INPUT_TERM :
-		return s, p
-	elif direction == dfs.OUTPUT_TERM :
-		return p, s
-	else :
-		raise Exception("unknown term direction")
+#def neighbourhood_from_term_dir(ps, direction) :
+#	"""
+#	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
+#	"""
+#	p, s = ps
+#	if direction == dfs.INPUT_TERM :
+#		return s, p
+#	elif direction == dfs.OUTPUT_TERM :
+#		return p, s
+#	else :
+#		raise Exception("unknown term direction")
 
 
-def __do_part_block_replace(g, n, adj, mapping, dir_from, dir_to) :
-#TODO
-	pass
+#def __do_part_block_replace(g, n, adj, mapping, dir_from, dir_to) :
+##TODO
+#	pass
 
 
 #XXX because of symmetry, there should be only single map
@@ -921,36 +921,13 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-import serializer #TODO move!!!
-
-
-def __is_io_block(n) :
-	return n.prototype.__class__ in (core.InputProto, core.OutputProto)
-
-
-#TODO break down to smaller functions, maybe use memoizing decorator
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
 
-	lib_data = library.get_block_and_lib(full_name)
-
-	if lib_data is None :
-		raise Exception("library item '" + full_name + "' not found")
-
-	lib, (item, proto) = lib_data
-
-	with open(item.file_path) as f :
-		w_data = serializer.unpickle_workbench_data(f)
-
-#	print(here(), full_name, item.file_path)
-
-	sheet_data, = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, "@macro:" + name))
-
-	if sheet_data is None :
-		return None #TODO raise Exception
-
-	sheet = serializer.restore_dfs_model(*(sheet_data + (library,)))
+	sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+	if sheet is None :
+		raise Exception("failed to expand macr '" + full_name + "'")
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
 #TODO
@@ -960,35 +937,6 @@ def __expand_macro(g, library, n, known_types, cache) :
 #	else :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
-
-
-
-
-#	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
-#	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
-
-#	for io_block in tuple(b for b in gm.keys() if __is_io_block(b)) :
-#		remove_block(gm, io_block)
-
-#	p, s = g[n]
-
-#	#XXX to handle variadic terms map p -> inputs
-
-#	map_in = {}
-#	for it, it_nr, _ in p :
-#		_, (m_p, m_s) = inputs[it.name]
-#		assert(not m_p)
-#		(_, _, input_succs), = m_s
-#		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
-
-#	map_out = {}
-#	for ot, ot_nr, _ in s :
-#		_, (m_p, m_s) = outputs[ot.name]
-#		assert(not m_s)
-#		(_, _, output_preds), = m_p
-#		assert(len(output_preds)==1)
-##		map_out[ot, ot_nr] = output_preds[0]
-#		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
 
 	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if b.prototype.__class__ == core.InputProto }
 	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if b.prototype.__class__ == core.OutputProto }
@@ -1022,6 +970,8 @@ def expand_macroes(g, library, known_types, block_cache=None) :
 			new_delays.update(delays)
 		prev_batch = set(macroes)
 		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	if macroes :
+		raise Exception("failed to {0} expand macroes".format(len(macroes)))
 	return (new_delays, )
 
 
@@ -1066,6 +1016,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
 			g, d = dag_merge(l)
+			new_d, = expand_macroes(g, lib, known_types, block_cache=block_cache)
+			d.update(new_d)
 			join_taps(g)
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
@@ -1077,10 +1029,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-#XXX
 	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
 	delays.update(new_delays)
-#XXX
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
 	extract_pipes(graph, known_types, g_protos, pipe_replacement)
