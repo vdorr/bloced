@@ -981,6 +981,11 @@ def block_cache_init() :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def create_function_call(name) :
+	block = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
+	block.value = (name, )
+	return block
+
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
@@ -988,6 +993,23 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	libs_used = {}
 	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
+
+
+#def process_sheet_list(sheets, global_meta, codegen, known_types, lib) :
+
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sorted(sheets.items(), key=lambda x: x[0])
+#		if not name in special ]
+#	graph, delays = dag_merge(l)
+#	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+#	delays.update(new_delays)
+#	join_taps(graph)
+#	types = infer_types(graph, delays, known_types=known_types)
+#	extract_pipes(graph, known_types, g_protos, pipe_replacement)
+#	tsk_name = "loop"
+
+
+#	return tsk_name, g, delays, tsk_setup_meta, types
 
 
 #TODO break down to smaller functions if possible
@@ -1037,15 +1059,12 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	tsk_name = "loop"
 	graph_data.append((tsk_name, graph, delays, {}, types))
 
-	loop_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-	loop_call.value = (tsk_name, )
-	init_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-	init_call.value = ("init", )
+	loop_call = create_function_call(tsk_name)
+	init_call = create_function_call("init")
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
 	first_call = loop_call
 	if "@setup" in special :
-		setup_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-		setup_call.value = ("setup", )
+		setup_call = create_function_call("setup")
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 		first_call = setup_call
@@ -1066,7 +1085,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	include_files = []
 	for l in lib.libs :
 		if l.name in libs_used :
-			include_files.extend(l.include_files)
+			include_files.extend(l.include_files)#TODO maybe use only file name
 
 	glob_vars = [ (pipe_name, pipe_type, pipe_default)
 		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]

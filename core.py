@@ -276,8 +276,9 @@ class MacroProto(BlockPrototype):
 # ----------------------------------------------------------------------------
 
 class FunctionProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "FunctionBlock", [], category="External")
+	pass
+#	def __init__(self) :
+#		BlockPrototype.__init__(self, "FunctionBlock", [], category="External")
 
 # ----------------------------------------------------------------------------
 
@@ -558,9 +559,20 @@ def get_macro_name(s) :
 	return s.split(":")[-1]
 
 
+def is_function_name(s) :
+	return s.strip().startswith("@function:")
+
+
+def get_function_name(s) :
+	if not is_function_name(s) :
+		return None
+	return s.split(":")[-1]
+
+
 lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "cooked_workbench", "cooked_sheet"))
 
-def __create_macro(lib_name, block_name, sheet) :
+
+def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 
 	width, height, terms = try_mkmac(sheet)
 
@@ -587,17 +599,7 @@ def __create_macro(lib_name, block_name, sheet) :
 		for (name, direction, variadic, commutative, type_name, pos, side), i
 			in zip(terms_out, count()) ]
 
-
-#	inputs = [ dfs.In(-i, name, dfs.W, pos,
-#			type_name=type_name, variadic=variadic, commutative=commutative)
-#		for (name, direction, variadic, commutative, type_name), pos, i
-#			in zip(terms_in, in_terms_pos, count()) ]
-#	outputs = [ dfs.Out(-i, name, dfs.E, pos,
-#			type_name=type_name, variadic=variadic, commutative=commutative)
-#		for (name, direction, variadic, commutative, type_name), pos, i
-#			in zip(terms_out, out_terms_pos, count()) ]
-
-	proto = MacroProto(block_name,
+	proto = prototype_type(block_name,
 			inputs + outputs,
 			exe_name=block_name,
 			default_size=(width, height),
@@ -606,6 +608,14 @@ def __create_macro(lib_name, block_name, sheet) :
 			data=lib_block_data_t(None, None, None, sheet))
 
 	return proto
+
+
+def __create_macro(lib_name, block_name, sheet) :
+	return __create_sheet_wrapper(lib_name, block_name, sheet, MacroProto)
+
+
+def __create_function(lib_name, block_name, sheet) :
+	return __create_sheet_wrapper(lib_name, block_name, sheet, FunctionProto)
 
 
 def load_workbench_library(lib_name, file_path) :
@@ -627,9 +637,12 @@ def load_workbench_library(lib_name, file_path) :
 
 	for (name, sheet) in w.sheets.items() :
 		if is_macro_name(name) :
-#			print(here(), name, sheet)
 			block_name = get_macro_name(name)
 			proto = __create_macro(lib_name, block_name, sheet)
+			blocks.append(proto)
+		elif is_function_name(name) :
+			block_name = get_function_name(name)
+			proto = __create_function(lib_name, block_name, sheet)
 			blocks.append(proto)
 
 	return blocks
