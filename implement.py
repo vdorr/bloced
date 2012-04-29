@@ -466,11 +466,11 @@ def compare_types(known_types, a, b) :
 
 def infer_block_type(block, preds, types, known_types) :
 	inferred = None
-	print here(), block
+#	print(here(), block)
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
 			inherited = types[block, t, t_nr]
-			print here(), inherited
+#			print(here(), inherited)
 			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
 				inferred = inherited
 #	return sorted(inherited,
@@ -943,7 +943,7 @@ def __expand_macro(g, library, n, known_types, cache) :
 	with open(item.file_path) as f :
 		w_data = serializer.unpickle_workbench_data(f)
 
-	print here(), full_name, item.file_path
+#	print(here(), full_name, item.file_path)
 
 	sheet_data, = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, "@macro:" + name))
 
@@ -961,42 +961,54 @@ def __expand_macro(g, library, n, known_types, cache) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
-	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
-	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
 
-	for io_block in tuple(b for b in gm.keys() if __is_io_block(b)) :
-		remove_block(gm, io_block)
 
-#	for name, (b, _) in inputs.items() :
-#		remove_block(gm, b)
 
-#	for name, (b, _) in outputs.items() :
-#		remove_block(gm, b)
+#	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
+#	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
+
+#	for io_block in tuple(b for b in gm.keys() if __is_io_block(b)) :
+#		remove_block(gm, io_block)
+
+#	p, s = g[n]
+
+#	#XXX to handle variadic terms map p -> inputs
+
+#	map_in = {}
+#	for it, it_nr, _ in p :
+#		_, (m_p, m_s) = inputs[it.name]
+#		assert(not m_p)
+#		(_, _, input_succs), = m_s
+#		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
+
+#	map_out = {}
+#	for ot, ot_nr, _ in s :
+#		_, (m_p, m_s) = outputs[ot.name]
+#		assert(not m_s)
+#		(_, _, output_preds), = m_p
+#		assert(len(output_preds)==1)
+##		map_out[ot, ot_nr] = output_preds[0]
+#		map_out[ot, ot_nr] = tuple((b, t, nr) for b, t, nr in output_preds)
+
+	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if b.prototype.__class__ == core.InputProto }
+	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if b.prototype.__class__ == core.OutputProto }
+
+	for io_blocks in (inputs, outputs) :
+		for io, _ in io_blocks.values() :
+			remove_block(gm, io)
 
 	p, s = g[n]
 
 	#XXX to handle variadic terms map p -> inputs
 
-	map_in = {}
-	for it, it_nr, preds in p :
-		m_block, (m_p, m_s) = inputs[it.name]
-		assert(not m_p)
-		(_, _, input_succs), = m_s
-		map_in[it, it_nr] = tuple((b, t, nr) for b, t, nr in input_succs)
+	map_in = { (it, it_nr) : tuple((b, t, nr) for b, t, nr in inputs[it.name][1])
+		for it, it_nr, _ in p }
+	map_out = { (ot, ot_nr) : tuple((b, t, nr) for b, t, nr in outputs[ot.name][1])
+		for ot, ot_nr, _ in s }
 
-	map_out = {}
-	for ot, ot_nr, succs in s :
-		m_block, (m_p, m_s) = outputs[ot.name]
-		assert(not m_s)
-		(_, _, output_preds), = m_p
-		assert(len(output_preds)==1)
-		map_out[ot, ot_nr] = output_preds[0]
-
-#TODO use remove_block_and_patch
-	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
+	remove_block_and_patch(g, n, gm, map_in, map_out)
 
 	return (delays, )
-
 
 
 def expand_macroes(g, library, known_types, block_cache=None) :
@@ -1028,6 +1040,7 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
+#TODO break down to smaller functions if possible
 def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
