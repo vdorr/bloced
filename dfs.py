@@ -936,7 +936,7 @@ import sys
 import os
 #from implement import implement_dfs, implement_workbench, here
 import implement
-def here(*a) : pass
+from utils import here
 from sys import version_info
 if version_info.major == 3 :
 	from io import StringIO
@@ -1038,10 +1038,15 @@ class Workbench(object) :
 		source = out_fobj.getvalue()
 		print(source)
 
+		base_include_dir = "/usr/share/arduino/hardware/arduino/"
+		board_info = build.get_board_types()[board_type]
+		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
+
 		blob_stream = StringIO()
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=[
-				("/usr/share/arduino/hardware/arduino/cores/arduino", False),
+				(os.path.join(base_include_dir, "cores/arduino"), False),
+				(os.path.join(base_include_dir, "variants", variant), False),
 				(os.path.join(os.getcwd(), "library", "arduino"), False)
 			],#TODO derive from libraries used
 			boards_txt=build.BOARDS_TXT,
