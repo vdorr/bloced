@@ -222,6 +222,62 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 
 	return None
 
+
+def printg(g) :
+	for b, (_, s) in g.items() :
+		for t, x in s :
+			print(str(b)+str(t))
+			for nb, nt in x :
+				print("\t -> %s%s"%(str(nb), str(nt)))
+
+
+def dag_merge(l) :
+	g, d = {}, {}
+	for graph0, delays0 in l :
+		g.update(graph0)
+		d.update(delays0)
+	return g, d
+
+
+def chain_blocks(g, n, m) :
+	"""
+	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
+	motivated by need to express calls in main function, this is probably BAD THING
+	"""
+	n_out = dfs.VirtualOut("y")
+	m_in = dfs.VirtualIn("x")
+	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
+	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
+
+
+def replace_block(g, n, m) :
+	p, s = g.pop(n)
+	for t, t_nr, adj in p :
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
+	for t, t_nr, adj in s :
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
+	g[m] = adjs_t(
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
+
+
+def remove_block(g, n) :
+	"""
+	remove block n from graph g
+	"""
+	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
+	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
+	remove_block_and_patch(g, n, {}, map_in, map_out)
+
+
+def block_value_by_name(n, value_name) :
+	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 def __cut_joint_alt(g, j) :
@@ -814,61 +870,6 @@ def tmp_merge(tmp0, tmp1) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def printg(g) :
-	for b, (_, s) in g.items() :
-		for t, x in s :
-			print(str(b)+str(t))
-			for nb, nt in x :
-				print("\t -> %s%s"%(str(nb), str(nt)))
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def dag_merge(l) :
-	g, d = {}, {}
-	for graph0, delays0 in l :
-		g.update(graph0)
-		d.update(delays0)
-	return g, d
-
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def block_value_by_name(n, value_name) :
-	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
-
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def chain_blocks(g, n, m) :
-	"""
-	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
-	motivated by need to express calls in main function, this is probably BAD THING
-	"""
-	n_out = dfs.VirtualOut("y")
-	m_in = dfs.VirtualIn("x")
-	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
-	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
-
-
-def replace_block(g, n, m) :
-	p, s = g.pop(n)
-	for t, t_nr, adj in p :
-		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-	for t, t_nr, adj in s :
-		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-	g[m] = adjs_t(
-		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
-		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
-
-# ------------------------------------------------------------------------------------------------------------
-
 
 def init_pipe_protos(known_types) :
 #TODO generalize for other IPC schemes
@@ -921,15 +922,6 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 
 
 import serializer #TODO move!!!
-
-
-def remove_block(g, n) :
-	"""
-	remove block n from graph g
-	"""
-	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
-	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
-	remove_block_and_patch(g, n, {}, map_in, map_out)
 
 
 #TODO break down to smaller functions, maybe use memoizing decorator
