@@ -1,24 +1,15 @@
 #! /usr/bin/python
 
-#from dfs import *
-from core import *
-#from core import DelayProto
+import dfs
+import core
 from collections import namedtuple
 from functools import partial
 from itertools import groupby, chain, count, islice
 from pprint import pprint
 import sys
-import hashlib
-import traceback
-import string
-
-# ------------------------------------------------------------------------------------------------------------
-
-def here(depth=1) :
-	stack = traceback.extract_stack()[:-1]
-	take = len(stack) if depth > len(stack)  else depth
-	trace = stack[(len(stack)-take):]
-	return "->".join([ "{0}:{1}".format(f[2], f[1]) for f in trace ])
+from hashlib import md5
+import os
+from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -36,7 +27,7 @@ def reverse_dict_of_lists(d, key_grouper) :
 	return groupby_to_dict(l, lambda i: i[0], lambda i: i[1], key_grouper)
 
 
-def dict_map(d, k_map, v_map, item_filter=lambda k,v: True) :
+def dict_map(d, k_map, v_map, item_filter=lambda k, v: True) :
 	return { k_map(*i): v_map(*i) for i in d.items() if item_filter(*i) }
 
 # ------------------------------------------------------------------------------------------------------------
@@ -75,26 +66,26 @@ def __dag_sanity_check(g, stop_on_first=True) :
 		for t, nr, preds in p :
 			if not t in b.prototype.terms :
 				return (False, 0)
-			if t.direction != INPUT_TERM :
+			if t.direction != dfs.INPUT_TERM :
 				return (False, 1)
 			if len(preds) != 1 :
 				return (False, 2, (b, t, preds))
 			for b_pred, t_pred, n_pred in preds :
 				if not b_pred in g :
 					return (False, 3)
-				if t_pred.direction != OUTPUT_TERM :
+				if t_pred.direction != dfs.OUTPUT_TERM :
 					return (False, 4)
 				if not t_pred in b_pred.prototype.terms :
 					return (False, 5)
 		for t, nr, succs in s :
 			if not t in b.prototype.terms :
 				return (False, 6)
-			if t.direction != OUTPUT_TERM :
+			if t.direction != dfs.OUTPUT_TERM :
 				return (False, 7)
 			for b_succ, t_succ, n_succ in succs :
 				if not b_succ in g :
 					return (False, 8)
-				if t_succ.direction != INPUT_TERM :
+				if t_succ.direction != dfs.INPUT_TERM :
 					return (False, 9)
 				if not t_succ in b_succ.prototype.terms :
 					return (False, 10)
@@ -109,11 +100,12 @@ def __dag_sanity_check(g, stop_on_first=True) :
 ##	if (block, term) in neighbours :
 #	neighbours.remove((block, term, term_nr))
 
-def __neighbourhood_add(neighbourhood, bt, block, term, term_nr) :
-	(neighbours, ) = [ succs for t, succs in neighbours if t == bt]
-	assert(not (block, term) in neighbours) # raise should be better
-	neighbours.append((block, term))
-	assert(len(neighbours)==1 if bt.direction == INPUT_TERM else True)
+
+#def __neighbourhood_add(neighbourhood, bt, block, term, term_nr) :
+#	(neighbours, ) = [ succs for t, succs in neighbours?!?!?!? if t == bt]
+#	assert(not (block, term) in neighbours) # raise should be better
+#	neighbours.append((block, term))
+#	assert(len(neighbours)==1 if bt.direction == dfs.INPUT_TERM else True)
 
 
 def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
@@ -131,7 +123,6 @@ def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tu
 
 # to implement __expand_joints_new and macro expansion
 
-#XXX because of symmetry, there should be only single map
 def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	"""
 	replace single block from g with subgraph, subgraph may be empty dict and function might be used
@@ -139,44 +130,153 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
 	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
-#	print "map_in=", map_in
-#	print "map_out=", map_out
+	return remove_block_and_patch(g, n, subgraph, map_in,
+		{ k : (v,) for k, v in map_out.items() })
+
+
+#def __check_mapping_sanity(mapping, dir_from, use_assert=True) :
+#	def check(term) :
+#		if use_assert :
+#			assert(term.direction == dir_from)
+#		else :
+#			return term.direction == dir_from
+#	for (in_t, in_t_nr), succs in mapping.items() :
+#		check(in_t.direction)
+#		for b, t, nr in succs :
+#			check(t.direction)
+
+
+#def neighbourhood_from_term_dir(ps, direction) :
+#	"""
+#	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
+#	"""
+#	p, s = ps
+#	if direction == dfs.INPUT_TERM :
+#		return s, p
+#	elif direction == dfs.OUTPUT_TERM :
+#		return p, s
+#	else :
+#		raise Exception("unknown term direction")
+
+
+#def __do_part_block_replace(g, n, adj, mapping, dir_from, dir_to) :
+##TODO
+#	pass
+
+
+#XXX because of symmetry, there should be only single map
+def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
+	"""
+	replace single block from g with subgraph, subgraph may be empty dict and function might be used
+	to map block terminal to other blocks in g
+	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	map_out = { (n_out_term, n_out_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
+	"""
 
 	p, s = g.pop(n)
 	g.update(subgraph)
 
-#	print "__replace_block_with_subgraph(1)"
-#	pprint(p)
-#	print "__replace_block_with_subgraph(2)"
+#TODO unify loops
 
-	npreds = { (t, n) : values for t, n, values in p }
-	nsuccs = { (t, n) : values for t, n, values in s }
+#	__do_part_block_replace(g, n, s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM)
+#	__do_part_block_replace(g, n, p, map_in, dfs.INPUT_TERM, dfs.OUTPUT_TERM)
+#	return None
 
-	for (in_t, in_t_nr), succs in map_in.items() :
-		assert(in_t.direction == INPUT_TERM)
-		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
-		for b, t, nr in succs :
-			assert(t.direction == INPUT_TERM)
-			assert(t_pred.direction == OUTPUT_TERM)
-#			print b_pred, t_pred, "->", b, t
-			#XXX something should be move outside this loop
-#			__neighbourhood_safe_replace(neighbourhood, bt, old_pair, new_pair)
-#			print "666:", g[b_pred].s, t_pred, t_pred_nr, t_pred==g[b_pred].s[0][0]
-			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
+	for in_t, in_t_nr, values in p :
+		assert(in_t.direction == dfs.INPUT_TERM)
+		succs = map_in[in_t, in_t_nr] if (in_t, in_t_nr) in map_in else []
+		for b_pred, t_pred, t_pred_nr in values :
+			assert(t_pred.direction == dfs.OUTPUT_TERM)
+			b_pred_succ = g[b_pred].s
+			__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
+			for b, t, nr in succs :
+				assert(t.direction == dfs.INPUT_TERM)
+				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
-#	print "__replace_block_with_subgraph(3):", map_out.items()[0]
-	for (out_t, out_t_nr), (b, t, nr) in map_out.items() :
-		assert(out_t.direction == OUTPUT_TERM)
-		assert(t.direction == OUTPUT_TERM)
-		succs = nsuccs[(out_t, out_t_nr)]
-		for b_succ, t_succ, t_succ_nr in succs :
-#			print b, t, "->", b_succ, t_succ
-			assert(t_succ.direction == INPUT_TERM)
-			__neighbourhood_safe_replace(g[b_succ].p, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-			__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+	for out_t, out_t_nr, values in s :
+		assert(out_t.direction == dfs.OUTPUT_TERM)
+		preds = map_out[out_t, out_t_nr] if (out_t, out_t_nr) in map_out else []
+		for b_succ, t_succ, t_succ_nr in values :
+			assert(t_succ.direction == dfs.INPUT_TERM)
+			b_succ_pred = g[b_succ].p
+			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
+			for b, t, nr in preds :
+				assert(t.direction == dfs.OUTPUT_TERM)
+				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+
+
+#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM),) :
+#		assert(n_t.direction == dir_from)
+#		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
+#		for b_adj, t_adj, t_adj_nr in values :
+#			assert(t_adj.direction == dir_to)
+#			b_adj_pred, _ = neighbourhood_from_term_dir(g[b_adj], dir_from)
+#			__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), None) #remove connection to n
+#			for b, t, nr in replacement :
+#				assert(t.direction == dir_from)
+#				__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), (b, t, nr))
+#				_, b_succs = neighbourhood_from_term_dir(g[b], dir_from)
+#				__neighbourhood_safe_replace(b_succs, t, nr, None, (b_adj, t_adj, t_adj_nr))
 
 	return None
+
+
+def printg(g) :
+	for b, (_, s) in g.items() :
+		for t, x in s :
+			print(str(b)+str(t))
+			for nb, nt in x :
+				print("\t -> %s%s"%(str(nb), str(nt)))
+
+
+def dag_merge(l) :
+	g, d = {}, {}
+	for graph0, delays0 in l :
+		g.update(graph0)
+		d.update(delays0)
+	return g, d
+
+
+def chain_blocks(g, n, m) :
+	"""
+	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
+	motivated by need to express calls in main function, this is probably BAD THING
+	"""
+	n_out = dfs.VirtualOut("y")
+	m_in = dfs.VirtualIn("x")
+	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
+	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
+
+
+def replace_block(g, n, m) :
+	p, s = g.pop(n)
+	for t, t_nr, adj in p :
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
+	for t, t_nr, adj in s :
+		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
+		for b, bt, bt_nr in adj :
+			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
+	g[m] = adjs_t(
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
+		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
+
+
+def remove_block(g, n) :
+	"""
+	remove block n from graph g
+	"""
+	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
+	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
+	remove_block_and_patch(g, n, {}, map_in, map_out)
+
+
+def block_value_by_name(n, value_name) :
+	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -190,7 +290,7 @@ def __cut_joint_alt(g, j) :
 
 #XXX is there a way how to do it functionally?
 def __expand_joints_new(g) :
-	for j in [ b for b in g if isinstance(b.prototype, JointProto) ] :
+	for j in [ b for b in g if isinstance(b.prototype, core.JointProto) ] :
 		__cut_joint_alt(g, j)
 
 # ------------------------------------------------------------------------------------------------------------
@@ -215,7 +315,7 @@ def get_taps(g) :
 	"""
 	return { tap_name : tap, ... }
 	"""
-	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, TapProto) ]
+	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, core.TapProto) ]
 	taps = { b.value : b for b in tap_list }
 	assert(len(tap_list)==len(taps))
 	return taps
@@ -225,7 +325,7 @@ def get_tap_ends(g) :
 	"""
 	return { tap_name : [ tap_end1, ...], ... }
 	"""
-	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, TapEndProto) }
+	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, core.TapEndProto) }
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
 	assert( len(tap_ends_list) == sum([len(v) for v in tap_ends.values()]) )
 	return tap_ends
@@ -234,40 +334,11 @@ def get_tap_ends(g) :
 def join_taps(g) :
 	taps = get_taps(g)
 	tap_ends = get_tap_ends(g)
-	additions={}
+	additions = {}
 	for tap_name, tap in taps.items() :
 		tap_end = tap_ends.pop(tap.value) #TODO do not pop
 		__join_one_tap(g, tap_end, tap)
 
-
-# ------------------------------------------------------------------------------------------------------------
-
-macro_t = namedtuple("macro_t", ("snippet", "mappings"))
-
-def __instantiate_macro(g, library, mac) :
-	assert(mac.value != None)
-	snippet, mappings = library[mac.value]
-	for b, (p, s) in snippet :
-		pass
-	return {}
-
-def __expand_macro(g, library, mac) :
-	assert(mac.value != None)
-	mac_name = str(mac.value)
-	mg = library[mac_name]
-
-	subgraph, mapping = __instantiate_macro(g, library, mac)
-
-#	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[mac]
-	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ]
-		for it, it_nr in get_terms_flattened(mac) }
-	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
-
-	__replace_block_with_subgraph(g, mac, subgraph, map_in, map_out)
-
-def __expand_macroes(g, library) :
-	for mac in [ b for b in g if isinstance(b.prototype, MacroProto) ] :
-		__expand_macro(g, library, mac)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -276,8 +347,8 @@ def t_unpack(term) :
 
 
 def __expddel(d, nr) :
-	i = BlockModel(DelayInProto(), None)
-	o = BlockModel(DelayOutProto(), None)
+	i = dfs.BlockModel(core.DelayInProto(), None)
+	o = dfs.BlockModel(core.DelayOutProto(), None)
 	i.nr = o.nr = nr
 	i.delay = o.delay = d
 	return (d, (i, o)) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
@@ -285,14 +356,14 @@ def __expddel(d, nr) :
 
 def __expand_delays(blocks, conns) :
 
-	delays = { b for b in blocks if isinstance(b.prototype, DelayProto) }
+	delays = { b for b in blocks if isinstance(b.prototype, core.DelayProto) }
 
 	expd = dict([ __expddel(delay, nr) for delay, nr in zip(delays, count()) ])
 
 	def mkvert(src, io) :
 		b, t = src
 		block, term = ( ( expd[b][io], expd[b][io].terms[0] )
-			if isinstance(b.prototype, DelayProto)
+			if isinstance(b.prototype, core.DelayProto)
 			else (b, t) )
 		return (block, ) + t_unpack(term)
 
@@ -314,15 +385,15 @@ def get_terms_flattened(block) :
 def __in_terms(block) :
 #	print "__in_terms:", block.__class__
 #TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == INPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == INPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == INPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.INPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.INPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == dfs.INPUT_TERM  ]
 
 def __out_terms(block) :
 #TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == OUTPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == OUTPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == OUTPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.OUTPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.OUTPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == dfs.OUTPUT_TERM  ]
 
 #def __adj_edges(b, conns, neighbours) :
 #	inputs
@@ -337,8 +408,8 @@ def __out_terms(block) :
 #	print b, "outputs:", __out_terms(b.prototype.terms)
 ##	return { st : dst for (sb, st), dst in conns.items() if src[0] in neighbours }
 
-def __merge_g_and_conns(g, conns) :
-	return { b : adjs_t(__adj_in_edges(b, conns, p), __adj_out_edges(b, conns, s)) for b, (p, s) in g.items() }
+#def __merge_g_and_conns(g, conns) :
+#	return { b : adjs_t(__adj_in_edges(b, conns, p), __adj_out_edges(b, conns, s)) for b, (p, s) in g.items() }
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -395,9 +466,11 @@ def compare_types(known_types, a, b) :
 
 def infer_block_type(block, preds, types, known_types) :
 	inferred = None
+#	print(here(), block)
 	for t, t_nr, preds in preds :
 		if t.type_name == "<inferred>" :
 			inherited = types[block, t, t_nr]
+#			print(here(), inherited)
 			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
 				inferred = inherited
 #	return sorted(inherited,
@@ -410,10 +483,10 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 	mt_type_name = mt.type_name
 #	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
 	if mt_type_name == "<inferred>"	:
-		if m.prototype.__class__ == DelayOutProto :
+		if m.prototype.__class__ == core.DelayOutProto :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-		elif m.prototype.__class__ == ConstProto :
+		elif m.prototype.__class__ == core.ConstProto :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
@@ -430,17 +503,18 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 			types[n, t, t_nr] = infer_block_type(n, p, types, known_types)
 
 
-def infer_types(g, expd_dels, known_types) :
+def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 	"""
 	types of outputs are inferred from types of inferred (in fact, inherited) inputs
 	block with inferred output type must have at least one inferred input type
 	if block have more than one inferred input type, highest priority type is used for all outputs
 	type of Delay is derived from initial value
+	optional allready_inferred contains types allready inferred in form { m, mt, mt_nr : type_name, ... }
 	"""
 	delays = {}
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value[0]
-	types = {}
+	types = {} if allready_inferred is None else allready_inferred
 	dft_alt(g,
 		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
 		post_visit=partial(__infer_types_post_visit, g, types, known_types),
@@ -477,7 +551,7 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp in graph_components(g) :
-		hsh = hashlib.md5()
+		hsh = md5()
 		comp_loc_ids = { n : location_id(g, n, term=None) for n in comp }
 		for m in sorted(comp, key=lambda n: comp_loc_ids[n]) :
 			hsh.update(comp_loc_ids[m].encode())
@@ -521,7 +595,7 @@ def __sort_sinks_post_dive(hsh, n, nt, nt_nr, m, mt, mt_nr, visited) :
 
 def location_id(g, block, term=None) :
 	assert(term==None or (term!=None and len(term) == 2))
-	hsh = hashlib.md5()
+	hsh = md5()
 	dft(g, block, undirected=True,
 		post_dive=partial(__sort_sinks_post_dive, hsh), term=term)
 	digest = hsh.hexdigest()
@@ -597,6 +671,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 			stack.pop(-1)
 			post_visit(n, visited)
 
+
 def dft(g, v,
 		pre_visit = lambda *a, **b: None,
 		pre_dive = lambda *a, **b: None,
@@ -659,9 +734,9 @@ def dft_alt(g,
 
 def graph_components(g) :
 	comps = []
-	visited={}
+	visited = {}
 	for v in g.keys() :
-		comp={}
+		comp = {}
 		if not v in visited :
 			dft(g, v, undirected=True, visited=comp)
 			visited.update(comp)
@@ -795,75 +870,20 @@ def tmp_merge(tmp0, tmp1) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def printg(g) :
-	for b, (p, s) in g.items() :
-		for t, x in s :
-			print(str(b)+str(t))
-			for nb, nt in x :
-				print("\t -> %s%s"%(str(nb),str(nt)))
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def dag_merge(l) :
-	g, d = {}, {}
-	for graph0, delays0 in l :
-		g.update(graph0)
-		d.update(delays0)
-	return g, d
-
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def block_value_by_name(n, value_name) :
-	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
-
-
-# ------------------------------------------------------------------------------------------------------------
-
-
-def chain_blocks(g, n, m) :
-	"""
-	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
-	motivated by need to express calls in main function, this is probably BAD THING
-	"""
-	n_out = VirtualOut("y")
-	m_in = VirtualIn("x")
-	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
-	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
-
-
-def replace_block(g, n, m) :
-	p, s = g.pop(n)
-	for t, t_nr, adj in p :
-		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].s, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-	for t, t_nr, adj in s :
-		new_term, = (tnew for tnew in m.terms if tnew.name == t.name)
-		for b, bt, bt_nr in adj :
-			__neighbourhood_safe_replace(g[b].p, bt, bt_nr, (n, t, t_nr), (m, new_term, t_nr))
-	g[m] = adjs_t(
-		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in p ],
-		[ ( [tnew for tnew in m.terms if tnew.name == t.name][0], t_nr, adj) for t, t_nr, adj in s ])
-
-# ------------------------------------------------------------------------------------------------------------
-
 
 def init_pipe_protos(known_types) :
 #TODO generalize for other IPC schemes
 	g_protos = {}
 	for type_name in known_types :
 		if type_name != "<inferred>" :
-			gw_proto = GlobalWriteProto(type_name)
-			gr_proto = GlobalReadProto(type_name)
+			gw_proto = core.GlobalWriteProto(type_name)
+			gr_proto = core.GlobalReadProto(type_name)
 			g_protos[type_name] = (gw_proto, gr_proto)
 	return g_protos
 
 
 def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
+	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_default = block_value_by_name(n, "Default")
@@ -874,28 +894,89 @@ def extract_pipes(g, known_types, g_protos, pipe_replacement) :
 
 
 def replace_pipes(g, g_protos, pipe_replacement) :
-	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == PipeEndProto }
+	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == core.PipeEndProto }
 
 	unmatched = [ pe for pe in pipe_ends
 		if not (block_value_by_name(pe, "Name") in pipe_replacement) ]
 	if unmatched :
 		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
 
-	pipes = { n for n in g if n.prototype.__class__ == PipeProto }
+	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
 
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_type, pipe_default, gw_proto, gr_proto = pipe_replacement[pipe_name]
 		gw_proto, gr_proto = g_protos[pipe_type]
-		m = BlockModel(gw_proto, "itentionally left blank")
+		m = dfs.BlockModel(gw_proto, "itentionally left blank")
 		m.value = (pipe_name, )
 		replace_block(g, n, m)
 
 	for pipe_end, pipe_name in pipe_ends.items() :
 		pipe_type, pipe_default, gw_proto, gr_proto = pipe_replacement[pipe_name]
-		m = BlockModel(gr_proto, "itentionally left blank")
+		m = dfs.BlockModel(gr_proto, "itentionally left blank")
 		m.value = (pipe_name, )
 		replace_block(g, pipe_end, m)
+
+
+# ------------------------------------------------------------------------------------------------------------
+
+
+def __expand_macro(g, library, n, known_types, cache) :
+	name = n.prototype.exe_name
+	full_name = n.prototype.library + "." + name
+
+	sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+	if sheet is None :
+		raise Exception("failed to expand macr '" + full_name + "'")
+	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
+
+#TODO
+#	print here(), full_name, full_name in cache
+#	if full_name in cache :
+#		block = cache[full_name]
+#	else :
+#		block = __instantiate_macro(library, full_name)
+#		cache[full_name] = block
+
+	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if b.prototype.__class__ == core.InputProto }
+	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if b.prototype.__class__ == core.OutputProto }
+
+	for io_blocks in (inputs, outputs) :
+		for io, _ in io_blocks.values() :
+			remove_block(gm, io)
+
+	p, s = g[n]
+
+	#XXX to handle variadic terms map p -> inputs
+
+	map_in = { (it, it_nr) : tuple((b, t, nr) for b, t, nr in inputs[it.name][1])
+		for it, it_nr, _ in p }
+	map_out = { (ot, ot_nr) : tuple((b, t, nr) for b, t, nr in outputs[ot.name][1])
+		for ot, ot_nr, _ in s }
+
+	remove_block_and_patch(g, n, gm, map_in, map_out)
+
+	return (delays, )
+
+
+def expand_macroes(g, library, known_types, block_cache=None) :
+	cache = block_cache_init() if block_cache is None else block_cache
+	new_delays = {}
+	prev_batch = set()
+	macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	while macroes != prev_batch :
+		for n in sorted(macroes) :
+			delays, = __expand_macro(g, library, n, known_types, cache)
+			new_delays.update(delays)
+		prev_batch = set(macroes)
+		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	if macroes :
+		raise Exception("failed to {0} expand macroes".format(len(macroes)))
+	return (new_delays, )
+
+
+def block_cache_init() :
+	return {}
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -909,6 +990,7 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
+#TODO break down to smaller functions if possible
 def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
@@ -922,8 +1004,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 
 	g_protos = init_pipe_protos(known_types)
 	pipe_replacement = {}
-
 	graph_data = []
+	block_cache = block_cache_init()
 
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
 	for name, sheet_list in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
@@ -934,6 +1016,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
 			g, d = dag_merge(l)
+			new_d, = expand_macroes(g, lib, known_types, block_cache=block_cache)
+			d.update(new_d)
 			join_taps(g)
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
@@ -945,20 +1029,22 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
+	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+	delays.update(new_delays)
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
 	extract_pipes(graph, known_types, g_protos, pipe_replacement)
 	tsk_name = "loop"
 	graph_data.append((tsk_name, graph, delays, {}, types))
 
-	loop_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	loop_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
 	loop_call.value = (tsk_name, )
-	init_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+	init_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
 	init_call.value = ("init", )
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
 	first_call = loop_call
 	if "@setup" in special :
-		setup_call = BlockModel(FunctionCallProto(), "itentionally left blank")
+		setup_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
 		setup_call.value = ("setup", )
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
@@ -982,7 +1068,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		if l.name in libs_used :
 			include_files.extend(l.include_files)
 
-	glob_vars = [ (pipe_name, pipe_type, pipe_default) for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
+	glob_vars = [ (pipe_name, pipe_type, pipe_default)
+		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 	#TODO say something about what you've done
@@ -990,28 +1077,27 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 
 # ------------------------------------------------------------------------------------------------------------
 
-if __name__ == "__main__" :
+def main() :
 #	import argparse
 #	parser = argparse.ArgumentParser(description="bloced")
 #	parser.add_argument("file", metavar="fname", type=str, nargs=1,
 #                   help="input file")
 #	args = parser.parse_args()
 #	fname = args.file[0]
-	from serializer import unpickle_dfs_model, unpickle_workbench
-	from core import create_block_factory, KNOWN_TYPES
+	import serializer
 	action = sys.argv[1]
 	fname = sys.argv[2]
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
 
 	if os.path.splitext(fname)[1].lower() == ".w" :
-		w = Workbench(
+		w = dfs.Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
 			passive=True)
 		blockfactory = w.blockfactory
 		try :
 			with open(fname, "rb") as f :
-				unpickle_workbench(f, w)
+				serializer.unpickle_workbench(f, w)
 		except :
 			print("error loading workbench file")
 			raise
@@ -1019,13 +1105,13 @@ if __name__ == "__main__" :
 		sheets = w.sheets
 		global_meta = w.get_meta()
 	else :
-		blockfactory = create_block_factory(
+		blockfactory = core.create_block_factory(
 				scan_dir=os.path.join(os.getcwd(), "library"))
 		try :
 			with open(fname, "rb") as f :
-				model = unpickle_dfs_model(f, lib=blockfactory)
-		except :
-			print("error loading sheet file")
+				model = serializer.unpickle_dfs_model(f, lib=blockfactory)
+		except Exception as e :
+			print("error loading sheet file", e)
 			exit(666)
 		sheets = { "tsk" : model }
 		global_meta = {}
@@ -1039,18 +1125,21 @@ if __name__ == "__main__" :
 
 	class DummyFile(object):
 		def write(self, s) :
-			self.s += s
+			self.buffer += s
 		def __init__(self) :
-			self.s = ""
+			self.buffer = ""
 
 	out_fobj = DummyFile()
-	implement_workbench(sheets, global_meta, cg, KNOWN_TYPES, blockfactory, out_fobj)
-	print(out_fobj.s)
+	implement_workbench(sheets, global_meta, cg, core.KNOWN_TYPES, blockfactory, out_fobj)
+	print(out_fobj.buffer)
 	exit(0)
 #	elif action == "mkmac" :
 ##		try_mkmac(model)
 #		exit(667)
 
 # ------------------------------------------------------------------------------------------------------------
+
+if __name__ == "__main__" :
+	main()
 
 

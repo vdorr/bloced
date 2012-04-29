@@ -1,16 +1,18 @@
 
 import dfs
-from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
 from functools import partial
 from itertools import count
 from pprint import pprint
-from implement import *
+from itertools import groupby
+from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
+	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used
+from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
-__operators = {
+__OPS = {
 	"xor" :		lambda n, args : "(" + "^".join(args) + ")",
 	"or" :		lambda n, args : "(" + "||".join(args) + ")",
 	"nor" :		lambda n, args : "!(" + "|".join(args) + ")",
@@ -35,10 +37,10 @@ def __implement(g, n, args, outs) :
 #, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
-	if n.prototype.type_name in __operators :
+	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name=="not")
-		assert(len([t for t in n.terms if t.direction==OUTPUT_TERM]) == 1)
-		return __operators[n.prototype.type_name](n, args)
+		assert(len([t for t in n.terms if t.direction==dfs.OUTPUT_TERM]) == 1)
+		return __OPS[n.prototype.type_name](n, args)
 #	elif n.prototype.__class__ == core.PipeProto :
 #		assert(len(args) == 1)
 #		assert(not outs)
@@ -145,7 +147,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in evaluated :
-			print here(), del_out.type_name
+#			print(here(), del_out.type_name)
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
 				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
 			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
@@ -206,7 +208,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
 
-	tmp = temp_init(core.KNOWN_TYPES)
+	tmp = temp_init(known_types)
 	subtrees = {}
 	code = []
 	dummies = set()
@@ -224,7 +226,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta)
+	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta, known_types)
 
 
 #def merge_codegen_output(a, b) :
@@ -252,7 +254,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 def churn_task_code(task_name, cg_out) :
 #TODO list known meta values
 
-	code, types, tmp, expd_dels, global_vars, dummies, meta = cg_out
+	code, types, tmp, expd_dels, global_vars, dummies, meta, known_types = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
@@ -261,8 +263,9 @@ def churn_task_code(task_name, cg_out) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
+		_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
-			del_type, state_var_prefix, i, int(d.value[0]), linesep))
+			del_type, state_var_prefix, i, del_init, linesep))
 
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :
