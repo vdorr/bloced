@@ -130,7 +130,7 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 	map_in = { (n_in_term, n_in_term_nr) : [ (subgraph_block, subgraph_term, subgraph_term_nr), ... ], ... }
 	map_out = { (n_out_term, n_out_term_nr) : (subgraph_block, subgraph_term, subgraph_term_nr), ... }
 	"""
-	return __replace_block(g, n, subgraph, map_in,
+	return remove_block_and_patch(g, n, subgraph, map_in,
 		{ k : (v,) for k, v in map_out.items() })
 
 
@@ -146,43 +146,11 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 #			check(t.direction)
 
 
-#def __do_replace_block(g, n, n_terms, subgraph, mapping, direction) :
-
-#	def neighbourhood(block) :
-#		if direction == dfs.INPUT_TERM :
-#			return g[block].s
-#		elif direction == dfs.OUTPUT_TERM :
-#			return g[block].p
-#		else :
-#			raise Exception()
-
-#	for n_t, n_t_nr, n_succs in n_terms :
-
-##		assert((n_t, n_t_nr) in mapping)
-#		if (n_t, n_t_nr) in mapping :
-#			replacement = mapping[n_t, n_t_nr]
-#		else :
-#			replacement = tuple()
-
-#		for b, t, nr in n_succs :
-#			__neighbourhood_safe_replace(neighbourhood(b), t, nr, (n, n_t, n_t_nr), None) #remove connection to n
-
-#		for b, t, nr in replacement :
-#			__neighbourhood_safe_replace(g[b_pred].s, n_t, n_t_nr, (n, n_t, n_t_nr), (b, t, nr))
-#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
-
-
-#	for (n_t, n_t_nr), succs in mapping.items() :
-#		((b_pred, t_pred, t_pred_nr),) = npreds[in_t, in_t_nr]
-#		for b, t, nr in succs :
-#			__neighbourhood_safe_replace(g[b_pred].s, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
-#			__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
-
-
-def neighbourhood_from_term_dir(p, s, direction) :
+def neighbourhood_from_term_dir(ps, direction) :
 	"""
 	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
 	"""
+	p, s = ps
 	if direction == dfs.INPUT_TERM :
 		return s, p
 	elif direction == dfs.OUTPUT_TERM :
@@ -191,8 +159,13 @@ def neighbourhood_from_term_dir(p, s, direction) :
 		raise Exception("unknown term direction")
 
 
+def __do_part_block_replace(g, n, adj, mapping, dir_from, dir_to) :
+#TODO
+	pass
+
+
 #XXX because of symmetry, there should be only single map
-def __replace_block(g, n, subgraph, map_in, map_out) :
+def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 	"""
 	replace single block from g with subgraph, subgraph may be empty dict and function might be used
 	to map block terminal to other blocks in g
@@ -204,6 +177,10 @@ def __replace_block(g, n, subgraph, map_in, map_out) :
 	g.update(subgraph)
 
 #TODO unify loops
+
+#	__do_part_block_replace(g, n, s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM)
+#	__do_part_block_replace(g, n, p, map_in, dfs.INPUT_TERM, dfs.OUTPUT_TERM)
+#	return None
 
 	for in_t, in_t_nr, values in p :
 		assert(in_t.direction == dfs.INPUT_TERM)
@@ -233,14 +210,15 @@ def __replace_block(g, n, subgraph, map_in, map_out) :
 #	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM),) :
 #		assert(n_t.direction == dir_from)
 #		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
-#		for b_succ, t_succ, t_succ_nr in values :
-#			assert(t_succ.direction == dir_to)
-#			b_succ_pred = g[b_succ].p
-#			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
+#		for b_adj, t_adj, t_adj_nr in values :
+#			assert(t_adj.direction == dir_to)
+#			b_adj_pred, _ = neighbourhood_from_term_dir(g[b_adj], dir_from)
+#			__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), None) #remove connection to n
 #			for b, t, nr in replacement :
 #				assert(t.direction == dir_from)
-#				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
-#				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
+#				__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), (b, t, nr))
+#				_, b_succs = neighbourhood_from_term_dir(g[b], dir_from)
+#				__neighbourhood_safe_replace(b_succs, t, nr, None, (b_adj, t_adj, t_adj_nr))
 
 	return None
 
@@ -951,7 +929,7 @@ def remove_block(g, n) :
 	"""
 	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
 	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
-	__replace_block(g, n, {}, map_in, map_out)
+	remove_block_and_patch(g, n, {}, map_in, map_out)
 
 
 #TODO break down to smaller functions, maybe use memoizing decorator
@@ -962,7 +940,7 @@ def __expand_macro(g, library, n, known_types, cache) :
 	lib_data = library.get_block_and_lib(full_name)
 
 	if lib_data is None :
-		return None #TODO raise Exception
+		raise Exception("library item '" + full_name + "' not found")
 
 	lib, (item, proto) = lib_data
 
@@ -1017,7 +995,8 @@ def __expand_macro(g, library, n, known_types, cache) :
 		assert(len(output_preds)==1)
 		map_out[ot, ot_nr] = output_preds[0]
 
-	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
+#TODO use remove_block_and_patch
+	__replace_block_with_subgraph(g, n, gm, map_in, map_out)#TODO use __replace_block
 
 #TODO handle delays!!!
 	return delays #XXX possible return via argument
