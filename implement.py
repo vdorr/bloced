@@ -924,6 +924,10 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 import serializer #TODO move!!!
 
 
+def __is_io_block(n) :
+	return n.prototype.__class__ in (core.InputProto, core.OutputProto)
+
+
 #TODO break down to smaller functions, maybe use memoizing decorator
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
@@ -960,13 +964,14 @@ def __expand_macro(g, library, n, known_types, cache) :
 	inputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.InputProto }
 	outputs = { b.value[0] : (b, ps) for b, ps in gm.items() if b.prototype.__class__ == core.OutputProto }
 
-	for name, (b, _) in inputs.items() :
-		print here(), name
-		remove_block(gm, b)
+	for io_block in tuple(b for b in gm.keys() if __is_io_block(b)) :
+		remove_block(gm, io_block)
 
-	for name, (b, _) in outputs.items() :
-		print here(), name
-		remove_block(gm, b)
+#	for name, (b, _) in inputs.items() :
+#		remove_block(gm, b)
+
+#	for name, (b, _) in outputs.items() :
+#		remove_block(gm, b)
 
 	p, s = g[n]
 
@@ -988,24 +993,24 @@ def __expand_macro(g, library, n, known_types, cache) :
 		map_out[ot, ot_nr] = output_preds[0]
 
 #TODO use remove_block_and_patch
-	__replace_block_with_subgraph(g, n, gm, map_in, map_out)#TODO use __replace_block
+	__replace_block_with_subgraph(g, n, gm, map_in, map_out)
 
-#TODO handle delays!!!
-	return delays #XXX possible return via argument
+	return (delays, )
 
 
 
 def expand_macroes(g, library, known_types, block_cache=None) :
-
 	cache = block_cache_init() if block_cache is None else block_cache
-
+	new_delays = {}
 	prev_batch = set()
 	macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
 	while macroes != prev_batch :
 		for n in sorted(macroes) :
-			__expand_macro(g, library, n, known_types, cache)
+			delays, = __expand_macro(g, library, n, known_types, cache)
+			new_delays.update(delays)
 		prev_batch = set(macroes)
 		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	return (new_delays, )
 
 
 def block_cache_init() :
@@ -1060,7 +1065,8 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		if not name in special ]
 	graph, delays = dag_merge(l)
 #XXX
-	expand_macroes(graph, lib, known_types, block_cache=block_cache)
+	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+	delays.update(new_delays)
 #XXX
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
