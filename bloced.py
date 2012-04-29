@@ -567,17 +567,20 @@ class BlockEditor(Frame, GraphModelListener) :
 #				self.model.end_edit()
 #		else :
 #			self.model.end_edit()
-
-#		elif twire : # and srcterm.direction == INPUT_TERM :
-##TODO TODO TODO
-#			return None
-##			self.model.can_connect(sender.model, srcterm, blck.model, dstterm)
-#			print("blckMouseUp:", twire)
-##			sender.model, srcterm
-#			proto = core.JointProto()
-#			w, h = proto.default_size
-#			b = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
-#			self.model.add_block(b)
+		elif twire and srcterm.direction == INPUT_TERM :
+			self.model.begin_edit()
+			src_blck, src_term, dst_blck, dst_term = twire
+			self.model.remove_connection(src_blck, src_term, dst_blck, dst_term)
+			proto = core.JointProto()
+			w, h = proto.default_size
+			joint = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
+			self.model.add_block(joint)
+			t_in = [ t for t in joint.terms if t.direction == INPUT_TERM ][0]
+			t_out = [ t for t in joint.terms if t.direction == OUTPUT_TERM ][0]
+			self.model.add_connection(src_blck, src_term, joint, t_in, {})
+			self.model.add_connection(joint, t_out, dst_blck, dst_term, {})
+			self.model.add_connection(joint, t_out, sender.model, srcterm, {})
+			self.model.end_edit()
 
 	# ----------------------------------------------------------------------------------------------------
 
