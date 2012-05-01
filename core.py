@@ -424,7 +424,7 @@ def __is_header(fname) :
 	return ext.lower() in HEADER_EXTS
 
 
-def load_c_module(lib_name, file_path) :
+def load_c_library(lib_name, file_path) :
 	exports = extract_vmex(file_path, KNOWN_TYPES)
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
 	return protos
@@ -622,19 +622,21 @@ def load_workbench_library(lib_name, file_path) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-
 	with open(file_path, "rb") as f :
 		data = serializer.unpickle_workbench_data(f)
-
 	w = dfs.Workbench(
 		lib_dir=os.path.join(os.getcwd(), "library"),
 		passive=True,
 		do_create_block_factory=False)
-
 	serializer.restore_workbench(data, w)
+	return load_blocks_from_workbench(w, lib_name)
 
+
+def load_blocks_from_workbench(w, lib_name) :
+	"""
+	load macroes and functions from dfs.Workbench w
+	"""
 	blocks = []
-
 	for (name, sheet) in w.sheets.items() :
 		if is_macro_name(name) :
 			block_name = get_macro_name(name)
@@ -644,7 +646,6 @@ def load_workbench_library(lib_name, file_path) :
 			block_name = get_function_name(name)
 			proto = __create_function(lib_name, block_name, sheet)
 			blocks.append(proto)
-
 	return blocks
 
 
@@ -782,7 +783,7 @@ def load_library(lib):
 		if file_info.file_type == "c" :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
-				blocks = load_c_module(lib.lib_name, file_info.path)
+				blocks = load_c_library(lib.lib_name, file_info.path)
 		elif file_info.file_type == "w" :
 			blocks = load_workbench_library(lib.lib_name, file_info.path)
 		else :

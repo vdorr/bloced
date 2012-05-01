@@ -1013,7 +1013,7 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 
 
 #TODO break down to smaller functions if possible
-def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj) :
+def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
@@ -1124,16 +1124,18 @@ def main() :
 		sheets = w.sheets
 		global_meta = w.get_meta()
 	else :
-		blockfactory = core.create_block_factory(
-				scan_dir=os.path.join(os.getcwd(), "library"))
-		try :
-			with open(fname, "rb") as f :
-				model = serializer.unpickle_dfs_model(f, lib=blockfactory)
-		except Exception as e :
-			print("error loading sheet file", e)
-			exit(666)
-		sheets = { "tsk" : model }
-		global_meta = {}
+		print("not supported anymore")
+		exit(1)
+#		blockfactory = core.create_block_factory(
+#				scan_dir=os.path.join(os.getcwd(), "library"))
+#		try :
+#			with open(fname, "rb") as f :
+#				model = serializer.unpickle_dfs_model(f, lib=blockfactory)
+#		except Exception as e :
+#			print("error loading sheet file", e)
+#			exit(666)
+#		sheets = { "tsk" : model }
+#		global_meta = {}
 
 	if action == "c" :
 		import ccodegen as cg
@@ -1149,7 +1151,7 @@ def main() :
 			self.buffer = ""
 
 	out_fobj = DummyFile()
-	implement_workbench(sheets, global_meta, cg, core.KNOWN_TYPES, blockfactory, out_fobj)
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, blockfactory, out_fobj)
 	print(out_fobj.buffer)
 	exit(0)
 #	elif action == "mkmac" :

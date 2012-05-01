@@ -934,7 +934,6 @@ from threading import Thread, Lock
 import time
 import sys
 import os
-#from implement import implement_dfs, implement_workbench, here
 import implement
 from utils import here
 from sys import version_info
@@ -1025,7 +1024,7 @@ class Workbench(object) :
 		out_fobj = StringIO()
 		try :
 #			implement.implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
-			implement.implement_workbench(sheets, meta,
+			implement.implement_workbench(self, sheets, meta,
 				ccodegen, core.KNOWN_TYPES, self.blockfactory, out_fobj)
 		except Exception as e:
 			self.__messages.put(("status", (("build", False, str(e)), {})))
