@@ -49,9 +49,9 @@ class BlockPrototype(object) :
 
 	terms = property(lambda self: self.__terms)
 
-	inputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.INPUT_TERM ] )
+#	inputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.INPUT_TERM ] )
 
-	outputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.OUTPUT_TERM ] )
+#	outputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.OUTPUT_TERM ] )
 	
 	category = property(lambda self: self.__category)
 	
