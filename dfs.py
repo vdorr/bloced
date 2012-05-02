@@ -571,24 +571,27 @@ class BlockModel(object) :
 
 
 	def get_presentation_text(self) :
-		fmt = {
-			"ConstProto":"{0}",
-			"DelayProto":"Delay({0})",
-			"TapProto":"Tap({0})",
-			"TapEndProto":"TapEnd({0})",
-			"InputProto":"Input({0})",
-			"OutputProto":"Output({0})",
-			"JointProto":"",
-			"PipeProto":"Pipe({0})",
-			"PipeEndProto":"PipeEnd({0})",
-#			"ConstInputProto":"ConstInput({0})",
-		}
 		cls = core.get_proto_name(self.prototype)
-		if cls in fmt :
-			newtxt = fmt[cls].format(self.stringified_value(self.value))
+		if cls in self.__lbl_fmt :
+			newtxt = self.__lbl_fmt[cls].format(self.stringified_value(self.value))
 		else :
 			newtxt = self.caption
 		return newtxt
+
+
+	def __init_label_fmt_table(self) :
+		self.__lbl_fmt = {
+			core.get_proto_name(core.ConstProto) : "{0}",
+			core.get_proto_name(core.DelayProto) : "Delay({0})",
+			core.get_proto_name(core.TapProto) : "Tap({0})",
+			core.get_proto_name(core.TapEndProto) : "TapEnd({0})",
+			core.get_proto_name(core.InputProto) : "Input({0})",
+			core.get_proto_name(core.OutputProto) : "Output({0})",
+			core.get_proto_name(core.JointProto) : "",
+			core.get_proto_name(core.PipeProto) : "Pipe({0})",
+			core.get_proto_name(core.PipeEndProto) : "PipeEnd({0})",
+#			"ConstInputProto":"ConstInput({0})",
+		}
 
 
 	presentation_text = property(get_presentation_text)
@@ -623,6 +626,7 @@ class BlockModel(object) :
 			prototype.default_size[0], prototype.default_size[1],
 			prototype.terms, prototype.values)
 		self.__prototype = prototype
+		self.__init_label_fmt_table()
 
 
 	def __repr__(self) :

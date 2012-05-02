@@ -872,6 +872,7 @@ def compare_proto_to_type(prototype_instance, prototype_type) :
 def get_proto_name(prototype) :
 	return prototype.__class__.__name__
 
+
 # ------------------------------------------------------------------------------------------------------------
 
 
