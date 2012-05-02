@@ -39,6 +39,115 @@ KNOWN_TYPES = {
 
 # ------------------------------------------------------------------------------------------------------------
 
+term_model_t = namedtuple("term_model", ("name", "default_side", "default_pos", "direction",
+	"type_name", "arg_index", "variadic", "commutative", "virtual"))
+
+
+#def TermModel(arg_index, name, default_side, default_pos, direction, variadic, commutative,
+#		type_name=None, virtual=False) :
+#	return term_model_t(
+#		name = name,
+#		default_side = default_side,
+#		default_pos = default_pos,
+#		direction = direction,
+#		type_name = type_name,
+#		arg_index = arg_index,
+#		variadic = variadic,
+#		commutative = commutative,
+#		virtual = virtual)
+
+
+#def In(arg_index, name, default_side, default_pos,
+#		type_name=core.TYPE_INFERRED,
+#		variadic=False,
+#		commutative=False) :
+#	return TermModel(arg_index, name, default_side, default_pos, INPUT_TERM, variadic, commutative,
+#			type_name=type_name)
+
+
+#def Out(arg_index, name, default_side, default_pos,
+#		type_name=core.TYPE_INFERRED,
+#		variadic=False,
+#		commutative=False) :
+#	return TermModel(arg_index, name, default_side, default_pos, OUTPUT_TERM, variadic, commutative,
+#			type_name=type_name)
+
+
+#def VirtualIn(name) :
+#	return TermModel(None, name, None, None, INPUT_TERM, False, False, virtual=True)
+
+
+#def VirtualOut(name) :
+#	return TermModel(None, name, None, None, OUTPUT_TERM, False, False, virtual=True)
+
+
+class TermModel(object) :
+
+	name = property(lambda self: self.__name)
+
+	default_side = property(lambda self: self.__side)
+
+	default_pos = property(lambda self: self.__pos)
+
+	direction = property(lambda self: self.__direction)
+
+	type_name = property(lambda self: self.__type_name)
+
+	variadic = property(lambda self: self.__variadic)
+
+	commutative = property(lambda self: self.__commutative)
+
+	virtual = property(lambda self: self.__virtual)
+
+	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
+			type_name=None, virtual=False) :
+		self.__name = name
+		self.__side = side
+		self.__pos = pos
+		self.__direction = direction
+		self.__type_name = type_name
+		self.arg_index = arg_index
+		self.__variadic = variadic
+		self.__commutative = commutative
+		self.__virtual = virtual
+
+	def __repr__(self) :
+		return "." + self.__name
+#		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
+
+	def __lt__(self, b) :
+		return id(self) < id(b)
+
+
+class In(TermModel) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name=TYPE_INFERRED,
+			variadic=False,
+			commutative=False) :
+		TermModel.__init__(self, arg_index, name, side, pos, dfs.INPUT_TERM, variadic, commutative,
+			type_name=type_name)
+
+
+class Out(TermModel) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name=TYPE_INFERRED,
+			variadic=False,
+			commutative=False) :
+		TermModel.__init__(self, arg_index, name, side, pos, dfs.OUTPUT_TERM, variadic, commutative,
+			type_name=type_name)
+
+
+class VirtualIn(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, dfs.INPUT_TERM, False, False,
+			virtual=True)
+
+
+class VirtualOut(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, dfs.OUTPUT_TERM, False, False,
+			virtual=True)
+
 
 block_proto_t = namedtuple("proto", ("type_name", "terms", "default_size",
 	"exe_name", "commutative", "pure", "values", "library", "data"))
@@ -119,21 +228,21 @@ class BlockPrototype(object) :
 class JointProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Joint",
-			[ dfs.Out(0, "y", dfs.C, 0, variadic=True), dfs.In(0, "x", dfs.C, 0) ],
+			[ Out(0, "y", dfs.C, 0, variadic=True), In(0, "x", dfs.C, 0) ],
 			default_size=(8,8), category="Special")
 
 
 class ConstProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
-			[ dfs.Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
+			[ Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
 			default_size=(96,28), category="Special",
 			values=[("Value", None)])
 
 
 class DelayProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Delay", [ dfs.In(0, "x", dfs.E, 0.5), dfs.Out(0, "y", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
 			values=[("Default", None)])
 		self.loop_break = True
@@ -141,20 +250,20 @@ class DelayProto(BlockPrototype):
 
 class ProbeProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Probe", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special", exe_name="probe")
 
 
 class TapProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Tap", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Tap", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class TapEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "TapEnd", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
@@ -168,57 +277,57 @@ class NoteProto(BlockPrototype):
 
 class DelayInProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayIn", [ dfs.In(0, "x", dfs.W, 0.5) ])
+		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", dfs.W, 0.5) ])
 
 
 class DelayOutProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayOut", [ dfs.Out(0, "y", dfs.E, 0.5) ])
+		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
 class SignalProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Signal", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(48,48), category="Special")
 
 
 class SysRqProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "SysRq",
-			[ dfs.In(-1, "en", dfs.W, 0.25),
-			  dfs.In(-2, "nr", dfs.W, 0.5),
-			  dfs.In(-3, "x", dfs.W, 0.75, variadic=True),
-			  dfs.Out(-3, "eno", dfs.E, 0.25),
-			  dfs.Out(-1, "rc", dfs.E, 0.5),
-			  dfs.Out(-2, "y", dfs.E, 0.75, variadic=True) ],
+			[ In(-1, "en", dfs.W, 0.25),
+			  In(-2, "nr", dfs.W, 0.5),
+			  In(-3, "x", dfs.W, 0.75, variadic=True),
+			  Out(-3, "eno", dfs.E, 0.25),
+			  Out(-1, "rc", dfs.E, 0.5),
+			  Out(-2, "y", dfs.E, 0.75, variadic=True) ],
 			exe_name="sysrq",
 			default_size=(64,80), category="Special")
 
 
 class InputProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Input", [ dfs.Out(0, "x", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "Input", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class OutputProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Output", [ dfs.In(0, "y", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Output", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class PipeProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Pipe", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Pipe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None), ("Default", None)])
 
 
 class PipeEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "PipeEnd", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "PipeEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
@@ -226,7 +335,7 @@ class PipeEndProto(BlockPrototype):
 class GlobalWriteProto(BlockPrototype):
 	def __init__(self, type_name) :
 		BlockPrototype.__init__(self, "GlobalWrite",
-			[ dfs.In(0, "x", dfs.W, 0.5, type_name=type_name) ],
+			[ In(0, "x", dfs.W, 0.5, type_name=type_name) ],
 			default_size=(96,28),
 			values=[("Name", None), ("Sync", None)])
 
@@ -234,7 +343,7 @@ class GlobalWriteProto(BlockPrototype):
 class GlobalReadProto(BlockPrototype):
 	def __init__(self, type_name) :
 		BlockPrototype.__init__(self, "GlobalRead",
-			[ dfs.Out(0, "y", dfs.E, 0.5, type_name=type_name) ],
+			[ Out(0, "y", dfs.E, 0.5, type_name=type_name) ],
 			default_size=(96,28),
 			values=[("Name", None), ("Sync", None)])
 
@@ -248,10 +357,10 @@ class FunctionCallProto(BlockPrototype):
 class MuxProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "mux", [
-			dfs.In(-1, "x", dfs.W, .25, type_name=TYPE_INFERRED),#XXX should be binary
-			dfs.In(-2, "a", dfs.W, .5, type_name=TYPE_INFERRED),
-			dfs.In(-3, "b", dfs.W, .75, type_name=TYPE_INFERRED),
-			dfs.Out(-1, "q", dfs.E, .5, type_name=TYPE_INFERRED), ],
+			In(-1, "x", dfs.W, .25, type_name=TYPE_INFERRED),#XXX should be binary
+			In(-2, "a", dfs.W, .5, type_name=TYPE_INFERRED),
+			In(-3, "b", dfs.W, .75, type_name=TYPE_INFERRED),
+			Out(-1, "q", dfs.E, .5, type_name=TYPE_INFERRED), ],
 			pure=True, category="Special")
 
 
@@ -268,7 +377,7 @@ class UnaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ dfs.In(0, "a", dfs.W, .5), dfs.Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .5), Out(0, "y", dfs.E, .5) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			pure=True)
@@ -278,7 +387,7 @@ class BinaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None, commutative=False) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ dfs.In(0, "a", dfs.W, .33), dfs.In(0, "b", dfs.W, .66), dfs.Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66), Out(0, "y", dfs.E, .5) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			commutative=commutative,
@@ -409,11 +518,11 @@ def __cmod_create_proto(lib_name, export) :
 	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
 
 	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
-	inputs = [ dfs.In(-i, name, dfs.W, pos,
+	inputs = [ In(-i, name, dfs.W, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name), pos, i
 			in zip(terms_in, in_terms_pos, count()) ]
-	outputs = [ dfs.Out(-i, name, dfs.E, pos,
+	outputs = [ Out(-i, name, dfs.E, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name), pos, i
 			in zip(terms_out, out_terms_pos, count()) ]
@@ -605,11 +714,11 @@ def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
 
-	inputs = [ dfs.In(-i, name, side, pos,
+	inputs = [ In(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name, pos, side), i
 			in zip(terms_in, count()) ]
-	outputs = [ dfs.Out(-i, name, side, pos,
+	outputs = [ Out(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name, pos, side), i
 			in zip(terms_out, count()) ]
@@ -978,7 +1087,7 @@ class BasicBlocksFactory(object) :
 			SysRqProto(),
 			InputProto(),
 			OutputProto(),
-			SBP("Sink", "Special", [ dfs.In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
+			SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
 			PipeProto(),
 			PipeEndProto(),
 			MuxProto(),
@@ -995,9 +1104,9 @@ class BasicBlocksFactory(object) :
 			BinaryOp("mul", "Arithmetic", commutative=True),
 			BinaryOp("div", "Arithmetic", commutative=False),
 			BinaryOp("mod", "Arithmetic", commutative=False),
-			SBP("divmod", "Arithmetic", [ dfs.In(-1, "n", dfs.W, .33),
-				dfs.In(-2, "d", dfs.W, .66),
-				dfs.Out(-1, "q", dfs.E, .33), dfs.Out(-2, "r", dfs.E, .66) ], pure=True),
+			SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+				In(-2, "d", dfs.W, .66),
+				Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
 			BinaryOp("lt", "Arithmetic", commutative=False),
 			BinaryOp("gt", "Arithmetic", commutative=False),
 			BinaryOp("eq", "Arithmetic", commutative=False),

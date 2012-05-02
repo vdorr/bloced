@@ -19,6 +19,7 @@ import os
 from sys import version_info
 from pprint import pprint
 from itertools import dropwhile, islice, count
+#from collections import namedtuple
 
 import core
 import build
@@ -48,78 +49,6 @@ TERM_SIZE = 8
 #for macroes and foreign functions
 MIN_BLOCK_WIDTH = 64
 MIN_BLOCK_HEIGHT = 48
-
-# ------------------------------------------------------------------------------------------------------------
-
-class TermModel(object) :
-
-	name = property(lambda self: self.__name)
-
-	default_side = property(lambda self: self.__side)
-
-	default_pos = property(lambda self: self.__pos)
-
-	direction = property(lambda self: self.__direction)
-
-	type_name = property(lambda self: self.__type_name)
-
-	variadic = property(lambda self: self.__variadic)
-
-	commutative = property(lambda self: self.__commutative)
-
-	virtual = property(lambda self: self.__virtual)
-
-	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
-			type_name=None, virtual=False) :
-#		self.__name, self.__side, self.__pos, self.__direction, self.__type_name = (
-#			name, side, pos, direction, type_name )
-		self.__name = name
-		self.__side = side
-		self.__pos = pos
-		self.__direction = direction
-		self.__type_name = type_name
-		self.arg_index = arg_index
-		self.__variadic = variadic
-		self.__commutative = commutative
-		self.__virtual = virtual
-
-	def __repr__(self) :
-		return "." + self.__name
-#		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
-
-	def __lt__(self, b) :
-		return id(self) < id(b)
-
-
-class In(TermModel) :
-	def __init__(self, arg_index, name, side, pos,
-			type_name=core.TYPE_INFERRED,
-			variadic=False,
-			commutative=False) :
-		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
-			type_name=type_name)
-
-
-class Out(TermModel) :
-	def __init__(self, arg_index, name, side, pos,
-			type_name=core.TYPE_INFERRED,
-			variadic=False,
-			commutative=False) :
-		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,
-			type_name=type_name)
-
-
-class VirtualIn(TermModel) :
-	def __init__(self, name) :
-		TermModel.__init__(self, None, name, None, None, INPUT_TERM, False, False,
-			virtual=True)
-
-
-class VirtualOut(TermModel) :
-	def __init__(self, name) :
-		TermModel.__init__(self, None, name, None, None, OUTPUT_TERM, False, False,
-			virtual=True)
-
 
 # ------------------------------------------------------------------------------------------------------------
 
