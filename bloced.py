@@ -577,8 +577,10 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.model.add_block(joint)
 			t_in = [ t for t in joint.terms if t.direction == core.INPUT_TERM ][0]
 			t_out = [ t for t in joint.terms if t.direction == core.OUTPUT_TERM ][0]
-			self.model.add_connection(src_blck, src_term, joint, t_in, {})
-			self.model.add_connection(joint, t_out, dst_blck, dst_term, {})
+			self.model.add_connection(src_blck,
+				src_term[0] if isinstance(src_term, tuple) else src_term, joint, t_in, {})
+			self.model.add_connection(joint, t_out, dst_blck,
+				dst_term[0] if isinstance(dst_term, tuple) else dst_term, {})
 			self.model.add_connection(joint, t_out, sender.model, srcterm, {})
 			self.model.end_edit()
 

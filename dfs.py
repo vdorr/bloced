@@ -693,23 +693,16 @@ class GraphModel(object) :
 
 
 	def add_connection(self, b0, t0, b1, t1, meta, deserializing=False) :
-#		print "add_connection: ", b0, t0, b1, t1
+#		print here(), b0, t0, b1, t1
 		if not deserializing :
 
 			if not self.can_connect(b0, t0, b1, t1) :#TODO add multiplicity
 				raise Exception("can't connect")
 #			print here(), b0, t0, b1, t1
 			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == core.OUTPUT_TERM else (b1, t1, b0, t0)
-#			if (isinstance(t0, tuple) and t0[0].direction == core.OUTPUT_TERM) or t0.direction == core.OUTPUT_TERM :
-#				b0, t0, b1, t1 = (b0, t0, b1, t1)
-#			else :
-#				b0, t0, b1, t1 = (b1, t1, b0, t0)
-
 			if not isinstance(t0, tuple) and t0.variadic :
-	#			print "add_connection 1"
 				m0, t0 = self.__add_variadic_term(b0, t0, deserializing=deserializing)
 			if not isinstance(t1, tuple) and t1.variadic :
-	#			print "add_connection 2"
 				m1, t1 = self.__add_variadic_term(b1, t1, deserializing=deserializing)
 
 		if (b0, t0) in self.__connections :
