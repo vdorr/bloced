@@ -92,7 +92,7 @@ class TermModel(object) :
 
 class In(TermModel) :
 	def __init__(self, arg_index, name, side, pos,
-			type_name="<inferred>",
+			type_name=core.TYPE_INFERRED,
 			variadic=False,
 			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
@@ -100,7 +100,7 @@ class In(TermModel) :
 
 class Out(TermModel) :
 	def __init__(self, arg_index, name, side, pos,
-			type_name="<inferred>",
+			type_name=core.TYPE_INFERRED,
 			variadic=False,
 			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,

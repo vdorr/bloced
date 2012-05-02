@@ -86,7 +86,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 	for out_term, out_t_nr, succs in outputs :
 #		if out_term.virtual :
 #			continue
-		if out_term.type_name == "<inferred>" :
+		if out_term.type_name == core.TYPE_INFERRED :
 			term_type = types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name

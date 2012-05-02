@@ -469,7 +469,7 @@ def infer_block_type(block, preds, types, known_types) :
 	inferred = None
 #	print(here(), block)
 	for t, t_nr, preds in preds :
-		if t.type_name == "<inferred>" :
+		if t.type_name == core.TYPE_INFERRED :
 			inherited = types[block, t, t_nr]
 #			print(here(), inherited)
 			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
@@ -483,7 +483,7 @@ def infer_block_type(block, preds, types, known_types) :
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	mt_type_name = mt.type_name
 #	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
-	if mt_type_name == "<inferred>"	:
+	if mt_type_name == core.TYPE_INFERRED :
 		if core.compare_proto_to_type(m.prototype, core.DelayOutProto) :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
@@ -492,7 +492,7 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
 			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
-	if nt.type_name == "<inferred>"	:
+	if nt.type_name == core.TYPE_INFERRED :
 		types[n, nt, nt_nr] = mt_type_name
 
 
@@ -810,11 +810,12 @@ def sethi_ullman(g) :
 
 def temp_init(known_types) :
 	tmp = { tp_name : []
-		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
+		for tp_name in known_types if not tp_name in (core.TYPE_VOID, core.TYPE_INFERRED) }
 	return tmp
 
 
-def get_tmp_slot(tmp, slot_type="vm_word_t") :
+def get_tmp_slot(tmp, slot_type=None) :
+	assert(not slot_type is None)
 	if "empty" in tmp[slot_type] :
 		slot = tmp[slot_type].index("empty")
 	else :
@@ -823,15 +824,16 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 	return slot
 
 
-def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
+def add_tmp_ref(tmp, refs, slot_type=None) :
+	assert(not slot_type is None)
 	assert(len(refs)>0)
-	assert(slot_type != "<inferred>")
+	assert(slot_type != core.TYPE_INFERRED)
 	slot = get_tmp_slot(tmp, slot_type=slot_type)
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
 
-def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+def pop_tmp_ref(tmp, b, t, t_nr) :
 	for slot_type, t_tmp in tmp.items() :
 		for slot, nr in zip(t_tmp, count()) :
 			if slot != "empty" and (b, t, t_nr) in slot :
@@ -876,7 +878,7 @@ def init_pipe_protos(known_types) :
 #TODO generalize for other IPC schemes
 	g_protos = {}
 	for type_name in known_types :
-		if type_name != "<inferred>" :
+		if type_name != core.TYPE_INFERRED :
 			gw_proto = core.GlobalWriteProto(type_name)
 			gr_proto = core.GlobalReadProto(type_name)
 			g_protos[type_name] = (gw_proto, gr_proto)

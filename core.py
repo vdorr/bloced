@@ -18,14 +18,23 @@ from utils import here
 
 type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
 
-#type_name : (size_in_words, size_in_bytes, priority)
+TYPE_VOID = "void"
+TYPE_INFERRED = "<inferred>"
+VM_TYPE_CHAR = "vm_char_t"
+VM_TYPE_WORD = "vm_word_t"
+VM_TYPE_DWORD = "vm_dword_t"
+VM_TYPE_FLOAT = "vm_float_t"
+#VM_TYPE_DOUBLE = "vm_double_t" : type_t(4, 8, 4),
+#VM_TYPE_BOOL = "vm_bool_t" : type_t(None, None, 0),
+#VM_TYPE_STRING = "vm_string_t" : None,
+
 KNOWN_TYPES = {
-	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
-	"vm_char_t" : type_t(1, 1, 0), #TODO
-	"vm_word_t" : type_t(1, 2, 1),
-	"vm_dword_t" : type_t(2, 4, 2),
-	"vm_float_t" : type_t(2, 4, 3),
-	"void" : None,
+	TYPE_VOID : None,
+	TYPE_INFERRED : None,
+	VM_TYPE_CHAR : type_t(1, 1, 0), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1),
+	VM_TYPE_DWORD : type_t(2, 4, 2),
+	VM_TYPE_FLOAT : type_t(2, 4, 3),
 }
 
 # ------------------------------------------------------------------------------------------------------------
@@ -91,7 +100,7 @@ class JointProto(BlockPrototype):
 class ConstProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
-			[ dfs.Out(0, "y", dfs.E, 0.5, type_name="<inferred>") ],
+			[ dfs.Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
 			default_size=(96,28), category="Special",
 			values=[("Value", None)])
 
@@ -213,10 +222,10 @@ class FunctionCallProto(BlockPrototype):
 class MuxProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "mux", [
-			dfs.In(-1, "x", dfs.W, .25, type_name="<inferred>"),#XXX should be binary
-			dfs.In(-2, "a", dfs.W, .5, type_name="<inferred>"),
-			dfs.In(-3, "b", dfs.W, .75, type_name="<inferred>"),
-			dfs.Out(-1, "q", dfs.E, .5, type_name="<inferred>"), ],
+			dfs.In(-1, "x", dfs.W, .25, type_name=TYPE_INFERRED),#XXX should be binary
+			dfs.In(-2, "a", dfs.W, .5, type_name=TYPE_INFERRED),
+			dfs.In(-3, "b", dfs.W, .75, type_name=TYPE_INFERRED),
+			dfs.Out(-1, "q", dfs.E, .5, type_name=TYPE_INFERRED), ],
 			pure=True, category="Special")
 
 
@@ -282,7 +291,6 @@ VMEX_SIG = "_VM_EXPORT_"
 
 def is_vmex_line(s) :
 	ln = s.strip()
-#	print(s.__class__)
 	if not ln.startswith(VMEX_SIG) :
 		return None
 	return ln
@@ -574,13 +582,13 @@ def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 
 #		variadic = False #TODO infer from connected block
 #		commutative = False #TODO infer from connected block
-#		type_name = "<inferred>" #TODO infer from connected block
+#		type_name = TYPE_INFERRED #TODO infer from connected block
 
 #		print(here(), term_name, side, pos)
 
-	terms_in = [ (t.value[0], dfs.INPUT_TERM, False, False, "<inferred>", pos, side)
+	terms_in = [ (t.value[0], dfs.INPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == InputProto ]
-	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, "<inferred>", pos, side)
+	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
 
 	inputs = [ dfs.In(-i, name, side, pos,
