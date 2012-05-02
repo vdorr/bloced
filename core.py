@@ -863,13 +863,14 @@ def load_library_sheet(library, full_name, sheet_name) :
 	return sheet
 
 
-# ------------------------------------------------------------------------------------------------------------
+#TODO refac needed
+def compare_proto_to_type(prototype_instance, prototype_type) :
+	return prototype_instance.__class__ == prototype_type
 
 
-def get_block_data(lib, block) :
-#	print here(), lib, block
-	pprint(block)
-
+#TODO refac needed
+def get_proto_name(prototype) :
+	return prototype.__class__.__name__
 
 # ------------------------------------------------------------------------------------------------------------
 

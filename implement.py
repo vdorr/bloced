@@ -280,6 +280,7 @@ def block_value_by_name(n, value_name) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
 def __cut_joint_alt(g, j) :
 #	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
@@ -288,10 +289,12 @@ def __cut_joint_alt(g, j) :
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
 
+
 #XXX is there a way how to do it functionally?
 def __expand_joints_new(g) :
-	for j in [ b for b in g if isinstance(b.prototype, core.JointProto) ] :
+	for j in [ b for b in g if core.compare_proto_to_type(b.prototype, core.JointProto) ] :
 		__cut_joint_alt(g, j)
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -315,7 +318,7 @@ def get_taps(g) :
 	"""
 	return { tap_name : tap, ... }
 	"""
-	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, core.TapProto) ]
+	tap_list = [ b for b, (p, s) in g.items() if core.compare_proto_to_type(b.prototype, core.TapProto) ]
 	taps = { b.value : b for b in tap_list }
 	assert(len(tap_list)==len(taps))
 	return taps
@@ -325,7 +328,7 @@ def get_tap_ends(g) :
 	"""
 	return { tap_name : [ tap_end1, ...], ... }
 	"""
-	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, core.TapEndProto) }
+	tap_ends_list = { b for b in g.keys() if core.compare_proto_to_type(b.prototype, core.TapEndProto) }
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
 	assert( len(tap_ends_list) == sum([len(v) for v in tap_ends.values()]) )
 	return tap_ends
@@ -356,14 +359,14 @@ def __expddel(d, nr) :
 
 def __expand_delays(blocks, conns) :
 
-	delays = { b for b in blocks if isinstance(b.prototype, core.DelayProto) }
+	delays = { b for b in blocks if core.compare_proto_to_type(b.prototype, core.DelayProto) }
 
 	expd = dict([ __expddel(delay, nr) for delay, nr in zip(delays, count()) ])
 
 	def mkvert(src, io) :
 		b, t = src
 		block, term = ( ( expd[b][io], expd[b][io].terms[0] )
-			if isinstance(b.prototype, core.DelayProto)
+			if core.compare_proto_to_type(b.prototype, core.DelayProto)
 			else (b, t) )
 		return (block, ) + t_unpack(term)
 
@@ -383,14 +386,12 @@ def get_terms_flattened(block) :
 			yield t, 0
 
 def __in_terms(block) :
-#	print "__in_terms:", block.__class__
 #TODO TODO TODO proper sorting!!!!!
 	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.INPUT_TERM  ]
 #	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.INPUT_TERM  ]
 #	return [ t for t in block.terms if t.direction == dfs.INPUT_TERM  ]
 
 def __out_terms(block) :
-#TODO TODO TODO proper sorting!!!!!
 	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.OUTPUT_TERM  ]
 #	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.OUTPUT_TERM  ]
 #	return [ t for t in block.terms if t.direction == dfs.OUTPUT_TERM  ]
@@ -483,10 +484,10 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 	mt_type_name = mt.type_name
 #	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
 	if mt_type_name == "<inferred>"	:
-		if m.prototype.__class__ == core.DelayOutProto :
+		if core.compare_proto_to_type(m.prototype, core.DelayOutProto) :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-		elif m.prototype.__class__ == core.ConstProto :
+		elif core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
@@ -883,7 +884,7 @@ def init_pipe_protos(known_types) :
 
 
 def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
+	pipes = { n for n in g if core.compare_proto_to_type(n.prototype, core.PipeProto) }
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_default = block_value_by_name(n, "Default")
@@ -894,14 +895,14 @@ def extract_pipes(g, known_types, g_protos, pipe_replacement) :
 
 
 def replace_pipes(g, g_protos, pipe_replacement) :
-	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == core.PipeEndProto }
+	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if core.compare_proto_to_type(n.prototype, core.PipeEndProto) }
 
 	unmatched = [ pe for pe in pipe_ends
 		if not (block_value_by_name(pe, "Name") in pipe_replacement) ]
 	if unmatched :
 		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
 
-	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
+	pipes = { n for n in g if core.compare_proto_to_type(n.prototype, core.PipeProto) }
 
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
@@ -938,8 +939,8 @@ def __expand_macro(g, library, n, known_types, cache) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
-	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if b.prototype.__class__ == core.InputProto }
-	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if b.prototype.__class__ == core.OutputProto }
+	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if core.compare_proto_to_type(b.prototype, core.InputProto) }
+	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if core.compare_proto_to_type(b.prototype, core.OutputProto) }
 
 	for io_blocks in (inputs, outputs) :
 		for io, _ in io_blocks.values() :
@@ -963,13 +964,13 @@ def expand_macroes(g, library, known_types, block_cache=None) :
 	cache = block_cache_init() if block_cache is None else block_cache
 	new_delays = {}
 	prev_batch = set()
-	macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
 	while macroes != prev_batch :
 		for n in sorted(macroes) :
 			delays, = __expand_macro(g, library, n, known_types, cache)
 			new_delays.update(delays)
 		prev_batch = set(macroes)
-		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+		macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
 	if macroes :
 		raise Exception("failed to {0} expand macroes".format(len(macroes)))
 	return (new_delays, )

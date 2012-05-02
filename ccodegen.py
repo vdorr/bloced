@@ -41,35 +41,21 @@ def __implement(g, n, args, outs) :
 		assert(len(args) >= 2 or n.prototype.type_name=="not")
 		assert(len([t for t in n.terms if t.direction==dfs.OUTPUT_TERM]) == 1)
 		return __OPS[n.prototype.type_name](n, args)
-#	elif n.prototype.__class__ == core.PipeProto :
-#		assert(len(args) == 1)
-#		assert(not outs)
-#		pipe_name = block_value_by_name(n, "Name")
-#		pipe_default = block_value_by_name(n, "Default")
-#		assert(not pipe_name in pipe_vars)
-#		pipe_type = infer_block_type(n, g[n].p, types, known_types)
-##		print here(), pipe_type, pipe_default
-#		i = (max(pipe_vars.values(), key=lambda x: x[0]) - 1) if pipe_vars else 0
-#		pipe_vars[pipe_name] = (i, pipe_type, pipe_default)
-#		return "global{0} = {1}".format(i, args[0])
-#	elif n.prototype.__class__ == core.PipeEndProto :
-#		pipe_name = block_value_by_name(n, "Name")
-#		return "global{0}".format(pipe_vars[pipe_name][0])
-	elif n.prototype.__class__ == core.FunctionCallProto :
+	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
 		return func_name + "(" + ", ".join(args + outs) + ")"
-	elif n.prototype.__class__ == core.GlobalReadProto :
+	elif core.compare_proto_to_type(n.prototype, core.GlobalReadProto) :
 		assert(len(args)==0)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
 		return pipe_name
-	elif n.prototype.__class__ == core.GlobalWriteProto :
+	elif core.compare_proto_to_type(n.prototype, core.GlobalWriteProto) :
 		assert(len(args)==1)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
 		return "{0} = {1}".format(pipe_name, args[0])
-	elif n.prototype.__class__ == core.MuxProto :
+	elif core.compare_proto_to_type(n.prototype, core.MuxProto) :
 		assert(len(args)==3)
 		return "({0} ? {2} : {1})".format(*args)#XXX cast sometimes needed!!!
 	else :
@@ -81,7 +67,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited) :
 #	print "__post_visit:", n.to_string()
 
-	if isinstance(n.prototype, core.ConstProto) :
+	if core.compare_proto_to_type(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
 	if n.prototype.library :
@@ -128,7 +114,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 
 		((m, m_t, m_t_nr), ) = preds
 #		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
-		if isinstance(m.prototype, core.ConstProto) :
+		if core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			assert(m.value != None)
 			assert(len(m.value) == 1)
 			args.append(str(m.value[0]))
@@ -143,7 +129,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 				raise Exception("holy shit! %s not found, %s %s" %
 					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
-	if isinstance(n.prototype, core.DelayInProto) :
+	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in evaluated :
@@ -153,7 +139,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
 #		print here(), del_out
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
-	elif isinstance(n.prototype, core.DelayOutProto) :
+	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_out)
 #		print(here(), "del_in=", del_in, n.delay, visited.keys())
@@ -162,14 +148,6 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
-#	elif n.prototype.__class__ == core.PipeProto :
-#		print(here(), )
-#		slot = add_tmp_ref(global_vars, [], slot_type="vm_word_t")
-#		code.append("global{0} = {1}del{2}".format(slot, state_var_prefix, n.nr))
-
-#	elif n.prototype.__class__ == core.PipeEndProto :
-#		print(here(), )
-##		slot = add_tmp_ref(global_vars, refs, slot_type="vm_word_t") 
 	else :
 #		print(here(), n.prototype.type_name)
 		expr = __implement(g, n, args, outs)#, types, known_types, pipe_vars)

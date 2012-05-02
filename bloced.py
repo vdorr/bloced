@@ -510,7 +510,7 @@ class BlockEditor(Frame, GraphModelListener) :
 	def __get_term_at(self, blck, dstx, dsty, filt_dir=None) :
 		xo1, yo1, ro1, bo1 = tuple(self.canv.bbox(blck.window))
 		tdstx, tdsty = dstx - xo1, dsty - yo1
-		if blck.model.prototype.__class__ != core.JointProto :
+		if not core.compare_proto_to_type(blck.model.prototype, core.JointProto) :
 			terms = blck.find_overlapping(tdstx-1, tdsty-1, tdstx+1, tdsty+1)
 			dstterms = [ blck.window2term[t] for t in terms if t in blck.window2term ]
 		else :
@@ -706,7 +706,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		route = None
 		if fullroute :
-			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sbt.get_term_side(st) != C
+			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sb.get_term_side(st) != C
 				else autoroute.rct(sb.left, sb.top, 1, 1))
 			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tb.get_term_side(tt) != C
 				else autoroute.rct(tb.left, tb.top, 1, 1))

@@ -583,28 +583,11 @@ class BlockModel(object) :
 			"PipeEndProto":"PipeEnd({0})",
 #			"ConstInputProto":"ConstInput({0})",
 		}
-		cls = self.prototype.__class__.__name__
+		cls = core.get_proto_name(self.prototype)
 		if cls in fmt :
 			newtxt = fmt[cls].format(self.stringified_value(self.value))
 		else :
 			newtxt = self.caption
-
-#		if self.prototype.__class__.__name__ == "ConstProto" :
-#			newtxt = str(self.value)
-#		elif self.prototype.__class__.__name__ == "DelayProto" :
-#			newtxt = "Delay (%s)" % (self.value if self.value != None else "None")
-#		elif self.prototype.__class__.__name__ == "TapProto" :
-#			newtxt = "Tap (%s)" % (str(self.value) if self.value != None else "None")
-#		elif self.prototype.__class__.__name__ == "TapEndProto" :
-#			newtxt = "TapEnd (%s)" % (str(self.value) if self.value != None else "None")
-#		elif self.prototype.__class__.__name__ == "InputProto" :
-#			newtxt = "In(%s)" % (str(self.value) if self.value != None else "None")
-#		elif self.prototype.__class__.__name__ == "OutputProto" :
-#			newtxt = "Out(%s)" % (str(self.value) if self.value != None else "None")
-#		elif self.prototype.__class__.__name__ == "JointProto" :
-#			newtxt = ""
-#		else :
-#			newtxt = self.caption
 		return newtxt
 
 
@@ -613,7 +596,7 @@ class BlockModel(object) :
 
 	def get_term_presentation_text(self, t, nr) :
 		term_label = t.name
-		if self.prototype.__class__.__name__ == "ConstProto" :
+		if core.compare_proto_to_type(self.prototype, core.ConstProto) :
 			term_label = ""#str(self.model.value)
 		if t.variadic : #XXX nr != None
 			term_label += str(self.get_term_index(t, nr))

@@ -28,7 +28,7 @@ def post_dive(g, code, tmp, d_stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
 #	assert(n in visited)
 #	assert(m in visited)
 #	print "d_stack=", d_stack, "(n, nt)=", (n, nt)
-	if isinstance(m.prototype, core.ConstProto) :
+	if core.compare_proto_to_type(m.prototype, core.ConstProto) :
 		assert(m.value != None)
 		assert(len(m.value) == 1)
 		code.append(str(m.value[0]))
@@ -53,10 +53,10 @@ def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 
 #	print "post_visit", n, n.prototype
 
-	if isinstance(n.prototype, core.ConstProto) :
+	if core.compare_proto_to_type(n.prototype, core.ConstProto) :
 		return None # handled elsewhere
 
-	if isinstance(n.prototype, core.DelayInProto) :
+	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
 #		print 1
 		if not del_out in visited :
@@ -64,7 +64,7 @@ def post_visit(g, code, tmp, d_stack, expd_dels, n, visited) :
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ])
 			code.append("del%i to tmp%i" % (n.nr, slot))
 		code.append("to del%i" % n.nr)
-	elif isinstance(n.prototype, core.DelayOutProto) :
+	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
 		if del_in in visited :
 			slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
