@@ -39,6 +39,9 @@ KNOWN_TYPES = {
 
 # ------------------------------------------------------------------------------------------------------------
 
+INPUT_TERM = 1
+OUTPUT_TERM = 2
+
 term_model_t = namedtuple("term_model", ("name", "default_side", "default_pos", "direction",
 	"type_name", "arg_index", "variadic", "commutative", "virtual"))
 
@@ -124,7 +127,7 @@ class In(TermModel) :
 			type_name=TYPE_INFERRED,
 			variadic=False,
 			commutative=False) :
-		TermModel.__init__(self, arg_index, name, side, pos, dfs.INPUT_TERM, variadic, commutative,
+		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
 			type_name=type_name)
 
 
@@ -133,19 +136,19 @@ class Out(TermModel) :
 			type_name=TYPE_INFERRED,
 			variadic=False,
 			commutative=False) :
-		TermModel.__init__(self, arg_index, name, side, pos, dfs.OUTPUT_TERM, variadic, commutative,
+		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,
 			type_name=type_name)
 
 
 class VirtualIn(TermModel) :
 	def __init__(self, name) :
-		TermModel.__init__(self, None, name, None, None, dfs.INPUT_TERM, False, False,
+		TermModel.__init__(self, None, name, None, None, INPUT_TERM, False, False,
 			virtual=True)
 
 
 class VirtualOut(TermModel) :
 	def __init__(self, name) :
-		TermModel.__init__(self, None, name, None, None, dfs.OUTPUT_TERM, False, False,
+		TermModel.__init__(self, None, name, None, None, OUTPUT_TERM, False, False,
 			virtual=True)
 
 
@@ -170,9 +173,9 @@ class BlockPrototype(object) :
 
 	terms = property(lambda self: self.__terms)
 
-#	inputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.INPUT_TERM ] )
+#	inputs = property(lambda self: [ t for t in self.__terms if t.direction == INPUT_TERM ] )
 
-#	outputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.OUTPUT_TERM ] )
+#	outputs = property(lambda self: [ t for t in self.__terms if t.direction == OUTPUT_TERM ] )
 	
 	category = property(lambda self: self.__category)
 	
@@ -442,7 +445,7 @@ def vmex_arg(a, known_types) :
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
-	direction = dfs.OUTPUT_TERM if "*" in sig else dfs.INPUT_TERM
+	direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
 	variadic = False
 	commutative = False
 	
@@ -709,9 +712,9 @@ def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 
 #		print(here(), term_name, side, pos)
 
-	terms_in = [ (t.value[0], dfs.INPUT_TERM, False, False, TYPE_INFERRED, pos, side)
+	terms_in = [ (t.value[0], INPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == InputProto ]
-	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
+	terms_out = [ (t.value[0], OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
 
 	inputs = [ In(-i, name, side, pos,

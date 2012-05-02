@@ -548,14 +548,14 @@ class BlockEditor(Frame, GraphModelListener) :
 		dsty = e.y + yo0
 
 		tblock, twire = self.__get_obj_at(dstx, dsty,
-			INPUT_TERM if srcterm.direction == OUTPUT_TERM else OUTPUT_TERM)
+			core.INPUT_TERM if srcterm.direction == core.OUTPUT_TERM else core.OUTPUT_TERM)
 
 		if tblock :
 #			print "blckMouseUp:", tblock
 			blck, dstterm = tblock
 #			if isinstance(blck.model.prototype, core.JointProto) :
 #				print "kvak", blck, blck.model, blck.model.terms, dstterm
-#				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
+#				dstterm = Out(0, "", C, 0) if srcterm.direction == core.INPUT_TERM else In(0, "", C, 0)
 #				blck.model.terms.append(dstterm)
 #				self.canv.tag_raise(blck.window)
 #			print "kvak2", sender.model, srcterm, blck.model, dstterm
@@ -567,7 +567,7 @@ class BlockEditor(Frame, GraphModelListener) :
 #				self.model.end_edit()
 #		else :
 #			self.model.end_edit()
-		elif twire and srcterm.direction == INPUT_TERM :
+		elif twire and srcterm.direction == core.INPUT_TERM :
 			self.model.begin_edit()
 			src_blck, src_term, dst_blck, dst_term = twire
 			self.model.remove_connection(src_blck, src_term, dst_blck, dst_term)
@@ -575,8 +575,8 @@ class BlockEditor(Frame, GraphModelListener) :
 			w, h = proto.default_size
 			joint = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
 			self.model.add_block(joint)
-			t_in = [ t for t in joint.terms if t.direction == INPUT_TERM ][0]
-			t_out = [ t for t in joint.terms if t.direction == OUTPUT_TERM ][0]
+			t_in = [ t for t in joint.terms if t.direction == core.INPUT_TERM ][0]
+			t_out = [ t for t in joint.terms if t.direction == core.OUTPUT_TERM ][0]
 			self.model.add_connection(src_blck, src_term, joint, t_in, {})
 			self.model.add_connection(joint, t_out, dst_blck, dst_term, {})
 			self.model.add_connection(joint, t_out, sender.model, srcterm, {})

@@ -1,6 +1,4 @@
 
-import dfs
-from dfs import INPUT_TERM, OUTPUT_TERM
 import core
 from os import linesep
 from functools import partial

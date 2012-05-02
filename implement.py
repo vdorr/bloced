@@ -66,26 +66,26 @@ def __dag_sanity_check(g, stop_on_first=True) :
 		for t, nr, preds in p :
 			if not t in b.prototype.terms :
 				return (False, 0)
-			if t.direction != dfs.INPUT_TERM :
+			if t.direction != core.INPUT_TERM :
 				return (False, 1)
 			if len(preds) != 1 :
 				return (False, 2, (b, t, preds))
 			for b_pred, t_pred, n_pred in preds :
 				if not b_pred in g :
 					return (False, 3)
-				if t_pred.direction != dfs.OUTPUT_TERM :
+				if t_pred.direction != core.OUTPUT_TERM :
 					return (False, 4)
 				if not t_pred in b_pred.prototype.terms :
 					return (False, 5)
 		for t, nr, succs in s :
 			if not t in b.prototype.terms :
 				return (False, 6)
-			if t.direction != dfs.OUTPUT_TERM :
+			if t.direction != core.OUTPUT_TERM :
 				return (False, 7)
 			for b_succ, t_succ, n_succ in succs :
 				if not b_succ in g :
 					return (False, 8)
-				if t_succ.direction != dfs.INPUT_TERM :
+				if t_succ.direction != core.INPUT_TERM :
 					return (False, 9)
 				if not t_succ in b_succ.prototype.terms :
 					return (False, 10)
@@ -105,7 +105,7 @@ def __dag_sanity_check(g, stop_on_first=True) :
 #	(neighbours, ) = [ succs for t, succs in neighbours?!?!?!? if t == bt]
 #	assert(not (block, term) in neighbours) # raise should be better
 #	neighbours.append((block, term))
-#	assert(len(neighbours)==1 if bt.direction == dfs.INPUT_TERM else True)
+#	assert(len(neighbours)==1 if bt.direction == core.INPUT_TERM else True)
 
 
 def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
@@ -151,9 +151,9 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 #	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
 #	"""
 #	p, s = ps
-#	if direction == dfs.INPUT_TERM :
+#	if direction == core.INPUT_TERM :
 #		return s, p
-#	elif direction == dfs.OUTPUT_TERM :
+#	elif direction == core.OUTPUT_TERM :
 #		return p, s
 #	else :
 #		raise Exception("unknown term direction")
@@ -178,36 +178,36 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 
 #TODO unify loops
 
-#	__do_part_block_replace(g, n, s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM)
-#	__do_part_block_replace(g, n, p, map_in, dfs.INPUT_TERM, dfs.OUTPUT_TERM)
+#	__do_part_block_replace(g, n, s, map_out, core.OUTPUT_TERM, core.INPUT_TERM)
+#	__do_part_block_replace(g, n, p, map_in, core.INPUT_TERM, core.OUTPUT_TERM)
 #	return None
 
 	for in_t, in_t_nr, values in p :
-		assert(in_t.direction == dfs.INPUT_TERM)
+		assert(in_t.direction == core.INPUT_TERM)
 		succs = map_in[in_t, in_t_nr] if (in_t, in_t_nr) in map_in else []
 		for b_pred, t_pred, t_pred_nr in values :
-			assert(t_pred.direction == dfs.OUTPUT_TERM)
+			assert(t_pred.direction == core.OUTPUT_TERM)
 			b_pred_succ = g[b_pred].s
 			__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
 			for b, t, nr in succs :
-				assert(t.direction == dfs.INPUT_TERM)
+				assert(t.direction == core.INPUT_TERM)
 				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 	for out_t, out_t_nr, values in s :
-		assert(out_t.direction == dfs.OUTPUT_TERM)
+		assert(out_t.direction == core.OUTPUT_TERM)
 		preds = map_out[out_t, out_t_nr] if (out_t, out_t_nr) in map_out else []
 		for b_succ, t_succ, t_succ_nr in values :
-			assert(t_succ.direction == dfs.INPUT_TERM)
+			assert(t_succ.direction == core.INPUT_TERM)
 			b_succ_pred = g[b_succ].p
 			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
 			for b, t, nr in preds :
-				assert(t.direction == dfs.OUTPUT_TERM)
+				assert(t.direction == core.OUTPUT_TERM)
 				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
 
-#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM),) :
+#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, core.OUTPUT_TERM, core.INPUT_TERM),) :
 #		assert(n_t.direction == dir_from)
 #		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
 #		for b_adj, t_adj, t_adj_nr in values :
@@ -388,14 +388,14 @@ def get_terms_flattened(block) :
 
 def __in_terms(block) :
 #TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.INPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.INPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == dfs.INPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.INPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == core.INPUT_TERM  ]
 
 def __out_terms(block) :
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.OUTPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.OUTPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == dfs.OUTPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.OUTPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == core.OUTPUT_TERM  ]
 
 #def __adj_edges(b, conns, neighbours) :
 #	inputs

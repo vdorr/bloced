@@ -1,5 +1,4 @@
 
-import dfs
 import core
 from os import linesep
 from functools import partial
@@ -39,7 +38,7 @@ def __implement(g, n, args, outs) :
 #	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name=="not")
-		assert(len([t for t in n.terms if t.direction==dfs.OUTPUT_TERM]) == 1)
+		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
 		return __OPS[n.prototype.type_name](n, args)
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
@@ -164,7 +163,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		if len(outputs) == 0 :
 			code.append(expr + ";")
 		elif len(outputs) == 1 :
-#			(out_term,) = [ trm for trm in n.terms if trm.direction == OUTPUT_TERM ]
+#			(out_term,) = [ trm for trm in n.terms if trm.direction == core.OUTPUT_TERM ]
 #			term_type = types[ n, out_term, 0 ]
 #			slot = add_tmp_ref(tmp, outputs[0][2], slot_type=term_type)
 #			print here(), n, out_term, term_type, "slot=", slot

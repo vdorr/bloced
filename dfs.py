@@ -39,9 +39,6 @@ E = "e"
 
 #XXX these consts must go!
 
-INPUT_TERM = 1
-OUTPUT_TERM = 2
-
 term_size = 8
 
 TERM_SIZE = 8
@@ -56,12 +53,12 @@ MIN_BLOCK_HEIGHT = 48
 ##TODO try to rotate around center of block
 #	txt_height = tsz
 #	ang = { N : 90, S : 270, W : 0, E : 180, C : 0, }
-#	txt_width += (0 if direction == INPUT_TERM else tsz)
+#	txt_width += (0 if direction == core.INPUT_TERM else tsz)
 #	shift = { N : (0, 0), S : (0, txt_width+1), W : (0, 0), E : (txt_width+1, 0), C : (0, 0), }
 #	sx, sy = shift[side]
 #	glyph = ( (tx-sx, ty-1-sy),
 #		(tx+1+txt_width-sx, ty-1-sy),
-#		(tx+txt_width-sx+1+(tsz/2 if direction == INPUT_TERM else -tsz/2), ty-sy+tsz/2),
+#		(tx+txt_width-sx+1+(tsz/2 if direction == core.INPUT_TERM else -tsz/2), ty-sy+tsz/2),
 #		(tx+1+txt_width-sx, ty+tsz-sy+1),
 #		(tx-sx, ty+tsz-sy+1) )
 #	l, t, w, h = mathutils.bounding_rect(glyph)
@@ -78,8 +75,8 @@ def translate(sx, sy, p) :
 	return tuple((x+sx, y+sy) for x, y, in p)
 
 def get_glyph(w, h, direction) :
-	tip = ((h/2) if direction == INPUT_TERM else (-h/2))
-	w += (0 if direction == INPUT_TERM else (h/2))
+	tip = ((h/2) if direction == core.INPUT_TERM else (-h/2))
+	w += (0 if direction == core.INPUT_TERM else (h/2))
 	return ( (0, 0), (w, 0), (w+tip, h/2), (w, h), (0, h) )
 
 #XXX try caching decorator on this?
@@ -91,7 +88,7 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 		E : 180,
 		C : 0,
 	}
-#	txt_width += (0 if direction == INPUT_TERM else txt_height)
+#	txt_width += (0 if direction == core.INPUT_TERM else txt_height)
 	txt_width += txt_height / 2
 	shift = {
 		N : (0, 0),
@@ -106,7 +103,7 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 
 #	glyph = ( (tx-sx, ty-1-sy),
 #		(tx+1+txt_width-sx, ty-1-sy),
-#		(tx+txt_width-sx+1+(txt_height/2 if direction == INPUT_TERM else -txt_height/2), ty-sy+txt_height/2),
+#		(tx+txt_width-sx+1+(txt_height/2 if direction == core.INPUT_TERM else -txt_height/2), ty-sy+txt_height/2),
 #		(tx+1+txt_width-sx, ty+txt_height-sy+1),
 #		(tx-sx, ty+txt_height-sy+1) )
 
@@ -650,8 +647,8 @@ class GraphModel(object) :
 		st, sn = st if isinstance(st, tuple) else (st, 0)
 		tt, tn = tt if isinstance(tt, tuple) else (tt, 0)
 		return (st.direction != tt.direction and
-			st.direction in (INPUT_TERM, OUTPUT_TERM) and
-			tt.direction in (INPUT_TERM, OUTPUT_TERM))
+			st.direction in (core.INPUT_TERM, core.OUTPUT_TERM) and
+			tt.direction in (core.INPUT_TERM, core.OUTPUT_TERM))
 
 
 	def set_connection_meta(self, b0, t0, b1, t1, meta) :
@@ -701,8 +698,12 @@ class GraphModel(object) :
 
 			if not self.can_connect(b0, t0, b1, t1) :#TODO add multiplicity
 				raise Exception("can't connect")
-#			print "add_connection:", b0, t0, b1, t1
-			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == OUTPUT_TERM else (b1, t1, b0, t0)
+#			print here(), b0, t0, b1, t1
+			b0, t0, b1, t1 = (b0, t0, b1, t1) if t0.direction == core.OUTPUT_TERM else (b1, t1, b0, t0)
+#			if (isinstance(t0, tuple) and t0[0].direction == core.OUTPUT_TERM) or t0.direction == core.OUTPUT_TERM :
+#				b0, t0, b1, t1 = (b0, t0, b1, t1)
+#			else :
+#				b0, t0, b1, t1 = (b1, t1, b0, t0)
 
 			if not isinstance(t0, tuple) and t0.variadic :
 	#			print "add_connection 1"
