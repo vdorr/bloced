@@ -244,8 +244,8 @@ def chain_blocks(g, n, m) :
 	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
 	motivated by need to express calls in main function, this is probably BAD THING
 	"""
-	n_out = dfs.VirtualOut("y")
-	m_in = dfs.VirtualIn("x")
+	n_out = core.VirtualOut("y")
+	m_in = core.VirtualIn("x")
 	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
 	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
@@ -284,6 +284,7 @@ def block_value_by_name(n, value_name) :
 def __cut_joint_alt(g, j) :
 #	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
+	print here(), g[j]
 	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
