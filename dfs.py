@@ -90,6 +90,7 @@ class TermModel(object) :
 	def __lt__(self, b) :
 		return id(self) < id(b)
 
+
 class In(TermModel) :
 	def __init__(self, arg_index, name, side, pos,
 			type_name=core.TYPE_INFERRED,
@@ -97,6 +98,7 @@ class In(TermModel) :
 			commutative=False) :
 		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
 			type_name=type_name)
+
 
 class Out(TermModel) :
 	def __init__(self, arg_index, name, side, pos,

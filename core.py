@@ -39,6 +39,18 @@ KNOWN_TYPES = {
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+block_proto_t = namedtuple("proto", ("type_name", "terms", "default_size",
+	"exe_name", "commutative", "pure", "values", "library", "data"))
+
+
+def block_proto_from_proto_data(bp) :
+	args = dict(bp.__dict__)
+	args.pop("type_name")
+	args.pop("terms")
+	return BlockPrototype(bp.type_name, bp.terms, **args)
+
+
 class BlockPrototype(object) :
 
 	# to be shown in bloced
@@ -67,6 +79,20 @@ class BlockPrototype(object) :
 
 	data = property(lambda self: self.__data)
 
+
+	def get_block_proto_data(self) :
+		return block_proto_t(
+			type_name=self.type_name,
+			terms=self.terms,
+			default_size=self.default_size,
+			exe_name=self.exe_name,
+			commutative=self.commutative,
+			pure=self.pure,
+			values=self.values,
+			library=self.library,
+			data=self.data)
+
+
 	def __init__(self, type_name, terms,
 			exe_name=None,
 			default_size=(64,64),
@@ -77,7 +103,6 @@ class BlockPrototype(object) :
 			library=None,
 			data=None) :
 		self.__category = category
-		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
 		self.__terms = terms
 		self.__default_size = default_size
@@ -87,6 +112,7 @@ class BlockPrototype(object) :
 		self.__values = values
 		self.__library = library
 		self.__data = data
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -229,8 +255,6 @@ class MuxProto(BlockPrototype):
 			pure=True, category="Special")
 
 
-# ------------------------------------------------------------------------------------------------------------
-
 class SBP(BlockPrototype) :
 	def __init__(self, type_name, category, terms, exe_name=None, commutative=False, pure=False) :
 		BlockPrototype.__init__(self, type_name, terms,
@@ -239,7 +263,6 @@ class SBP(BlockPrototype) :
 			commutative=commutative,
 			pure=pure)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class UnaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None) :
@@ -250,7 +273,6 @@ class UnaryOp(BlockPrototype) :
 			category=category,
 			pure=True)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class BinaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None, commutative=False) :
@@ -262,26 +284,18 @@ class BinaryOp(BlockPrototype) :
 			commutative=commutative,
 			pure=True)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class CFunctionProto(BlockPrototype):
 	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "CFunction", [], category="External")
 
-# ----------------------------------------------------------------------------
 
 class MacroProto(BlockPrototype):
 	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "Macro", [], category="External")
 
-# ----------------------------------------------------------------------------
 
 class FunctionProto(BlockPrototype):
 	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "FunctionBlock", [], category="External")
+
 
 # ----------------------------------------------------------------------------
 
