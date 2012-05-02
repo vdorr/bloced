@@ -382,7 +382,7 @@ class Block(Canvas, BlockBase) :
 			term_tag = t.name
 			term_label = self.model.get_term_presentation_text(t, nr)
 
-			t_side = t.get_side(self.model)
+			t_side = self.model.get_term_side(t)
 
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
@@ -395,7 +395,7 @@ class Block(Canvas, BlockBase) :
 			poly = get_term_poly(
 				x,#x-(term_size if t_side == E else 0),
 				y,#y-(term_size if t_side == S else 0),
-				txt_height, t.get_side(self.model), t.direction, txt_width)
+				txt_height, self.model.get_term_side(t), t.direction, txt_width)
 
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
@@ -698,17 +698,17 @@ class BlockEditor(Frame, GraphModelListener) :
 		bump = cfg.BLOCK_WIRE_STUB
 		bumps = { N: (0, -bump), S: (0, bump), W: (-bump, 0), E: (bump, 0), C: (0, 0) }
 
-		bump0x, bump0y = bumps[st.get_side(sb)]
+		bump0x, bump0y = bumps[sb.get_term_side(st)]
 		s = autoroute.pnt(int(s0[0]+bump0x), int(s0[1]+bump0y))
 
-		bump1x, bump1y = bumps[tt.get_side(tb)]
+		bump1x, bump1y = bumps[tb.get_term_side(tt)]
 		t = autoroute.pnt(int(tA[0]+bump1x), int(tA[1]+bump1y))
 
 		route = None
 		if fullroute :
-			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if st.get_side(sb) != C
+			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sbt.get_term_side(st) != C
 				else autoroute.rct(sb.left, sb.top, 1, 1))
-			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tt.get_side(tb) != C
+			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tb.get_term_side(tt) != C
 				else autoroute.rct(tb.left, tb.top, 1, 1))
 			bbox = autoroute.choose_bbox(r1, r2,
 				autoroute.rct(*self.canvas_scrollregion), bump + 1)

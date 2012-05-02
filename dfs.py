@@ -10,6 +10,8 @@ if version_info.major == 3 :
 else :
 	from Queue import Queue, Empty as QueueEmpty
 
+import mathutils
+
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO replace usages of Tkinter stuff elsewhere
@@ -35,24 +37,6 @@ MIN_BLOCK_HEIGHT = 48
 # ------------------------------------------------------------------------------------------------------------
 
 class TermModel(object) :
-
-	def get_side(self, bm) :
-		flipv, fliph, rot = bm.orientation
-		ors = {
-			W: 2 if fliph else 0,
-			N: 3 if flipv else 1,
-			E: 0 if fliph else 2,
-			S: 1 if flipv else 3
-		}
-		if self.__side != C :
-			old_or = ors[self.__side]
-			side = [ W, N, E, S ][ (ors[self.__side] + rot // 90) % 4 ]
-			return side
-		return self.__side
-
-	def get_pos(self, bm) :
-		x, y, _ = bm.orientation
-		return (1 - self.__pos) if x or y else self.__pos
 
 	name = property(lambda self: self.__name)
 
@@ -121,8 +105,6 @@ class VirtualOut(TermModel) :
 
 
 # ------------------------------------------------------------------------------------------------------------
-
-import mathutils
 
 #def get_term_poly(tx, ty, tsz, side, direction, txt_width) :
 ##TODO try to rotate around center of block
@@ -210,6 +192,26 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 
 class BlockModel(object) :
 
+	def get_term_side(self, t) :
+		flipv, fliph, rot = self.orientation
+		ors = {
+			W: 2 if fliph else 0,
+			N: 3 if flipv else 1,
+			E: 0 if fliph else 2,
+			S: 1 if flipv else 3
+		}
+		if t.default_side != C :
+			old_or = ors[t.default_side]
+			side = [ W, N, E, S ][ (ors[t.default_side] + rot // 90) % 4 ]
+			return side
+		return t.default_side
+
+
+	def get_term_pos(self, t) :
+		x, y, _ = self.orientation
+		return (1 - t.default_pos) if x or y else t.default_pos
+
+
 	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
 
 #		dw, dh = self.__prototype.default_size
@@ -222,9 +224,9 @@ class BlockModel(object) :
 		c = (index - 1) * term_size if t.variadic else 0
 #XXX XXX XXX
 
-		p = t.get_pos(self)
+		p = self.get_term_pos(t)
 		tw = text_width
-		side = t.get_side(self)
+		side = self.get_term_side(t)
 
 		if t.variadic :
 			w, h = self.width, self.height
@@ -256,8 +258,10 @@ class BlockModel(object) :
 	def __lt__(self, other):
 		return id(other) < id(self)
 
+
 	def to_string(self) :
 		return "%s(%s)" % (self.prototype.type_name, str(self.value))
+
 
 	class edit(object) :
 	
@@ -281,10 +285,12 @@ class BlockModel(object) :
 				return y
 			return decorated
 
+
 	def __raise_block_changed(self, e, old_meta, new_meta) :
 		if self.__model == "itentionally left blank" :
 			return None
 		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta)
+
 
 #	@edit()
 	def set_meta(self, meta) :
@@ -294,6 +300,7 @@ class BlockModel(object) :
 			self.__getattribute__("_BlockModel__set_"+k)(v)
 			assert(not(k is None))
 			self.__raise_block_changed({"p":k}, {k:old_meta[k]}, {k:v})
+
 
 	@edit("value")
 	def __set_value(self, value) :
@@ -308,7 +315,9 @@ class BlockModel(object) :
 
 	int_left = property(lambda self: self.__left)
 
+
 	int_top = property(lambda self: self.__top)
+
 
 	value = property(lambda self: self.__value, __set_value)
 
@@ -330,7 +339,9 @@ class BlockModel(object) :
 	def __set_caption(self, v) :
 		self.__set_caption = v
 
+
 	caption = property(lambda self: self.__caption, __set_caption)
+
 
 	def get_meta(self) :
 		w, h = self.prototype.default_size
@@ -347,13 +358,16 @@ class BlockModel(object) :
 			"term_meta" : self.__term_meta,
 		}
 
+
 	def __set_term_meta(self, meta) :
 		self.__term_meta = meta
 #		print "__set_term_meta:", 
 
+
 	@edit("term_meta")
 	def stme(self, term, n):
 		self.__term_meta[term.name]["multiplicity"] = n
+
 
 	def set_term_multiplicity(self, term, n, no_events=False) :
 		if not term.variadic :
@@ -363,30 +377,40 @@ class BlockModel(object) :
 		else :
 			self.stme(term, n)
 
+
 	def get_term_multiplicity(self, term) :
 		return self.__term_meta[term.name]["multiplicity"] if term.variadic else None
 
+
 	terms = property(lambda self: self.__terms)#XXX return copy instead of my instance?
+
 
 	def __get_orientation(self) :
 		return self.__orientation
+
 
 	@edit("orientation")
 	def __set_orientation(self, v) :
 		self.__orientation = v
 
+
 	orientation = property(__get_orientation, __set_orientation)
 
+
 	default_size = property(lambda self: (self.__get_default_width(), self.__get_default_height()))
+
 
 	def __get_default_height(self) :
 		return self.__width if self.orientation[2] % 180 else self.__height
 
+
 	def __get_default_width(self) :
 		return self.__height if self.orientation[2] % 180 else self.__width
 
+
 	def __get_width(self) :
 		return self.__get_prop_height() if self.orientation[2] % 180 else self.__get_prop_width()
+
 
 	@edit("width")
 	def __set_width(self, v) :
@@ -395,11 +419,13 @@ class BlockModel(object) :
 		else :
 			self.__width = v
 
+
 	def __get_prop_height(self) :
 		l = self.__height
 		trms = [ t for t in self.terms if t.default_side in (W, E) ]
 		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
 		return l + varterms * term_size
+
 
 	def __get_prop_width(self) :
 		l = self.__width
@@ -407,8 +433,10 @@ class BlockModel(object) :
 		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
 		return l + varterms * term_size
 
+
 	def __get_height(self) :
 		return self.__get_prop_width() if self.orientation[2] % 180 else self.__get_prop_height()
+
 
 	@edit("height")
 	def __set_height(self, v) :
@@ -417,38 +445,51 @@ class BlockModel(object) :
 		else :
 			self.__height = v
 
+
 	def __get_left(self) :
 		return self.__left + ((self.__width - self.__height) / 2 if self.orientation[2] % 180 else 0)
+
 
 	@edit("left")
 	def __set_left(self, v) :
 		self.__left = v - ((self.__width - self.__height) / 2 if self.orientation[2] % 180 else 0)
 
+
 	def __get_top(self) :
 		return self.__top + ((self.__height - self.__width) / 2 if self.orientation[2] % 180 else 0)
+
 
 	@edit("top")
 	def __set_top(self, v) :
 		self.__top = v - ((self.__height - self.__width) / 2 if self.orientation[2] % 180 else 0)
 
+
 	def __get_center(self) :
 		return self.left+(self.width/2), self.top+(self.height/2)
+
 
 	def __set_center(self, v) :
 		self.left = v[0] - (self.width/2)
 		self.top = v[1] - (self.height/2)
 
+
 	width = property(__get_width, __set_width)
+
 
 	height = property(__get_height, __set_height)
 
+
 	left = property(__get_left, __set_left)
+
 
 	top = property(__get_top, __set_top)
 
+
 	center = property(__get_center, __set_center)
 
+
 	prototype = property(lambda self: self.__prototype)
+
 
 #XXX XXX XXX
 	def get_term_index(self, t, t_nr) :
@@ -456,21 +497,25 @@ class BlockModel(object) :
 #		print "get_term_index:", self, t.name, t_nr, index
 		return index
 
+
 	def get_indexed_terms(self, t) :
 		#self.__term_meta[t.name][t_nr, "index"]
 		return [ (k[0], v) for k, v in self.__term_meta[t.name].items()
 			if type(k) == tuple and type(k[0]) == int and k[1] == "index" ]
+
 
 #XXX XXX XXX
 	def set_term_index(self, t, t_nr, index) : # index would be usually term_multiplicity-1
 		self.__term_meta[t.name][t_nr, "index"] = index
 #		print "set_term_index:", self.__term_meta
 
+
 #XXX XXX XXX
 	def pop_term_meta(self, t, t_nr) :
 		if (t_nr, "index") in self.__term_meta[t.name] :
 			self.__term_meta[t.name].pop((t_nr, "index")) #and also the rest, if ever some rest will be
 #			self.__term_meta.pop((t.name, t_nr, "index")) #and also the rest, if ever some rest will be
+
 
 	def get_term_location(self, t, t_nr) :
 #		print "get_term_location:", t, t_nr
@@ -480,6 +525,7 @@ class BlockModel(object) :
 		return (x+self.left, y+self.top)
 #		assert(retval==...
 #		return retval
+
 
 	def get_label_pos(self, txt_width, txt_height) :
 		side =  [W, N, E, S][self.orientation[2]//90]
@@ -501,6 +547,7 @@ class BlockModel(object) :
 
 #	connections = property(__get__connections)
 
+
 	def get_terms_flat(self) :
 		for t in self.terms :
 			if t.variadic :
@@ -516,10 +563,12 @@ class BlockModel(object) :
 			else :
 				yield t, None
 
+
 	def stringified_value(self, value) :
 		assert(value is None or isinstance(value, tuple))
 		v = value if value else ("None", )
 		return ",".join(str(s) for s in v)
+
 
 	def get_presentation_text(self) :
 		fmt = {
@@ -558,7 +607,9 @@ class BlockModel(object) :
 #			newtxt = self.caption
 		return newtxt
 
+
 	presentation_text = property(get_presentation_text)
+
 
 	def get_term_presentation_text(self, t, nr) :
 		term_label = t.name
@@ -567,6 +618,7 @@ class BlockModel(object) :
 		if t.variadic : #XXX nr != None
 			term_label += str(self.get_term_index(t, nr))
 		return term_label
+
 
 	def __my_init(self, model, caption, left, top, width, height, terms, values) :
 		self.__orientation = (0, 0, 0)
@@ -578,6 +630,7 @@ class BlockModel(object) :
 		self.__value = tuple(dv for name, dv in values) if values else None
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
+
 	def __init__(self, prototype, model, left = 0, top = 0) :
 		"""
 		when there is no parent use for model argument value
@@ -587,6 +640,7 @@ class BlockModel(object) :
 			prototype.default_size[0], prototype.default_size[1],
 			prototype.terms, prototype.values)
 		self.__prototype = prototype
+
 
 	def __repr__(self) :
 		return "%s(%s)" % (self.__prototype.type_name, str(self.value))
@@ -615,8 +669,10 @@ class GraphModel(object) :
 
 #	meta = property(lambda self: {})
 
+
 	def add_listener(self, listener) :
 		self.__listeners.append(listener)
+
 
 	def remove_listener(self, listener) :
 		self.__listeners.remove(listener)

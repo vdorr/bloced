@@ -463,7 +463,7 @@ def __mc_assign_side(tb, center_x, center_y, x, y) :
 		(False, True) : dfs.E,
 		(False, False) : dfs.W
 	}
-	side = tb.terms[0].get_side(tb)
+	side = tb.get_term_side(tb.terms[0])
 	vertical = side in (dfs.N, dfs.S)
 #	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
 	return sides[vertical, y > center_y if vertical else x > center_x ]
