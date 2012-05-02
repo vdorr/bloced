@@ -1,4 +1,8 @@
 
+"""
+built-in blocks, types and library services
+"""
+
 import dfs
 import os
 import hparser
@@ -128,23 +132,13 @@ class NoteProto(BlockPrototype):
 
 
 class DelayInProto(BlockPrototype):
-
-#	def __repr__(self) :
-#		return "%s(%i)"%(self.__name, self.nr)
-
 	def __init__(self) :
 		BlockPrototype.__init__(self, "DelayIn", [ dfs.In(0, "x", dfs.W, 0.5) ])
-#		self.nr = -1
 
 
 class DelayOutProto(BlockPrototype):
-
-#	def __repr__(self) :
-#		return "%s(%i)"%(self.__name, self.nr)
-
 	def __init__(self) :
 		BlockPrototype.__init__(self, "DelayOut", [ dfs.Out(0, "y", dfs.E, 0.5) ])
-#		self.nr = -1
 
 
 class SignalProto(BlockPrototype):
@@ -391,7 +385,6 @@ def __cmod_create_proto(lib_name, export) :
 	block_name, (terms_in, terms_out) = export
 
 	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
-#	print "__cmod_create_proto: block_layout=", xxxx
 
 	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
 	inputs = [ dfs.In(-i, name, dfs.W, pos,

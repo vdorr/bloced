@@ -3,13 +3,28 @@
 serialiazable model of graph, part of editor bussiness logic, definitions for presentation layer
 """
 
-from itertools import dropwhile, islice, count
 from sys import version_info
 if version_info.major == 3 :
 	from functools import reduce
+	from io import StringIO
+	from queue import Queue, Empty as QueueEmpty
 else :
 	from Queue import Queue, Empty as QueueEmpty
+	from StringIO import StringIO
+	from Queue import Queue, Empty as QueueEmpty
+from threading import Thread, Lock
+import time
+import sys
+import os
+from sys import version_info
+from pprint import pprint
+from itertools import dropwhile, islice, count
 
+import core
+import build
+import ccodegen
+import implement
+from utils import here
 import mathutils
 
 # ------------------------------------------------------------------------------------------------------------
@@ -580,16 +595,17 @@ class BlockModel(object) :
 
 
 	def __init_label_fmt_table(self) :
+#TODO globalize
 		self.__lbl_fmt = {
-			core.get_proto_name(core.ConstProto) : "{0}",
-			core.get_proto_name(core.DelayProto) : "Delay({0})",
-			core.get_proto_name(core.TapProto) : "Tap({0})",
-			core.get_proto_name(core.TapEndProto) : "TapEnd({0})",
-			core.get_proto_name(core.InputProto) : "Input({0})",
-			core.get_proto_name(core.OutputProto) : "Output({0})",
-			core.get_proto_name(core.JointProto) : "",
-			core.get_proto_name(core.PipeProto) : "Pipe({0})",
-			core.get_proto_name(core.PipeEndProto) : "PipeEnd({0})",
+			core.get_proto_name(core.ConstProto()) : "{0}",
+			core.get_proto_name(core.DelayProto()) : "Delay({0})",
+			core.get_proto_name(core.TapProto()) : "Tap({0})",
+			core.get_proto_name(core.TapEndProto()) : "TapEnd({0})",
+			core.get_proto_name(core.InputProto()) : "Input({0})",
+			core.get_proto_name(core.OutputProto()) : "Output({0})",
+			core.get_proto_name(core.JointProto()) : "",
+			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
+			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
 #			"ConstInputProto":"ConstInput({0})",
 		}
 
@@ -968,25 +984,6 @@ class GraphModel(object) :
 		self.__connections_meta = {}
 
 # ------------------------------------------------------------------------------------------------------------
-
-import core
-import build
-import ccodegen
-from threading import Thread, Lock
-#from multiprocessing import Process, Queue, Lock
-import time
-import sys
-import os
-import implement
-from utils import here
-from sys import version_info
-if version_info.major == 3 :
-	from io import StringIO
-	from queue import Queue, Empty as QueueEmpty
-else :
-	from StringIO import StringIO
-	from Queue import Queue, Empty as QueueEmpty
-from pprint import pprint
 
 MAX_WORKERS = 1
 WORKBENCH_EXTENSION = ("bloced workbench", "*.w")
