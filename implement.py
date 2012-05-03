@@ -1115,12 +1115,12 @@ def main() :
 
 	if os.path.splitext(fname)[1].lower() == ".w" :
 		w = dfs.Workbench(
-			lib_dir=os.path.join(os.getcwd(), "library"),
+			lib_dir=os.path.join(os.getcwd(), "library"),#TODO multiple search dirs
 			passive=True)
 		blockfactory = w.blockfactory
 		try :
 			with open(fname, "rb") as f :
-				serializer.unpickle_workbench(f, w)
+				serializer.unpickle_workbench(f, w, use_cached_proto=False)
 		except :
 			print("error loading workbench file")
 			raise

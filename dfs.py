@@ -288,7 +288,7 @@ class BlockModel(object) :
 
 	def get_meta(self) :
 		w, h = self.prototype.default_size
-		return {
+		meta = {
 			"caption" : self.caption,
 			"left" : self.left,
 			"top" : self.top,
@@ -300,6 +300,12 @@ class BlockModel(object) :
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 		}
+		if (core.compare_proto_to_type(self.__prototype, core.MacroProto) or
+				core.compare_proto_to_type(self.__prototype, core.FunctionProto)) :
+			meta["cached_prototype"] = self.__prototype.get_block_proto_data()
+#			print here()
+#		print here(), meta
+		return meta
 
 
 	def __set_term_meta(self, meta) :

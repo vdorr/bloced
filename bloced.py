@@ -1489,12 +1489,22 @@ class BlockEditorWindow(object) :
 
 	def __change_callback(self, w, event, data) :
 		print(here(), w, event, data)
+		sheet_name = None
 		if event == "sheet_added" :
-			sheet, name = data #?
-			self.add_sheet(sheet, name)
+			sheet, sheet_name = data #?
+			self.add_sheet(sheet, sheet_name)
 		elif event == "sheet_deleted" :
-			sheet, name = data #?
-			self.delete_sheet(sheet, name)
+			sheet, sheet_name = data #?
+			self.delete_sheet(sheet, sheet_name)
+		if not sheet_name is None :
+			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
+				self.__list_local_block()
+
+
+	def __list_local_block(self) :
+		old = self.local_blocks_mnu
+		self.local_blocks_mnu = CascadeMnu("Workbench", [])
+		self.replace_cascade(old, self.local_blocks_mnu)
 
 
 	def delete_sheet(self, sheet, name) :
@@ -1698,10 +1708,13 @@ class BlockEditorWindow(object) :
 #			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
+		self.local_blocks_mnu = CascadeMnu("Workbench", [])
+
 		#TODO should be explicitly sorted
 		self.block_list = ([ CascadeMnu(cat,
 			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
-				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
+				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ]
+			+ [ SepMnu(), self.local_blocks_mnu ])
 		self.add_top_menu("&Library",
 #			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
 			self.block_list)

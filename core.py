@@ -42,7 +42,7 @@ KNOWN_TYPES = {
 INPUT_TERM = 1
 OUTPUT_TERM = 2
 
-term_model_t = namedtuple("term_model", ("name", "default_side", "default_pos", "direction",
+term_model_t = namedtuple("term_model_t", ("name", "default_side", "default_pos", "direction",
 	"type_name", "arg_index", "variadic", "commutative", "virtual"))
 
 
@@ -102,6 +102,19 @@ class TermModel(object) :
 
 	virtual = property(lambda self: self.__virtual)
 
+
+	def get_term_data(self) :
+		return term_model_t(
+			name = self.name,
+			default_side = self.default_side,
+			default_pos = self.default_pos,
+			direction = self.direction,
+			type_name = self.type_name,
+			arg_index = self.arg_index,
+			variadic = self.variadic,
+			commutative = self.commutative,
+			virtual = self.virtual)
+
 	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
 			type_name=None, virtual=False) :
 		self.__name = name
@@ -120,6 +133,11 @@ class TermModel(object) :
 
 	def __lt__(self, b) :
 		return id(self) < id(b)
+
+
+def term_model_from_term_data(td) :
+	return TermModel(td.arg_index, td.name, td.default_side, td.default_pos, td.direction, td.variadic,
+		td.commutative, type_name=td.type_name, virtual=td.virtual)
 
 
 class In(TermModel) :
@@ -152,7 +170,7 @@ class VirtualOut(TermModel) :
 			virtual=True)
 
 
-block_proto_t = namedtuple("proto", ("type_name", "terms", "default_size",
+block_proto_t = namedtuple("block_proto_t", ("type_name", "terms", "default_size",
 	"exe_name", "commutative", "pure", "values", "library", "data"))
 
 
@@ -160,7 +178,8 @@ def block_proto_from_proto_data(bp) :
 	args = dict(bp.__dict__)
 	args.pop("type_name")
 	args.pop("terms")
-	return BlockPrototype(bp.type_name, bp.terms, **args)
+	return BlockPrototype(bp.type_name,
+		tuple(term_model_from_term_data(t) for t in bp.terms), **args)
 
 
 class BlockPrototype(object) :
@@ -195,14 +214,14 @@ class BlockPrototype(object) :
 	def get_block_proto_data(self) :
 		return block_proto_t(
 			type_name=self.type_name,
-			terms=self.terms,
+			terms=tuple(t.get_term_data() for t in self.terms),
 			default_size=self.default_size,
 			exe_name=self.exe_name,
 			commutative=self.commutative,
 			pure=self.pure,
 			values=self.values,
 			library=self.library,
-			data=self.data)
+			data=None)
 
 
 	def __init__(self, type_name, terms,
