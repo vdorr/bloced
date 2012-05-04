@@ -11,13 +11,22 @@ from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
+
 __OPS = {
-	"xor" :		lambda n, args : "(" + "^".join(args) + ")",
+	"xor" :		lambda n, args : "(" + "!=".join(("!" + a) for a in args) + ")",
 	"or" :		lambda n, args : "(" + "||".join(args) + ")",
-	"nor" :		lambda n, args : "!(" + "|".join(args) + ")",
+	"nor" :		lambda n, args : "!(" + "||".join(args) + ")",
 	"and" :		lambda n, args : "(" + "&&".join(args) + ")",
 	"nand" :	lambda n, args : "!(" + "&&".join(args) + ")",
 	"not" :		lambda n, arg : "!(" + arg[0] + ")",
+
+	"bwxor" :	lambda n, args : "(" + "^".join(args) + ")",
+	"bwor" :	lambda n, args : "(" + "|".join(args) + ")",
+	"bwnor" :	lambda n, args : "!(" + "|".join(args) + ")",
+	"bwand" :	lambda n, args : "(" + "&".join(args) + ")",
+	"bwnand" :	lambda n, args : "!(" + "&".join(args) + ")",
+	"bwnot" :	lambda n, arg : "~(" + arg[0] + ")",
+
 	"add" :		lambda n, args : "(" + "+".join(args) + ")",
 	"sub" :		lambda n, args : "(" + "-".join(args) + ")",
 	"mul" :		lambda n, args : "(" + "*".join(args) + ")",
@@ -39,7 +48,7 @@ def __implement(g, n, args, outs) :
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name=="not")
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
-		return __OPS[n.prototype.type_name](n, args)
+		return __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for a in args))
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)

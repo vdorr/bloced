@@ -1121,6 +1121,13 @@ class BasicBlocksFactory(object) :
 			BinaryOp("nand", "Logic", commutative=True),
 			UnaryOp("not", "Logic"),
 
+			BinaryOp("bwxor", "Bitwise Logic", commutative=True),
+			BinaryOp("bwor", "Bitwise Logic", commutative=True),
+			BinaryOp("bwnor", "Bitwise Logic", commutative=True),
+			BinaryOp("bwand", "Bitwise Logic", commutative=True),
+			BinaryOp("bwnand", "Bitwise Logic", commutative=True),
+			UnaryOp("bwnot", "Bitwise Logic"),
+
 			BinaryOp("add", "Arithmetic", commutative=True),
 			BinaryOp("sub", "Arithmetic", commutative=False),
 			BinaryOp("mul", "Arithmetic", commutative=True),
