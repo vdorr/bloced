@@ -25,7 +25,9 @@ __OPS = {
 	"bwnor" :	lambda n, args : "!(" + "|".join(args) + ")",
 	"bwand" :	lambda n, args : "(" + "&".join(args) + ")",
 	"bwnand" :	lambda n, args : "!(" + "&".join(args) + ")",
-	"bwnot" :	lambda n, arg : "~(" + arg[0] + ")",
+	"bwnot" :	lambda n, arg : "~({0}".format(arg[0]),
+	"lsl" :		lambda n, arg : "({0}<<{1})".format(arg[0], arg[1]),
+	"lsr" :		lambda n, arg : "({0}>>{1})".format(arg[0], arg[1]),
 
 	"add" :		lambda n, args : "(" + "+".join(args) + ")",
 	"sub" :		lambda n, args : "(" + "-".join(args) + ")",
