@@ -58,6 +58,11 @@ BIT_MB_1 = 0x100
 BIT_MB_2 = 0x200
 BIT_MB_3 = 0x400
 
+
+def get_basic_mod_keys(state) :
+	return state & ~(BIT_CAPSLOCK | BIT_NUMLOCK)
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 class Configuration(object):
@@ -1114,10 +1119,10 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.bind("<ButtonRelease-1>", self.default_mouseup)
 #		self.canv.bind("<Delete>", lambda a: self.delete_selection())
 		self.canv.bind("<Escape>", lambda a: self.cancel_action_pending())
-		self.canv.bind("<l>", lambda a: self.rotate_selection(0, 0, -90))
-		self.canv.bind("<r>", lambda a: self.rotate_selection(0, 0, 90))
-		self.canv.bind("<h>", lambda a: self.rotate_selection(0, 180, 0))
-		self.canv.bind("<v>", lambda a: self.rotate_selection(180, 0, 0))
+		self.canv.bind("<l>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 0, -90))
+		self.canv.bind("<r>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 0, 90))
+		self.canv.bind("<h>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 180, 0))
+		self.canv.bind("<v>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(180, 0, 0))
 		self.canv.bind("<Left>", lambda a: self.move_selection(-cfg.GRID_SIZE, 0))
 		self.canv.bind("<Right>", lambda a: self.move_selection(cfg.GRID_SIZE, 0))
 		self.canv.bind("<Up>", lambda a: self.move_selection(0, -cfg.GRID_SIZE))
