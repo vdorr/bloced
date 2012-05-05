@@ -131,13 +131,15 @@ def load_to_dfs_model(m, types, struct, meta, fact,
 	blocks = {}
 	for n, type_name in types :
 		new_block_meta = block_meta[n]
-#		print here(), use_cached_proto, new_block_meta
-		if ( use_cached_proto and not new_block_meta is None and
-			"cached_prototype" in new_block_meta ) :
-			bp = new_block_meta.pop("cached_prototype")
-			t = core.block_proto_from_proto_data(bp)
+#		print here(), "cached_prototype" in new_block_meta#, use_cached_proto, new_block_meta
+		use_lib_proto = True
+		if not new_block_meta is None and "cached_prototype" in new_block_meta :
 #			print here()
-		else :
+			bp = new_block_meta.pop("cached_prototype")
+			if use_cached_proto :
+				t = core.block_proto_from_proto_data(bp)
+				use_lib_proto = False
+		if use_lib_proto :
 			t = fact.get_block_by_name(type_name)
 		b = dfs.BlockModel(t, m)
 		b.set_meta({} if new_block_meta is None else new_block_meta)
