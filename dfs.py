@@ -25,6 +25,7 @@ import core
 import build
 import ccodegen
 import implement
+import serializer
 from utils import here
 import mathutils
 
@@ -980,7 +981,7 @@ class Workbench(object) :
 		board_type = self.get_board()
 		sheets = self.__sheets
 		meta = self.get_meta()
-		self.build_job(board_type, sheets, meta)
+		self.build_job(board_type, sheets, meta)#TODO refac build invocation
 
 
 	def build_job(self, board_type, sheets, meta) :
@@ -992,11 +993,15 @@ class Workbench(object) :
 	#			print(s)
 	#	out_fobj = DummyFile()
 
+		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
+
 		out_fobj = StringIO()
 		try :
-#			implement.implement_dfs(model, None, ccodegen.codegen_alt, core.KNOWN_TYPES, out_fobj)
-			implement.implement_workbench(self, sheets, meta,
-				ccodegen, core.KNOWN_TYPES, self.blockfactory, out_fobj)
+			w = Workbench(passive=True, do_create_block_factory=False,
+				blockfactory=self.blockfactory)
+			serializer.restore_workbench(w_data, w, use_cached_proto=False)
+			implement.implement_workbench(w, w.sheets, w.get_meta(),
+				ccodegen, core.KNOWN_TYPES, w.blockfactory, out_fobj)
 		except Exception as e:
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
@@ -1008,14 +1013,14 @@ class Workbench(object) :
 		source = out_fobj.getvalue()
 		print(source)
 
-		base_include_dir = "/usr/share/arduino/hardware/arduino/"
+		base_include_dir = "/usr/share/arduino/hardware/arduino/"#TODO make configurable
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
 		blob_stream = StringIO()
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=[
-				(os.path.join(base_include_dir, "cores/arduino"), False),
+				(os.path.join(base_include_dir, "cores", "arduino"), False),
 				(os.path.join(base_include_dir, "variants", variant), False),
 				(os.path.join(os.getcwd(), "library", "arduino"), False)
 			],#TODO derive from libraries used
@@ -1297,7 +1302,8 @@ class Workbench(object) :
 			ports_callback=None,
 			monitor_callback=None,
 			change_callback=None,
-			do_create_block_factory=True) :
+			do_create_block_factory=True,
+			blockfactory=None) :
 
 		"""
 		default value for ALL meta is None, stick with it
@@ -1323,7 +1329,7 @@ class Workbench(object) :
 
 		self.__ports = []
 
-		self.blockfactory = None
+		self.blockfactory = blockfactory
 		if do_create_block_factory :
 			self.blockfactory = core.create_block_factory(
 				scan_dir=lib_dir)
