@@ -284,7 +284,7 @@ def block_value_by_name(n, value_name) :
 def __cut_joint_alt(g, j) :
 #	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
-	print here(), g[j]
+#	print here(), g[j]
 	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
@@ -1113,7 +1113,7 @@ def main() :
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
 
-	if os.path.splitext(fname)[1].lower() == ".w" :
+	if os.path.splitext(fname)[1].lower() == ".w" :#TODO path separator
 		w = dfs.Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),#TODO multiple search dirs
 			passive=True)
