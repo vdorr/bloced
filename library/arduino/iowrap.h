@@ -33,7 +33,7 @@ _VM_EXPORT_ void d_out(vm_word_t nr, vm_word_t v);
 	    4 EXTERNAL: the voltage applied to the AREF pin (0 to 5V only) is used as the reference. 
 	@return analog reading 0..1023
 */
-_VM_EXPORT_ vm_word_t a_in(vm_word_t nr, vm_word_t a_ref);
+_VM_EXPORT_ vm_word_t a_in(vm_word_t nr);
 
 /**
 	write analog output
