@@ -90,7 +90,7 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 	args = []
 	outs = []
 
-#	print "__post_visit:", n, tmp, subtrees
+#	print here(), n, tmp, subtrees
 #	print here(), n, outputs
 
 	for out_term, out_t_nr, succs in outputs :
@@ -107,9 +107,10 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
 #TODO if all succs have same type different from out_term, cast now and store as new type
 #if storage permits, however
-			outs.append("&{0}_tmp{1}".format(expr_slot_type, expr_slot))
+			if len(outputs) > 1 :
+				outs.append("&{0}_tmp{1}".format(expr_slot_type, expr_slot))
 		elif len(succs) == 1 and len(outputs) == 1 :
-#			print "passing by"
+#			print here(), "passing by", n
 			pass
 		else :
 			dummies.add(term_type)
