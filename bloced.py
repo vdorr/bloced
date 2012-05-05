@@ -1526,6 +1526,7 @@ class BlockEditorWindow(object) :
 		self.local_blocks_mnu_cntxt = CascadeMnu("Workbench", cmds)
 		self.replace_cascade(old, self.local_blocks_mnu_cntxt)
 
+
 	def delete_sheet(self, sheet, name) :
 		print(here(), sheet, name, self.__tab_children)
 		sheet, bloced = self.__sheets.pop(name)

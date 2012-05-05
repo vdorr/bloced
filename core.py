@@ -619,10 +619,10 @@ def __mc_assign_positions(term_sides, side) :
 	assert(side in (dfs.N, dfs.S, dfs.W, dfs.E))
 	terms = [ (tb, sd, y if side in (dfs.N, dfs.S) else x)
 		for tb, sd, (x, y) in term_sides if sd == side ]
-	terms.sort(key=lambda tb_sd_y: tb_sd_y[2])#(tb, sd, y): y)
+	terms.sort(key=lambda tb_sd_y: -tb_sd_y[2])#(tb, sd, y): y)
 	step = 1.0 / (len(terms) + 1)
 	term_positions = [ (tb, sd, (i + 1) * step) for (tb, sd, p), i in zip(terms, count()) ]
-#	print "step=", step, "term_positions=", term_positions
+#	print here(), "step=", step, "term_positions=", term_positions
 	return term_positions
 
 
