@@ -715,6 +715,11 @@ def get_function_name(s) :
 	return s.split(":")[-1]
 
 
+def sheet_block_name(s) :
+	name = get_macro_name(s) 
+	return get_function_name(s) if name is None else name
+
+
 lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "cooked_workbench", "cooked_sheet"))
 
 
@@ -1017,6 +1022,13 @@ def compare_proto_to_type(prototype_instance, prototype_type) :
 #TODO refac needed
 def get_proto_name(prototype) :
 	return prototype.__class__.__name__
+
+
+def get_block_sheets(w) :
+	"""
+	return macro/function sheet names from workbench instance w
+	"""
+	return tuple(name for name in w.sheets if is_macro_name(name) or is_function_name(name))
 
 
 # ------------------------------------------------------------------------------------------------------------

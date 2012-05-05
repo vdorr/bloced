@@ -1139,8 +1139,6 @@ class BlockEditor(Frame, GraphModelListener) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-NEW = True
-
 class BlockEditorWindow(object) :
 
 	def show_warning(self, msg) :
@@ -1325,7 +1323,7 @@ class BlockEditorWindow(object) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
 		if old in self.__menu_vars :
-			self.__menu_vars.pop(old)
+			print here(), self.__menu_vars.pop(old)
 #		print(here(), mnu, index, new.text, old.text)
 		mnu.delete(index)
 		self.__add_submenu_item(mnu, new, index=index)
@@ -1495,22 +1493,38 @@ class BlockEditorWindow(object) :
 	def __change_callback(self, w, event, data) :
 		print(here(), w, event, data)
 		sheet_name = None
+		changed = False
 		if event == "sheet_added" :
 			sheet, sheet_name = data #?
 			self.add_sheet(sheet, sheet_name)
+			changed = True
 		elif event == "sheet_deleted" :
 			sheet, sheet_name = data #?
 			self.delete_sheet(sheet, sheet_name)
+			changed = True
+#		if changed :
+#			self.__changed_event()
 		if not sheet_name is None :
 			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
 				self.__list_local_block()
 
 
-	def __list_local_block(self) :
-		old = self.local_blocks_mnu
-		self.local_blocks_mnu = CascadeMnu("Workbench", [])
-		self.replace_cascade(old, self.local_blocks_mnu)
+	def begin_paste_local_block(self, sheet_name) :
+		print here(), sheet_name
+#		self.begin_paste_block
 
+
+	def __list_local_block(self) :
+		sheets = core.get_block_sheets(self.work)
+		cmds = [ CmdMnu(core.sheet_block_name(sheet_name), None, partial(self.begin_paste_local_block, sheet_name))
+			for sheet_name in sheets ]
+#		print here(), cmds
+		old = self.local_blocks_mnu_edit
+		self.local_blocks_mnu_edit = CascadeMnu("Workbench", cmds)
+		self.replace_cascade(old, self.local_blocks_mnu_edit)
+		old = self.local_blocks_mnu_cntxt
+		self.local_blocks_mnu_cntxt = CascadeMnu("Workbench", cmds)
+		self.replace_cascade(old, self.local_blocks_mnu_cntxt)
 
 	def delete_sheet(self, sheet, name) :
 		print(here(), sheet, name, self.__tab_children)
@@ -1662,6 +1676,21 @@ class BlockEditorWindow(object) :
 			self.work.rename_sheet(name=sheet_name, new_name=new_name)
 
 
+	def lib_menu_items(self, local_blocks_mnu) :
+		blocks = sorted(self.work.blockfactory.block_list, key=lambda b: 1 if b.library else 0)
+		builtin_blocks, lib_blocks = (tuple(blcklst) for _, blcklst in groupby(blocks, lambda b: 1 if b.library else 0))
+		for cat, b_iter in groupby(builtin_blocks, lambda b: b.category) :
+			yield CascadeMnu(cat,
+				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+		yield SepMnu()
+		yield local_blocks_mnu
+		yield SepMnu()
+		for cat, b_iter in groupby(lib_blocks, lambda b: b.category) :
+			blocks_sorted = sorted(b_iter, key=lambda b: b.type_name)
+			yield CascadeMnu(cat,
+				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in blocks_sorted ] )
+
+
 	def setup_menus(self) :
 
 		self.last_block_inserted = None
@@ -1713,22 +1742,21 @@ class BlockEditorWindow(object) :
 #			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
-		self.local_blocks_mnu = CascadeMnu("Workbench", [])
 
-		#TODO should be explicitly sorted
-		self.block_list = ([ CascadeMnu(cat,
-			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
-				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ]
-			+ [ SepMnu(), self.local_blocks_mnu ])
+		self.local_blocks_mnu_edit = CascadeMnu("Workbench", [])
+		block_list_edit = tuple(self.lib_menu_items(self.local_blocks_mnu_edit))
 		self.add_top_menu("&Library",
 #			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
-			self.block_list)
+			block_list_edit)
 
-		editor_menu = [ CascadeMnu("Library", self.block_list),
+		self.local_blocks_mnu_cntxt = CascadeMnu("Workbench", [])
+		block_list_cntxt = tuple(self.lib_menu_items(self.local_blocks_mnu_cntxt))
+		editor_menu = [ CascadeMnu("Library", block_list_cntxt),
 			SepMnu(), mnu_undo, mnu_redo,
 			SepMnu(), mnu_cut, mnu_copy, mnu_paste, mnu_delete,
 			SepMnu(), mnu_select_all ]
 		self.editor_popup = self.add_top_menu("", items=editor_menu, root=Menu(self.root))
+
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 
