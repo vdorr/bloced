@@ -740,7 +740,10 @@ def sheet_block_name(s) :
 
 
 def sheet_block_name_and_class(s) :
-	prefix, name = s.split(":")
+	parts = s.split(":")
+	if len(parts) != 2 :
+		return None
+	prefix, name = parts
 	if prefix == "@macro" : #TODO name sheet prefixs
 		return name, MacroProto
 	elif prefix == "@function" :
@@ -754,7 +757,7 @@ lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "
 
 def create_proto_from_sheet(sheet_name, sheet) :
 	block_name, proto_class = sheet_block_name_and_class(sheet_name)
-	return create_sheet_wrapper("", block_name, sheet, proto_class)
+	return __create_sheet_wrapper("<local>", block_name, sheet, proto_class)
 
 
 def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
@@ -1096,6 +1099,62 @@ def prototype_sanity_check(proto) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def builtin_blocks() :
+#TODO use (ordered) dictionary
+	return [
+		JointProto(),
+		ConstProto(),
+		DelayProto(),
+		ProbeProto(),
+		TapProto(),
+		TapEndProto(),
+#		SignalProto(),
+#		NoteProto(),
+		SysRqProto(),
+		InputProto(),
+		OutputProto(),
+		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
+		PipeProto(),
+		PipeEndProto(),
+		MuxProto(),
+
+		BinaryOp("xor", "Logic", commutative=True),
+		BinaryOp("or", "Logic", commutative=True),
+		BinaryOp("nor", "Logic", commutative=True),
+		BinaryOp("and", "Logic", commutative=True),
+		BinaryOp("nand", "Logic", commutative=True),
+		UnaryOp("not", "Logic"),
+
+		BinaryOp("bwxor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwnor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwand", "Bitwise Logic", commutative=True),
+		BinaryOp("bwnand", "Bitwise Logic", commutative=True),
+		UnaryOp("bwnot", "Bitwise Logic"),
+		BinaryOp("lsl", "Bitwise Logic", commutative=False),
+		BinaryOp("lsr", "Bitwise Logic", commutative=False),
+
+		BinaryOp("add", "Arithmetic", commutative=True),
+		BinaryOp("sub", "Arithmetic", commutative=False),
+		BinaryOp("mul", "Arithmetic", commutative=True),
+		BinaryOp("div", "Arithmetic", commutative=False),
+		BinaryOp("mod", "Arithmetic", commutative=False),
+		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+			In(-2, "d", dfs.W, .66),
+			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+		BinaryOp("lt", "Arithmetic", commutative=False),
+		BinaryOp("gt", "Arithmetic", commutative=False),
+		BinaryOp("eq", "Arithmetic", commutative=False),
+		BinaryOp("lte", "Arithmetic", commutative=False),
+		BinaryOp("gte", "Arithmetic", commutative=False),
+
+#		TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
+#		TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
+		TypecastProto("word", "Type Casting", VM_TYPE_WORD),
+		TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
+		TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
+	]
+
 
 class BasicBlocksFactory(object) :
 
@@ -1169,63 +1228,49 @@ class BasicBlocksFactory(object) :
 	block_list = property(lambda self: self.__blocks)
 
 
-	def __init__(self) :
+	def __init__(self, load_basic_blocks=True) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
-#TODO use (ordered) dictionary
-		self.__blocks = [
-			JointProto(),
-			ConstProto(),
-			DelayProto(),
-			ProbeProto(),
-			TapProto(),
-			TapEndProto(),
-#			SignalProto(),
-#			NoteProto(),
-			SysRqProto(),
-			InputProto(),
-			OutputProto(),
-			SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
-			PipeProto(),
-			PipeEndProto(),
-			MuxProto(),
+		self.__blocks = []
+		if load_basic_blocks :
+			self.__blocks += builtin_blocks()
 
-			BinaryOp("xor", "Logic", commutative=True),
-			BinaryOp("or", "Logic", commutative=True),
-			BinaryOp("nor", "Logic", commutative=True),
-			BinaryOp("and", "Logic", commutative=True),
-			BinaryOp("nand", "Logic", commutative=True),
-			UnaryOp("not", "Logic"),
 
-			BinaryOp("bwxor", "Bitwise Logic", commutative=True),
-			BinaryOp("bwor", "Bitwise Logic", commutative=True),
-			BinaryOp("bwnor", "Bitwise Logic", commutative=True),
-			BinaryOp("bwand", "Bitwise Logic", commutative=True),
-			BinaryOp("bwnand", "Bitwise Logic", commutative=True),
-			UnaryOp("bwnot", "Bitwise Logic"),
-			BinaryOp("lsl", "Bitwise Logic", commutative=False),
-			BinaryOp("lsr", "Bitwise Logic", commutative=False),
+class SuperLibrary(object) :
+	"""
+	copies interface of BasicBlocksFactory (except for block_list), merging multiple libraries
+	intended for handling local blocks and multiple library paths while keeping them separated
+	"""
 
-			BinaryOp("add", "Arithmetic", commutative=True),
-			BinaryOp("sub", "Arithmetic", commutative=False),
-			BinaryOp("mul", "Arithmetic", commutative=True),
-			BinaryOp("div", "Arithmetic", commutative=False),
-			BinaryOp("mod", "Arithmetic", commutative=False),
-			SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
-				In(-2, "d", dfs.W, .66),
-				Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
-			BinaryOp("lt", "Arithmetic", commutative=False),
-			BinaryOp("gt", "Arithmetic", commutative=False),
-			BinaryOp("eq", "Arithmetic", commutative=False),
-			BinaryOp("lte", "Arithmetic", commutative=False),
-			BinaryOp("gte", "Arithmetic", commutative=False),
+	def get_block_by_name(self, full_type, fuzzy=True) :
+		for l in self.libs :
+			try :
+				hit = l.get_block_by_name(full_type, fuzzy=fuzzy)
+			except Exception :
+				pass
+			else :
+				return hit
+		raise Exception("type_name '" + full_type + "' not found")
 
-#			TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
-#			TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
-			TypecastProto("word", "Type Casting", VM_TYPE_WORD),
-			TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
-			TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
-		]
+
+	def get_block_and_lib(self, full_type) :
+		for l in self.libs :
+			hit = l.get_block_and_lib(full_type)
+			if not hit is None :
+				return hit
+
+
+	def load_library(self, lib_basedir) :
+		l = BasicBlocksFactory(load_basic_blocks=False)
+		self.libs.append(l)
+		return l.load_library(lib_basedir)
+
+
+	def __init__(self, libs) :
+		"""
+		libs is list of libraries
+		"""
+		self.libs = libs
 
 
 # ------------------------------------------------------------------------------------------------------------

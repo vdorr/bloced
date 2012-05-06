@@ -1024,7 +1024,8 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
-	unknown = [ name for name in special if not name in special_sheets ]
+	unknown = [ name for name in special
+		if not name in special_sheets or core.sheet_block_name_and_class(name) is None ]
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
@@ -1048,6 +1049,10 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+		elif is_macro_name(name) :
+			print here(), name
+		elif is_function_name(name) :
+			print here(), name
 		else :
 			raise Exception("impossible exception")
 
