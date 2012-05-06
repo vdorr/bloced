@@ -243,6 +243,7 @@ class BlockPrototype(object) :
 		self.__values = values
 		self.__library = library
 		self.__data = data
+		assert(prototype_sanity_check(self))#TODO refac
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1038,6 +1039,35 @@ def get_block_sheets(w) :
 	return tuple(name for name in w.sheets if is_macro_name(name) or is_function_name(name))
 
 
+def prototype_sanity_check(proto) :
+	"""
+	return (True, None) if prototype instance proto makes sense and (False, reason) if not
+	"""
+	errors = []
+#term direction
+	weird_term_dir = tuple(t for t in proto.terms if not t.direction in (INPUT_TERM, OUTPUT_TERM))
+	if weird_term_dir :
+		errors.append(("unknown_term_direction", weird_term_dir))
+#term name uniqness
+	unique_terms = set()
+	colliding_terms = set()
+	for t in proto.terms :
+		if t.name in unique_terms :
+			colliding_terms.add(t.name)
+		unique_terms.add(t.name)
+	if colliding_terms :
+		errors.append(("colliding_term_names", colliding_terms))
+#term types are in KNOWN_TYPES
+	unknown_term_type = tuple(t for t in proto.terms if not t.type_name in KNOWN_TYPES)
+	if unknown_term_type :
+		errors.append(("unknown_term_type", unknown_term_type))
+#has category or library
+	if proto.category and not proto.library :
+		errors.append(("no_cat_nor_lib", None))
+
+	return (False, tuple(errors)) if errors else (True, None)
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 
@@ -1061,18 +1091,16 @@ class BasicBlocksFactory(object) :
 
 		sorted_libs = sort_libs(libs.values())
 
-#		loaded_libs = []
-
 		for l in sorted_libs :
 			loaded = load_library(libs[l])
 			self.libs.append(loaded)
-			self.__blocks += [ proto for item, proto in loaded.items ]
-
-	#	print here(), loaded_libs
-
-#		return loaded_libs
-
-
+#			self.__blocks += [ proto for item, proto in loaded.items ]
+			for item, proto in loaded.items :
+				ok, errors = prototype_sanity_check(proto)
+				if ok :
+					self.__blocks.append(proto)
+				else :
+					print(here(), "skipped proto", proto, "because", errors)
 		return (True, )
 
 
