@@ -1510,8 +1510,15 @@ class BlockEditorWindow(object) :
 
 
 	def begin_paste_local_block(self, sheet_name) :
-		print here(), sheet_name
-#		self.begin_paste_block
+		sheet = self.work.sheets[sheet_name]
+		try :
+			proto = core.create_proto_from_sheet(sheet_name, sheet)
+		except Exception as e :
+			proto = None
+		if proto is None :
+			print(here(), e) #TODO say something to user
+		else :
+			self.begin_paste_block(proto)
 
 
 	def __list_local_block(self) :

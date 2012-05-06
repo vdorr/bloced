@@ -724,11 +724,26 @@ def get_function_name(s) :
 
 
 def sheet_block_name(s) :
-	name = get_macro_name(s) 
-	return get_function_name(s) if name is None else name
+	name, _ = sheet_block_name_and_class(s)
+	return name
+
+
+def sheet_block_name_and_class(s) :
+	prefix, name = s.split(":")
+	if prefix == "@macro" : #TODO name sheet prefixs
+		return name, MacroProto
+	elif prefix == "@function" :
+		return name, FunctionProto
+	else :
+		return None
 
 
 lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "cooked_workbench", "cooked_sheet"))
+
+
+def create_proto_from_sheet(sheet_name, sheet) :
+	block_name, proto_class = sheet_block_name_and_class(sheet_name)
+	return create_sheet_wrapper("", block_name, sheet, proto_class)
 
 
 def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
