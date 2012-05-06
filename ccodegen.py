@@ -68,6 +68,11 @@ def __implement(g, n, args, outs) :
 	elif core.compare_proto_to_type(n.prototype, core.MuxProto) :
 		assert(len(args)==3)
 		return "({0} ? {2} : {1})".format(*args)#XXX cast sometimes needed!!!
+	elif core.compare_proto_to_type(n.prototype, core.TypecastProto) :
+		assert(len(args)==1)
+		out = tuple(t for t in n.terms if t.direction==core.OUTPUT_TERM)
+		assert(len(out)==1)
+		return "({0})({1})".format(out[0].type_name, args[0])
 	else :
 		assert(n.prototype.exe_name != None)
 		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"

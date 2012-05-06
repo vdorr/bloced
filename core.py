@@ -429,6 +429,17 @@ class FunctionProto(BlockPrototype):
 	pass
 
 
+class TypecastProto(BlockPrototype) :
+	def __init__(self, type_name, category, to_type) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .5), Out(0, "y", dfs.E, .5, type_name=to_type) ],
+			exe_name=type_name,
+			category=category,
+			pure=True)
+
+
+
 # ----------------------------------------------------------------------------
 
 
@@ -1208,6 +1219,12 @@ class BasicBlocksFactory(object) :
 			BinaryOp("eq", "Arithmetic", commutative=False),
 			BinaryOp("lte", "Arithmetic", commutative=False),
 			BinaryOp("gte", "Arithmetic", commutative=False),
+
+#			TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
+#			TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
+			TypecastProto("word", "Type Casting", VM_TYPE_WORD),
+			TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
+			TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
 		]
 
 
