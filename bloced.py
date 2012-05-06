@@ -1679,12 +1679,16 @@ class BlockEditorWindow(object) :
 
 	def lib_menu_items(self, local_blocks_mnu) :
 		blocks = sorted(self.work.blockfactory.block_list, key=lambda b: 1 if b.library else 0)
-		builtin_blocks, lib_blocks = (tuple(blcklst) for _, blcklst in groupby(blocks, lambda b: 1 if b.library else 0))
+		block_grouped = { k : tuple(blcklst) for k, blcklst in groupby(blocks, lambda b: 1 if b.library else 0) }
+		builtin_blocks = block_grouped[0] if 0 in block_grouped else tuple()
+		lib_blocks = block_grouped[1] if 1 in block_grouped else tuple()
 		for cat, b_iter in groupby(builtin_blocks, lambda b: b.category) :
 			yield CascadeMnu(cat,
 				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
 		yield SepMnu()
 		yield local_blocks_mnu
+		if not lib_blocks :
+			raise StopIteration()
 		yield SepMnu()
 		for cat, b_iter in groupby(lib_blocks, lambda b: b.category) :
 			blocks_sorted = sorted(b_iter, key=lambda b: b.type_name)

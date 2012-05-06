@@ -1081,7 +1081,10 @@ class BasicBlocksFactory(object) :
 #			self.__blocks += [ proto for item, proto in lib.items ]
 
 		basedir = os.path.abspath(lib_basedir)
-		(_, dirnames, _), = tuple(islice(os.walk(basedir), 1))
+		dir_walk = tuple(islice(os.walk(basedir), 1))
+		if not dir_walk :
+			return None
+		(_, dirnames, _), = dir_walk
 
 		libs = {}
 		for d in dirnames :
