@@ -695,6 +695,13 @@ def try_mkmac(model) :
 #	pprint(graph)
 
 
+def is_builtin_block(prototype) :
+	"""
+	return True if prototype instance is for built in block
+	"""
+	return not bool(prototype.library)
+
+
 def is_macro_name(s) :
 	return s.strip().startswith("@macro:")
 

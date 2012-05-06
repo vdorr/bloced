@@ -301,8 +301,9 @@ class BlockModel(object) :
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 		}
-		if (core.compare_proto_to_type(self.__prototype, core.MacroProto) or
-				core.compare_proto_to_type(self.__prototype, core.FunctionProto)) :
+#		if (core.compare_proto_to_type(self.__prototype, core.MacroProto) or
+#				core.compare_proto_to_type(self.__prototype, core.FunctionProto)) :
+		if not core.is_builtin_block(self.__prototype)  :
 			meta["cached_prototype"] = self.__prototype.get_block_proto_data()
 #			print here()
 #		print here(), meta
