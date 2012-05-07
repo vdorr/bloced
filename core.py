@@ -1222,23 +1222,19 @@ class BasicBlocksFactory(object) :
 					print(here(), "skipped proto", proto, "because", errors)
 		return (True, )
 
+#TODO allow passing file-like object or unpickled data
+	def load_standalone_workbench_lib(self, path, lib_name) :
+		loaded = load_standalone_workbench_lib(path, lib_name)
+		self.libs.append(loaded)
+		for item, proto in loaded.items :
+			ok, errors = prototype_sanity_check(proto)
+			if ok :
+				self.__blocks.append(proto)
+			else :
+				print(here(), "skipped proto", proto, "because", errors)
 
-	def load_workbench_as_library(self, lib_name, path) :
-#		lib = scan_library(None, path, lib_name=lib_name)
-#		libs[lib.lib_name] = lib
-#		loaded = load_library(lib)
-#		self.libs.append(loaded)
-#		for item, proto in loaded.items :
-#			ok, errors = prototype_sanity_check(proto)
-#			if ok :
-#				self.__blocks.append(proto)
-#			else :
-#				print(here(), "skipped proto", proto, "because", errors)
+		return (True, )
 
-#		return (True, )
-
-#	load_standalone_workbench_lib(path, lib_base_name)
-		pass
 
 	def get_block_by_name(self, full_type, fuzzy=True) :
 		lib_name, type_name = split_full_type_name(full_type)

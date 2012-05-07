@@ -1122,10 +1122,11 @@ def main() :
 		print("formats other than .w are not supported anymore")
 		exit(1)
 
-	library = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
-#	library = core.SuperLibrary([basic_lib])
-
-	print here(), core.load_standalone_workbench_lib(fname, "<local>")
+	main_lib = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
+	local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
+	local_lib.load_standalone_workbench_lib(fname, "<local>")
+#	print here(), local_lib.block_list
+	library = core.SuperLibrary([main_lib, local_lib])
 
 	w = dfs.Workbench(
 #		lib_dir=os.path.join(os.getcwd(), "library"),
@@ -1135,7 +1136,7 @@ def main() :
 
 	try :
 		with open(fname, "rb") as f :
-			serializer.unpickle_workbench(f, w, use_cached_proto=False)
+			serializer.unpickle_workbench(f, w, use_cached_proto=False, library=library)
 	except :
 		print("error loading workbench file")
 		raise

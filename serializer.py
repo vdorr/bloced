@@ -208,7 +208,7 @@ def get_workbench_data(w) :
 	return x
 
 
-def unpickle_workbench(f, w, use_cached_proto=True) :
+def unpickle_workbench(f, w, use_cached_proto=True, library=None) :
 	"""
 	read pickled serialized Workbench data from file-like object f,
 	and load it into supplied Workbench instance w
@@ -218,7 +218,9 @@ def unpickle_workbench(f, w, use_cached_proto=True) :
 	except Exception as e :
 		return (False, "load_error", e)
 
-	return restore_workbench((version, meta, resources), w, use_cached_proto=use_cached_proto)
+	return restore_workbench((version, meta, resources), w,
+		use_cached_proto=use_cached_proto,
+		library=library)
 
 
 def get_resource(data, res_type, res_version, res_name) :
@@ -249,7 +251,7 @@ def check_w_data_legality(data) :
 
 
 #TODO this is not the right place for method like this
-def restore_workbench(data, w, use_cached_proto=True) :
+def restore_workbench(data, w, use_cached_proto=True, library=None) :
 	"""
 	load data into supplied Workbench instance w
 	"""
@@ -258,12 +260,14 @@ def restore_workbench(data, w, use_cached_proto=True) :
 
 	w.set_meta(meta)
 
+	lib = w.blockfactory if library is None else library
+
 	for r_type, r_version, r_name, resrc in resources :
 		if r_type == RES_TYPE_SHEET :
 			if r_version == RES_TYPE_SHEET_VERSION :
 				types, struct, meta = resrc
 #				pprint((types, struct, meta))
-				m = restore_dfs_model(types, struct, meta, w.blockfactory,
+				m = restore_dfs_model(types, struct, meta, lib,
 					use_cached_proto=use_cached_proto)
 				w.add_sheet(sheet=m, name=r_name)
 			else :
