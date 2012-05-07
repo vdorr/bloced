@@ -276,6 +276,28 @@ class DelayProto(BlockPrototype):
 		self.loop_break = True
 
 
+class DelayInProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", dfs.W, 0.5) ])
+
+
+class DelayOutProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
+
+
+class IDelayProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "IDelay", [ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
+			category="Special")
+#		self.loop_break = True
+
+
+class IDelayOutProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "IDelayOut", [ In(0, "x", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
+
+
 class ProbeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
@@ -301,16 +323,6 @@ class NoteProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Note", [ ],
 			default_size=(96,28), category="Special",
 			values=[("Text", "")])
-
-
-class DelayInProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", dfs.W, 0.5) ])
-
-
-class DelayOutProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
 class SignalProto(BlockPrototype):
@@ -1163,6 +1175,9 @@ def builtin_blocks() :
 		JointProto(),
 		ConstProto(),
 		DelayProto(),
+
+		IDelayProto(),
+
 		ProbeProto(),
 		TapProto(),
 		TapEndProto(),
