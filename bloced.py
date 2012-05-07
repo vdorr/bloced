@@ -253,17 +253,21 @@ else :
 
 class Block(Canvas, BlockBase) :
 
+
 	def term_onMouseDown(self, e) :
 		self.term_hit = True
 		self.editor.clear_selection()
 		return self.editor.blckMouseDown(self, e)
 
+
 	def term_onMouseMove(self, e) :
 		return self.editor.blckMouseMove(self, e)
+
 
 	def term_onMouseUp(self, e) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
+
 
 #	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
 #		core.InputProto, core.OutputProto)
@@ -271,7 +275,8 @@ class Block(Canvas, BlockBase) :
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
-#		print here(), self.model.prototype, self.model.prototype.values
+#		print here()#, self.model.prototype, self.model.prototype.values
+		self.__dbl_click = True
 		if self.model.prototype.values :
 			items = [ (name, val) for (name, _), val
 				in zip(self.model.prototype.values, self.model.value)]
@@ -299,11 +304,14 @@ class Block(Canvas, BlockBase) :
 #		self.config(width=self.model.width, height=self.model.height, bg="white",
 #			borderwidth=0, highlightthickness=0)
 
+
 	def update_text(self) :
 		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
 
+
 	def select_next(self) :
 		self.editor.select_next()
+
 
 	def __update_label(self, name, pos, text) :
 		if name in self.__labels :
@@ -317,8 +325,10 @@ class Block(Canvas, BlockBase) :
 		self.__labels[name] = lbl
 		return lbl.canvas_item
 
+
 	def popup(self, e) :
 		self.editor.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
+
 
 	def __init__(self, editor, model) :
 		self.editor = editor
@@ -326,6 +336,7 @@ class Block(Canvas, BlockBase) :
 		self.model = model
 		self.__labels = {}
 		self.mouse_down_at = None
+		self.__dbl_click = False
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -361,6 +372,7 @@ class Block(Canvas, BlockBase) :
 		self.create_terms = True
 		self.reshape()
 
+
 	def reshape(self) :
 		self.window2term.clear()
 		self.__term2txt.clear()
@@ -371,6 +383,7 @@ class Block(Canvas, BlockBase) :
 #		for k, v in self.get_wires() :
 #			self.editor.update_connection(*(k + (True,)))
 		self.update_text()
+
 
 	def regenerate_terms(self) :
 
@@ -412,6 +425,7 @@ class Block(Canvas, BlockBase) :
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
 
+
 	def onMouseDownW(self, e) :
 		if self.term_hit :
 			return None
@@ -425,6 +439,7 @@ class Block(Canvas, BlockBase) :
 			self.editor.create_selection_from_list(sel_blocks, [])
 		self.editor.model.begin_edit()
 		self.affected_wires = self.get_wires(sel_blocks=sel_blocks)
+
 
 	def onMouseMoveW(self, e) :
 		if self.term_hit :
@@ -444,7 +459,11 @@ class Block(Canvas, BlockBase) :
 			for k, v in self.affected_wires :
 				self.editor.update_connection(*(k + (True,)))
 		self.affected_wires = None
-		self.editor.model.end_edit()
+		if self.__dbl_click :
+			self.__dbl_click = False
+		else :
+			self.editor.model.end_edit()
+
 
 # ------------------------------------------------------------------------------------------------------------
 
