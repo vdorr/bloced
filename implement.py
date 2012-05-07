@@ -925,14 +925,23 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def __expand_macro(g, library, n, known_types, cache) :
+def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
+
 #	print here(), full_name
 
-	sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+	sheet = None
+	if n.prototype.library == "<local>" :
+#		print here(), full_name
+		sheet_name = "@macro:" + name
+		if sheet_name in local_block_sheets :
+			sheet = core.clone_sheet(local_block_sheets[sheet_name][1], library)
+	else :
+		sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+
 	if sheet is None :
-		raise Exception("failed to expand macr '" + full_name + "'")
+		raise Exception("failed to expand macro '" + full_name + "'")
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
 #TODO
@@ -964,14 +973,14 @@ def __expand_macro(g, library, n, known_types, cache) :
 	return (delays, )
 
 
-def expand_macroes(g, library, known_types, block_cache=None) :
+def expand_macroes(g, library, known_types, local_block_sheets, block_cache=None) :
 	cache = block_cache_init() if block_cache is None else block_cache
 	new_delays = {}
 	prev_batch = set()
 	macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
 	while macroes != prev_batch :
 		for n in sorted(macroes) :
-			delays, = __expand_macro(g, library, n, known_types, cache)
+			delays, = __expand_macro(g, library, n, known_types, cache, local_block_sheets)
 			new_delays.update(delays)
 		prev_batch = set(macroes)
 		macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
@@ -1036,6 +1045,15 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	block_cache = block_cache_init()
 
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
+
+	local_block_sheets = {}
+	for name, sheet_list_iter in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
+		if core.is_macro_name(name) or core.is_function_name(name) :
+			sheet_list = tuple(sheet_list_iter)
+			print here(), name, sheet_list
+			assert(len(sheet_list)==1)
+			local_block_sheets[name], = sheet_list
+
 	for name, sheet_list in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
 		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
@@ -1044,7 +1062,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
 			g, d = dag_merge(l)
-			new_d, = expand_macroes(g, lib, known_types, block_cache=block_cache)
+			new_d, = expand_macroes(g, lib, known_types, local_block_sheets, block_cache=block_cache)
 			d.update(new_d)
 			join_taps(g)
 			types = infer_types(g, d, known_types=known_types)
@@ -1061,7 +1079,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
 	delays.update(new_delays)
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)

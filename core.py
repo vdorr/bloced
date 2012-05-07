@@ -11,6 +11,11 @@ from itertools import count, islice
 from pprint import pprint
 import serializer
 from utils import here
+import sys
+if sys.version_info.major == 3 :
+	from io import StringIO
+else :
+	from StringIO import StringIO
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1069,7 +1074,7 @@ def sort_libs(libs) :
 	return s
 
 
-def load_library_sheet(library, full_name, sheet_name) :
+def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 	"""
 	search library for item full_name and return sheet with sheet_name from this context
 	raises Exception if there is problem, returns None if just not found
@@ -1081,8 +1086,9 @@ def load_library_sheet(library, full_name, sheet_name) :
 
 	lib, (item, proto) = lib_data
 
-	with open(item.file_path) as f :
-		w_data = serializer.unpickle_workbench_data(f)
+	if w_data is None :
+		with open(item.file_path) as f :
+			w_data = serializer.unpickle_workbench_data(f)
 
 	res_found = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, sheet_name))
 
@@ -1139,6 +1145,14 @@ def prototype_sanity_check(proto) :
 		errors.append(("no_cat_nor_lib", None))
 
 	return (False, tuple(errors)) if errors else (True, None)
+
+
+def clone_sheet(sheet, lib) :
+	f = StringIO()
+	serializer.pickle_dfs_model(sheet, f)
+	f.seek(0)
+	cloned = serializer.unpickle_dfs_model(f, lib=lib)
+	return cloned
 
 
 # ------------------------------------------------------------------------------------------------------------
