@@ -1025,7 +1025,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
 	unknown = [ name for name in special
-		if not name in special_sheets or core.sheet_block_name_and_class(name) is None ]
+		if (not name in special_sheets) and (core.sheet_block_name_and_class(name) is None) ]
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
@@ -1049,9 +1049,9 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
-		elif is_macro_name(name) :
+		elif core.is_macro_name(name) :
 			print here(), name
-		elif is_function_name(name) :
+		elif core.is_function_name(name) :
 			print here(), name
 		else :
 			raise Exception("impossible exception")
@@ -1114,37 +1114,35 @@ def main() :
 #	fname = args.file[0]
 	import serializer
 	action = sys.argv[1]
-	fname = sys.argv[2]
+	fname = os.path.abspath(sys.argv[2])
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
 
-	if os.path.splitext(fname)[1].lower() == ".w" :#TODO path separator
-		w = dfs.Workbench(
-			lib_dir=os.path.join(os.getcwd(), "library"),#TODO multiple search dirs
-			passive=True)
-		blockfactory = w.blockfactory
-		try :
-			with open(fname, "rb") as f :
-				serializer.unpickle_workbench(f, w, use_cached_proto=False)
-		except :
-			print("error loading workbench file")
-			raise
-#			exit(666)
-		sheets = w.sheets
-		global_meta = w.get_meta()
-	else :
-		print("not supported anymore")
+	if os.path.splitext(fname)[1].lower() != ".w" :#TODO path separator
+		print("formats other than .w are not supported anymore")
 		exit(1)
-#		blockfactory = core.create_block_factory(
-#				scan_dir=os.path.join(os.getcwd(), "library"))
-#		try :
-#			with open(fname, "rb") as f :
-#				model = serializer.unpickle_dfs_model(f, lib=blockfactory)
-#		except Exception as e :
-#			print("error loading sheet file", e)
-#			exit(666)
-#		sheets = { "tsk" : model }
-#		global_meta = {}
+
+	library = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
+#	library = core.SuperLibrary([basic_lib])
+
+	print here(), core.load_standalone_workbench_lib(fname, "<local>")
+
+	w = dfs.Workbench(
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True)
+
+#	library = w.blockfactory
+
+	try :
+		with open(fname, "rb") as f :
+			serializer.unpickle_workbench(f, w, use_cached_proto=False)
+	except :
+		print("error loading workbench file")
+		raise
+#		exit(666)
+	sheets = w.sheets
+	global_meta = w.get_meta()
+
 
 	if action == "c" :
 		import ccodegen as cg
@@ -1160,7 +1158,7 @@ def main() :
 			self.buffer = ""
 
 	out_fobj = DummyFile()
-	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, blockfactory, out_fobj)
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, out_fobj)
 	print(out_fobj.buffer)
 	exit(0)
 #	elif action == "mkmac" :

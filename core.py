@@ -934,6 +934,42 @@ def __get_lib_file_info(ext, lib_name, filepath) :
 		using_types=tuple(using_types))
 
 
+def load_standalone_workbench_lib(path, lib_base_name) :
+	"""
+	return blocks loaded from .w library pointed to by path
+	"""
+
+	root = os.path.dirname(path)
+#	lib_base_name = lib_name_from_path(root, path)
+
+	ext, lib_name, _ = __lib_path_and_name(root, lib_base_name, path)
+	file_info = __get_lib_file_info(ext, lib_name, path)
+	if file_info is None :
+		return None #XXX Exception?
+
+	lib = lib_info_t(
+		lib_name=lib_base_name,
+		path=path,
+		files=(file_info,),
+		using_types=tuple())
+
+	lib_items = []
+	for file_info in sorted(lib.files) :
+
+		blocks = load_workbench_library(lib.lib_name, file_info.path)
+
+		items = [ (be_lib_block_t(lib.lib_name, file_info.path, file_info.file_type, b.type_name, b.type_name), b)
+			for b in blocks ]
+		lib_items.extend(items)
+
+	return be_library_t(
+		name=lib.lib_name,
+		path=lib.path,
+		allowed_targets=None,#TODO
+		include_files=(path,),
+		items=lib_items)
+
+
 def scan_library(lib_basedir, path) :
 	"""
 	return instance of lib_info_t with list of instances of lib_file_info_t
@@ -958,7 +994,7 @@ def scan_library(lib_basedir, path) :
 		using_types=tuple())
 
 
-def load_library(lib):
+def load_library(lib) :
 	"""
 	return blocks loaded from library described by lib_info_t instance lib
 	"""
@@ -977,7 +1013,7 @@ def load_library(lib):
 		else :
 			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
 
-		items = [ (be_lib_block_t(lib.lib_name, file_info.path, "c", b.type_name, b.type_name), b)
+		items = [ (be_lib_block_t(lib.lib_name, file_info.path, file_info.file_type, b.type_name, b.type_name), b)
 			for b in blocks ]
 		lib_items.extend(items)
 
@@ -1160,10 +1196,6 @@ class BasicBlocksFactory(object) :
 
 
 	def load_library(self, lib_basedir) :
-#		libs = load_libraries(lib_basedir)
-#		self.libs += libs
-#		for lib in libs :
-#			self.__blocks += [ proto for item, proto in lib.items ]
 
 		basedir = os.path.abspath(lib_basedir)
 		dir_walk = tuple(islice(os.walk(basedir), 1))
@@ -1182,7 +1214,6 @@ class BasicBlocksFactory(object) :
 		for l in sorted_libs :
 			loaded = load_library(libs[l])
 			self.libs.append(loaded)
-#			self.__blocks += [ proto for item, proto in loaded.items ]
 			for item, proto in loaded.items :
 				ok, errors = prototype_sanity_check(proto)
 				if ok :
@@ -1191,6 +1222,23 @@ class BasicBlocksFactory(object) :
 					print(here(), "skipped proto", proto, "because", errors)
 		return (True, )
 
+
+	def load_workbench_as_library(self, lib_name, path) :
+#		lib = scan_library(None, path, lib_name=lib_name)
+#		libs[lib.lib_name] = lib
+#		loaded = load_library(lib)
+#		self.libs.append(loaded)
+#		for item, proto in loaded.items :
+#			ok, errors = prototype_sanity_check(proto)
+#			if ok :
+#				self.__blocks.append(proto)
+#			else :
+#				print(here(), "skipped proto", proto, "because", errors)
+
+#		return (True, )
+
+#	load_standalone_workbench_lib(path, lib_base_name)
+		pass
 
 	def get_block_by_name(self, full_type, fuzzy=True) :
 		lib_name, type_name = split_full_type_name(full_type)
@@ -1243,7 +1291,7 @@ class SuperLibrary(object) :
 	"""
 
 	def get_block_by_name(self, full_type, fuzzy=True) :
-		for l in self.libs :
+		for l in self.librarians :
 			try :
 				hit = l.get_block_by_name(full_type, fuzzy=fuzzy)
 			except Exception :
@@ -1254,7 +1302,7 @@ class SuperLibrary(object) :
 
 
 	def get_block_and_lib(self, full_type) :
-		for l in self.libs :
+		for l in self.librarians :
 			hit = l.get_block_and_lib(full_type)
 			if not hit is None :
 				return hit
@@ -1262,15 +1310,23 @@ class SuperLibrary(object) :
 
 	def load_library(self, lib_basedir) :
 		l = BasicBlocksFactory(load_basic_blocks=False)
-		self.libs.append(l)
+		self.librarians.append(l)
 		return l.load_library(lib_basedir)
 
 
-	def __init__(self, libs) :
+	def get_libs(self) :
+		for l in self.librarians :
+			for lib in l.libs :
+				yield lib
+
+
+	libs = property(lambda self: self.get_libs())
+
+	def __init__(self, librarians) :
 		"""
-		libs is list of libraries
+		librarians is list of BasicBlocksFactory instances
 		"""
-		self.libs = libs
+		self.librarians = librarians
 
 
 # ------------------------------------------------------------------------------------------------------------
