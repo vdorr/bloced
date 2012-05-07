@@ -806,17 +806,21 @@ def __create_function(lib_name, block_name, sheet) :
 	return __create_sheet_wrapper(lib_name, block_name, sheet, FunctionProto)
 
 
-def load_workbench_library(lib_name, file_path) :
+def load_workbench_library(lib_name, file_path, library=None, w_data=None) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-	with open(file_path, "rb") as f :
-		data = serializer.unpickle_workbench_data(f)
+	if file_path is None :
+		data = w_data
+	else :
+		with open(file_path, "rb") as f :
+			data = serializer.unpickle_workbench_data(f)
 	w = dfs.Workbench(
-		lib_dir=os.path.join(os.getcwd(), "library"),
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+		blockfactory=library,
 		passive=True,
 		do_create_block_factory=False)
-	serializer.restore_workbench(data, w)
+	serializer.restore_workbench(data, w, library=library)
 	return load_blocks_from_workbench(w, lib_name)
 
 
@@ -934,18 +938,22 @@ def __get_lib_file_info(ext, lib_name, filepath) :
 		using_types=tuple(using_types))
 
 
-def load_standalone_workbench_lib(path, lib_base_name) :
+def load_standalone_workbench_lib(path, lib_base_name, library=None, w_data=None) :
 	"""
 	return blocks loaded from .w library pointed to by path
 	"""
 
-	root = os.path.dirname(path)
+#	root = os.path.dirname(path)
 #	lib_base_name = lib_name_from_path(root, path)
 
-	ext, lib_name, _ = __lib_path_and_name(root, lib_base_name, path)
-	file_info = __get_lib_file_info(ext, lib_name, path)
-	if file_info is None :
-		return None #XXX Exception?
+#	ext, lib_name, _ = __lib_path_and_name(root, lib_base_name, path)
+#	file_info = __get_lib_file_info(ext, lib_name, path)
+#	if file_info is None :
+#		return None #XXX Exception?
+	file_info = lib_file_info_t(
+		path=path,
+		file_type="w",
+		using_types=tuple())
 
 	lib = lib_info_t(
 		lib_name=lib_base_name,
@@ -956,7 +964,7 @@ def load_standalone_workbench_lib(path, lib_base_name) :
 	lib_items = []
 	for file_info in sorted(lib.files) :
 
-		blocks = load_workbench_library(lib.lib_name, file_info.path)
+		blocks = load_workbench_library(lib.lib_name, file_info.path, library=library, w_data=w_data)
 
 		items = [ (be_lib_block_t(lib.lib_name, file_info.path, file_info.file_type, b.type_name, b.type_name), b)
 			for b in blocks ]
@@ -994,7 +1002,7 @@ def scan_library(lib_basedir, path) :
 		using_types=tuple())
 
 
-def load_library(lib) :
+def load_library(lib, library=None) :
 	"""
 	return blocks loaded from library described by lib_info_t instance lib
 	"""
@@ -1009,7 +1017,7 @@ def load_library(lib) :
 				include_files.append(file_info.path)
 				blocks = load_c_library(lib.lib_name, file_info.path)
 		elif file_info.file_type == "w" :
-			blocks = load_workbench_library(lib.lib_name, file_info.path)
+			blocks = load_workbench_library(lib.lib_name, file_info.path, library=library)
 		else :
 			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
 
@@ -1222,9 +1230,9 @@ class BasicBlocksFactory(object) :
 					print(here(), "skipped proto", proto, "because", errors)
 		return (True, )
 
-#TODO allow passing file-like object or unpickled data
-	def load_standalone_workbench_lib(self, path, lib_name) :
-		loaded = load_standalone_workbench_lib(path, lib_name)
+
+	def load_standalone_workbench_lib(self, path, lib_name, library=None, w_data=None) :
+		loaded = load_standalone_workbench_lib(path, lib_name, library=library, w_data=w_data)
 		self.libs.append(loaded)
 		for item, proto in loaded.items :
 			ok, errors = prototype_sanity_check(proto)

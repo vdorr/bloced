@@ -1000,10 +1000,24 @@ class Workbench(object) :
 		try :
 			w = Workbench(passive=True, do_create_block_factory=False,
 				blockfactory=self.blockfactory)
-			serializer.restore_workbench(w_data, w, use_cached_proto=False)
+
+			local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
+			local_lib.load_standalone_workbench_lib(None, "<local>",
+				library=w.blockfactory,
+				w_data=w_data)
+			print here(), local_lib.block_list[0]
+			library = core.SuperLibrary([w.blockfactory, local_lib])
+			print here()
+			serializer.restore_workbench(w_data, w,
+				use_cached_proto=False,
+				library=library)
+			print here()
 			implement.implement_workbench(w, w.sheets, w.get_meta(),
-				ccodegen, core.KNOWN_TYPES, w.blockfactory, out_fobj)
+				ccodegen, core.KNOWN_TYPES, library, out_fobj)
+			print here()
 		except Exception as e:
+			import traceback
+			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
 

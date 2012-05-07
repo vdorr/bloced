@@ -928,6 +928,7 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 def __expand_macro(g, library, n, known_types, cache) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
+#	print here(), full_name
 
 	sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
 	if sheet is None :
