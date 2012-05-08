@@ -460,19 +460,8 @@ class TypecastProto(BlockPrototype) :
 # ----------------------------------------------------------------------------
 
 
-VMEX_SIG = "_VM_EXPORT_"
-
-
-def is_vmex_line(s) :
-	ln = s.strip()
-	if not ln.startswith(VMEX_SIG) :
-		return None
-	return ln
-
-
 def parse_vmex_line(s) :
-	hparser.__hparser_linesep = "\n" #XXX XXX XXX XXX XXX
-	tokens = hparser.tokenize(s)
+	tokens = hparser.tokenize(s, os.linesep)
 #	print "parse_vmex_line:", tokens
 	if not tokens :
 		return None
@@ -501,18 +490,38 @@ def vmex_arg(a, known_types) :
 	return term_type_t(name, direction, variadic, commutative, type_name)
 
 
-def extract_exports(src_str, known_types) :
-	src_lines = src_str.split("\n")
-#	pprint(src_lines)
-	exports = [ parse_vmex_line(ln) for ln in
-		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
+VMEX_SIG = "_VM_EXPORT_"
 
-#	print("extract_exports: ", len(exports))
+
+def is_vmex_line(s) :
+	ln = s.strip()
+	if not ln.startswith(VMEX_SIG) :
+		return None
+	return ln
+
+
+def extract_exports(src_str, known_types) :
+
+	exports = []
+	for tk_list in hparser.extract_declarations(hparser.tokenize2(src_str, os.linesep)) :
+		preprocessed = tuple(hparser.drop_comments(tk_list))
+		decl = hparser.stripped_token_list(preprocessed)
+#		print here(), decl
+		if VMEX_SIG in decl : #TODO deeper syntax check
+			ret_type, name, args_list = hparser.parse_decl(decl)
+#			print here(), "'%s'" % name, ret_type
+			exports.append((ret_type, name, args_list))
+
+
+#	src_lines = src_str.split(os.linesep)
+#	exports = [ parse_vmex_line(ln) for ln in
+#		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
+
 	vmex_funcs = []
 
 	for ret_type, name, args_list in exports :
 
-#		print ret_type, name, args_list
+#		print here(), name#, ret_type, args_list
 
 		if ret_type[0] != VMEX_SIG :
 			continue # should not happen
