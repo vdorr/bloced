@@ -476,15 +476,14 @@ term_type_t = namedtuple("term", (
 	"direction", "variadic", "commutative", "type_name"))
 
 
-def vmex_arg(a, known_types) :
+def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) :
 	sig, name = a
-#	print "vmex_arg", a
+#	print here(), name, a
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
-	direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
-	variadic = False
-	commutative = False
+	if direction is None :
+		direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
 	
 	(type_name, ) = [ tp for tp in sig if tp in known_types ]
 	return term_type_t(name, direction, variadic, commutative, type_name)
@@ -500,6 +499,81 @@ def is_vmex_line(s) :
 	return ln
 
 
+def __group_vmex_args(args_list) :
+	va = False
+	group = []
+	for sig, name in args_list :
+
+		group.append((sig, name))
+
+		if "_VM_VA_CNT_" in sig :
+			va = True
+		elif "_VM_VA_LST_" in sig :
+			va = False
+		else :
+			va = False
+
+		if not va :
+			yield group
+			group = []
+
+
+#_VM_VA_CNT_ _VM_INPUT_
+#_VM_VA_LST_
+def parse_vmex_export(export, known_types) :
+	ret_type, name, args_list = export
+	assert(VMEX_SIG in ret_type)
+#	print here(), name
+	args_info = []
+
+	for arg_group in __group_vmex_args(args_list) :
+#		print here(), len(arg_group)
+
+		arg_group_len = len(arg_group)
+		if arg_group_len == 1 :
+			a = vmex_arg(arg_group[0], known_types)
+			args_info.append(a)
+		elif arg_group_len == 2 :
+			(cnt_sig, cnt_name), (lst_sig, lst_name) = arg_group
+#			print here(), cnt_name, cnt_sig, lst_name, lst_sig
+			if "_VM_VA_CNT_" and cnt_sig and "_VM_VA_LST_" in lst_sig and "*" in lst_sig :
+				if "_VM_INPUT_" in cnt_sig :
+					direction = INPUT_TERM
+				elif "_VM_OUTPUT_" in cnt_sig :
+					direction = OUTPUT_TERM
+				else :
+					raise Exception(here() + " variadic term declaration lacks direction")
+				a = vmex_arg((lst_sig, lst_name), known_types,
+					variadic=True,
+					direction=direction)
+				args_info.append(a)
+			else :
+				raise Exception(here() + " invalid variadic term declaration")
+		else :
+			raise Exception(here() + " argument grouping error")
+
+#		for sig, arg_name in arg_group :
+#			print here(), arg_name
+
+#	return name, term_type, direction, variadic, commutative
+
+#	print here()
+#	pprint(args_info)
+
+	vmex_ret_type = None
+	for tp in ret_type :
+		if tp in known_types :
+			vmex_ret_type = tp
+
+	terms_in = [ a for a in args_info if a.direction == INPUT_TERM ]
+	terms_out = [ a for a in args_info if a.direction == OUTPUT_TERM ]
+
+	if not terms_out and not "void" in ret_type :
+		terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+
+	return name, (terms_in, terms_out)
+
+
 def extract_exports(src_str, known_types) :
 
 	exports = []
@@ -512,40 +586,50 @@ def extract_exports(src_str, known_types) :
 #			print here(), "'%s'" % name, ret_type
 			exports.append((ret_type, name, args_list))
 
+	vmex_funcs = [ parse_vmex_export(vmex, known_types) for vmex in exports ]
+
+#	for vmex in exports :
+#		vmex_funcs.append(parse_vmex_export(vmex, known_types))
+
+#	pprint(vmex_funcs)
 
 #	src_lines = src_str.split(os.linesep)
 #	exports = [ parse_vmex_line(ln) for ln in
 #		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
 
-	vmex_funcs = []
+#	for ret_type, name, args_list in exports :
 
-	for ret_type, name, args_list in exports :
+##XXX
+##		break
+##XXX
 
-#		print here(), name#, ret_type, args_list
+##		print here(), name#, ret_type, args_list
 
-		if ret_type[0] != VMEX_SIG :
-			continue # should not happen
-		vmex_ret_type = None
-		for tp in ret_type :
-			if tp in known_types :
-				vmex_ret_type = tp
-		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
-		if outputs :
-			assert(vmex_ret_type == "void")
-		inputs = [ a for a in args_list if not a in outputs ]
-		assert(set(outputs+inputs)==set(args_list))
+#		if ret_type[0] != VMEX_SIG :
+#			continue # should not happen
 
-		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
-		if outputs :
-			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
-		elif ret_type[-1] != "void" :
-			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
-		else :
-			terms_out = []
-#		print name, ret_type#, terms_in, terms_out
+#		vmex_ret_type = None
+#		for tp in ret_type :
+#			if tp in known_types :
+#				vmex_ret_type = tp
 
-		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
-		vmex_funcs.append((name, (terms_in, terms_out)))
+#		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
+#		if outputs :
+#			assert(vmex_ret_type == "void")
+#		inputs = [ a for a in args_list if not a in outputs ]
+#		assert(set(outputs+inputs)==set(args_list))
+
+#		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
+#		if outputs :
+#			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
+#		elif ret_type[-1] != "void" :
+#			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+#		else :
+#			terms_out = []
+##		print name, ret_type#, terms_in, terms_out
+
+#		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
+#		vmex_funcs.append((name, (terms_in, terms_out)))
 
 	return vmex_funcs
 
@@ -1224,6 +1308,7 @@ def builtin_blocks() :
 		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
 			In(-2, "d", dfs.W, .66),
 			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+		UnaryOp("abs", "Arithmetic"),
 		BinaryOp("lt", "Arithmetic", commutative=False),
 		BinaryOp("gt", "Arithmetic", commutative=False),
 		BinaryOp("eq", "Arithmetic", commutative=False),

@@ -11,7 +11,7 @@ from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
-
+#TODO argument number checking
 __OPS = {
 	"xor" :		lambda n, args : "(" + "!=".join(("!" + a) for a in args) + ")",
 	"or" :		lambda n, args : "(" + "||".join(args) + ")",
@@ -34,6 +34,7 @@ __OPS = {
 	"mul" :		lambda n, args : "(" + "*".join(args) + ")",
 	"div" :		lambda n, args : "(" + "/".join(args) + ")",
 	"mod" :		lambda n, args : "(" + "%".join(args) + ")",
+	"abs" :		lambda n, args : "(({0}<0)?(-{0}):({0}))".format(args[0]),
 	"lt" :		lambda n, args : "(" + "<".join(args) + ")",
 	"gt" :		lambda n, args : "(" + ">".join(args) + ")",
 	"lte" :		lambda n, args : "(" + "<=".join(args) + ")",
@@ -48,7 +49,7 @@ def __implement(g, n, args, outs) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __OPS :
-		assert(len(args) >= 2 or n.prototype.type_name=="not")
+		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
 		return __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for a in args))
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
