@@ -1176,7 +1176,7 @@ def builtin_blocks() :
 		ConstProto(),
 		DelayProto(),
 
-		IDelayProto(),
+#		IDelayProto(),
 
 		ProbeProto(),
 		TapProto(),
