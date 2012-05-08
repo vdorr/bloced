@@ -1005,7 +1005,7 @@ class Workbench(object) :
 			local_lib.load_standalone_workbench_lib(None, "<local>",
 				library=w.blockfactory,
 				w_data=w_data)
-			print here(), local_lib.block_list[0]
+#			print here(), local_lib.block_list[0]
 			library = core.SuperLibrary([w.blockfactory, local_lib])
 			print here()
 			serializer.restore_workbench(w_data, w,
