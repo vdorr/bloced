@@ -32,9 +32,9 @@ void d_out(vm_word_t nr, vm_word_t v)
 	digitalWrite(nr, v);
 }
 
-vm_word_t a_in(vm_word_t nr, vm_word_t a_ref)
+vm_word_t a_in(vm_word_t nr/*, vm_word_t a_ref*/)
 {
-	analogReference(a_ref);
+	/*analogReference(a_ref);*/
 	return analogRead(nr);
 }
 

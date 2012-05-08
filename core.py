@@ -1,4 +1,8 @@
 
+"""
+built-in blocks, types and library services
+"""
+
 import dfs
 import os
 import hparser
@@ -7,6 +11,11 @@ from itertools import count, islice
 from pprint import pprint
 import serializer
 from utils import here
+import sys
+if sys.version_info.major == 3 :
+	from io import StringIO
+else :
+	from StringIO import StringIO
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -14,17 +23,169 @@ from utils import here
 
 type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
 
-#type_name : (size_in_words, size_in_bytes, priority)
+TYPE_VOID = "void"
+TYPE_INFERRED = "<inferred>"
+VM_TYPE_CHAR = "vm_char_t"
+VM_TYPE_WORD = "vm_word_t"
+VM_TYPE_DWORD = "vm_dword_t"
+VM_TYPE_FLOAT = "vm_float_t"
+#VM_TYPE_DOUBLE = "vm_double_t" : type_t(4, 8, 4),
+#VM_TYPE_BOOL = "vm_bool_t" : type_t(None, None, 0),
+#VM_TYPE_STRING = "vm_string_t" : None,
+
 KNOWN_TYPES = {
-	"<inferred>" : None, #XXX OH MY GOD!!!!!!!!
-	"vm_char_t" : type_t(1, 1, 0), #TODO
-	"vm_word_t" : type_t(1, 2, 1),
-	"vm_dword_t" : type_t(2, 4, 2),
-	"vm_float_t" : type_t(2, 4, 3),
-	"void" : None,
+	TYPE_VOID : None,
+	TYPE_INFERRED : None,
+	VM_TYPE_CHAR : type_t(1, 1, 0), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1),
+	VM_TYPE_DWORD : type_t(2, 4, 2),
+	VM_TYPE_FLOAT : type_t(2, 4, 3),
 }
 
 # ------------------------------------------------------------------------------------------------------------
+
+INPUT_TERM = 1
+OUTPUT_TERM = 2
+
+term_model_t = namedtuple("term_model_t", ("name", "default_side", "default_pos", "direction",
+	"type_name", "arg_index", "variadic", "commutative", "virtual"))
+
+
+#def TermModel(arg_index, name, default_side, default_pos, direction, variadic, commutative,
+#		type_name=None, virtual=False) :
+#	return term_model_t(
+#		name = name,
+#		default_side = default_side,
+#		default_pos = default_pos,
+#		direction = direction,
+#		type_name = type_name,
+#		arg_index = arg_index,
+#		variadic = variadic,
+#		commutative = commutative,
+#		virtual = virtual)
+
+
+#def In(arg_index, name, default_side, default_pos,
+#		type_name=core.TYPE_INFERRED,
+#		variadic=False,
+#		commutative=False) :
+#	return TermModel(arg_index, name, default_side, default_pos, INPUT_TERM, variadic, commutative,
+#			type_name=type_name)
+
+
+#def Out(arg_index, name, default_side, default_pos,
+#		type_name=core.TYPE_INFERRED,
+#		variadic=False,
+#		commutative=False) :
+#	return TermModel(arg_index, name, default_side, default_pos, OUTPUT_TERM, variadic, commutative,
+#			type_name=type_name)
+
+
+#def VirtualIn(name) :
+#	return TermModel(None, name, None, None, INPUT_TERM, False, False, virtual=True)
+
+
+#def VirtualOut(name) :
+#	return TermModel(None, name, None, None, OUTPUT_TERM, False, False, virtual=True)
+
+
+class TermModel(object) :
+
+	name = property(lambda self: self.__name)
+
+	default_side = property(lambda self: self.__side)
+
+	default_pos = property(lambda self: self.__pos)
+
+	direction = property(lambda self: self.__direction)
+
+	type_name = property(lambda self: self.__type_name)
+
+	variadic = property(lambda self: self.__variadic)
+
+	commutative = property(lambda self: self.__commutative)
+
+	virtual = property(lambda self: self.__virtual)
+
+
+	def get_term_data(self) :
+		return term_model_t(
+			name = self.name,
+			default_side = self.default_side,
+			default_pos = self.default_pos,
+			direction = self.direction,
+			type_name = self.type_name,
+			arg_index = self.arg_index,
+			variadic = self.variadic,
+			commutative = self.commutative,
+			virtual = self.virtual)
+
+	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
+			type_name=None, virtual=False) :
+		self.__name = name
+		self.__side = side
+		self.__pos = pos
+		self.__direction = direction
+		self.__type_name = type_name
+		self.arg_index = arg_index
+		self.__variadic = variadic
+		self.__commutative = commutative
+		self.__virtual = virtual
+
+	def __repr__(self) :
+		return "." + self.__name
+#		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
+
+	def __lt__(self, b) :
+		return id(self) < id(b)
+
+
+def term_model_from_term_data(td) :
+	return TermModel(td.arg_index, td.name, td.default_side, td.default_pos, td.direction, td.variadic,
+		td.commutative, type_name=td.type_name, virtual=td.virtual)
+
+
+class In(TermModel) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name=TYPE_INFERRED,
+			variadic=False,
+			commutative=False) :
+		TermModel.__init__(self, arg_index, name, side, pos, INPUT_TERM, variadic, commutative,
+			type_name=type_name)
+
+
+class Out(TermModel) :
+	def __init__(self, arg_index, name, side, pos,
+			type_name=TYPE_INFERRED,
+			variadic=False,
+			commutative=False) :
+		TermModel.__init__(self, arg_index, name, side, pos, OUTPUT_TERM, variadic, commutative,
+			type_name=type_name)
+
+
+class VirtualIn(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, INPUT_TERM, False, False,
+			virtual=True)
+
+
+class VirtualOut(TermModel) :
+	def __init__(self, name) :
+		TermModel.__init__(self, None, name, None, None, OUTPUT_TERM, False, False,
+			virtual=True)
+
+
+block_proto_t = namedtuple("block_proto_t", ("type_name", "terms", "default_size",
+	"exe_name", "commutative", "pure", "values", "library", "data"))
+
+
+def block_proto_from_proto_data(bp) :
+	args = dict(bp.__dict__)
+	args.pop("type_name")
+	args.pop("terms")
+	return BlockPrototype(bp.type_name,
+		tuple(term_model_from_term_data(t) for t in bp.terms), **args)
+
 
 class BlockPrototype(object) :
 
@@ -36,9 +197,9 @@ class BlockPrototype(object) :
 
 	terms = property(lambda self: self.__terms)
 
-	inputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.INPUT_TERM ] )
+#	inputs = property(lambda self: [ t for t in self.__terms if t.direction == INPUT_TERM ] )
 
-	outputs = property(lambda self: [ t for t in self.__terms if t.direction == dfs.OUTPUT_TERM ] )
+#	outputs = property(lambda self: [ t for t in self.__terms if t.direction == OUTPUT_TERM ] )
 	
 	category = property(lambda self: self.__category)
 	
@@ -54,6 +215,20 @@ class BlockPrototype(object) :
 
 	data = property(lambda self: self.__data)
 
+
+	def get_block_proto_data(self) :
+		return block_proto_t(
+			type_name=self.type_name,
+			terms=tuple(t.get_term_data() for t in self.terms),
+			default_size=self.default_size,
+			exe_name=self.exe_name,
+			commutative=self.commutative,
+			pure=self.pure,
+			values=self.values,
+			library=self.library,
+			data=None)
+
+
 	def __init__(self, type_name, terms,
 			exe_name=None,
 			default_size=(64,64),
@@ -64,7 +239,6 @@ class BlockPrototype(object) :
 			library=None,
 			data=None) :
 		self.__category = category
-		#TODO return self.type_name if not self.exe_name else self.exe_name
 		self.__type_name = type_name
 		self.__terms = terms
 		self.__default_size = default_size
@@ -74,48 +248,72 @@ class BlockPrototype(object) :
 		self.__values = values
 		self.__library = library
 		self.__data = data
+		assert(prototype_sanity_check(self))#TODO refac
+
 
 # ------------------------------------------------------------------------------------------------------------
 
 class JointProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Joint",
-			[ dfs.Out(0, "y", dfs.C, 0, variadic=True), dfs.In(0, "x", dfs.C, 0) ],
+			[ Out(0, "y", dfs.C, 0, variadic=True), In(0, "x", dfs.C, 0) ],
 			default_size=(8,8), category="Special")
 
 
 class ConstProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
-			[ dfs.Out(0, "y", dfs.E, 0.5, type_name="<inferred>") ],
+			[ Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
 			default_size=(96,28), category="Special",
 			values=[("Value", None)])
 
 
 class DelayProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Delay", [ dfs.In(0, "x", dfs.E, 0.5), dfs.Out(0, "y", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
 			values=[("Default", None)])
 		self.loop_break = True
 
 
+class DelayInProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", dfs.W, 0.5) ])
+
+
+class DelayOutProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
+
+
+class IDelayProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "IDelay", [ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
+			category="Special")
+#		self.loop_break = True
+
+
+class IDelayOutProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "IDelayOut", [ In(0, "x", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
+
+
 class ProbeProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Probe", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special", exe_name="probe")
 
 
 class TapProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Tap", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Tap", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class TapEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "TapEnd", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
@@ -127,69 +325,49 @@ class NoteProto(BlockPrototype):
 			values=[("Text", "")])
 
 
-class DelayInProto(BlockPrototype):
-
-#	def __repr__(self) :
-#		return "%s(%i)"%(self.__name, self.nr)
-
-	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayIn", [ dfs.In(0, "x", dfs.W, 0.5) ])
-#		self.nr = -1
-
-
-class DelayOutProto(BlockPrototype):
-
-#	def __repr__(self) :
-#		return "%s(%i)"%(self.__name, self.nr)
-
-	def __init__(self) :
-		BlockPrototype.__init__(self, "DelayOut", [ dfs.Out(0, "y", dfs.E, 0.5) ])
-#		self.nr = -1
-
-
 class SignalProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Signal", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(48,48), category="Special")
 
 
 class SysRqProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "SysRq",
-			[ dfs.In(-1, "en", dfs.W, 0.25),
-			  dfs.In(-2, "nr", dfs.W, 0.5),
-			  dfs.In(-3, "x", dfs.W, 0.75, variadic=True),
-			  dfs.Out(-3, "eno", dfs.E, 0.25),
-			  dfs.Out(-1, "rc", dfs.E, 0.5),
-			  dfs.Out(-2, "y", dfs.E, 0.75, variadic=True) ],
+			[ In(-1, "en", dfs.W, 0.25),
+			  In(-2, "nr", dfs.W, 0.5),
+			  In(-3, "x", dfs.W, 0.75, variadic=True),
+			  Out(-3, "eno", dfs.E, 0.25),
+			  Out(-1, "rc", dfs.E, 0.5),
+			  Out(-2, "y", dfs.E, 0.75, variadic=True) ],
 			exe_name="sysrq",
 			default_size=(64,80), category="Special")
 
 
 class InputProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Input", [ dfs.Out(0, "x", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "Input", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class OutputProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Output", [ dfs.In(0, "y", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Output", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
 class PipeProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Pipe", [ dfs.In(0, "x", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Pipe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None), ("Default", None)])
 
 
 class PipeEndProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "PipeEnd", [ dfs.Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "PipeEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
@@ -197,7 +375,7 @@ class PipeEndProto(BlockPrototype):
 class GlobalWriteProto(BlockPrototype):
 	def __init__(self, type_name) :
 		BlockPrototype.__init__(self, "GlobalWrite",
-			[ dfs.In(0, "x", dfs.W, 0.5, type_name=type_name) ],
+			[ In(0, "x", dfs.W, 0.5, type_name=type_name) ],
 			default_size=(96,28),
 			values=[("Name", None), ("Sync", None)])
 
@@ -205,7 +383,7 @@ class GlobalWriteProto(BlockPrototype):
 class GlobalReadProto(BlockPrototype):
 	def __init__(self, type_name) :
 		BlockPrototype.__init__(self, "GlobalRead",
-			[ dfs.Out(0, "y", dfs.E, 0.5, type_name=type_name) ],
+			[ Out(0, "y", dfs.E, 0.5, type_name=type_name) ],
 			default_size=(96,28),
 			values=[("Name", None), ("Sync", None)])
 
@@ -219,14 +397,12 @@ class FunctionCallProto(BlockPrototype):
 class MuxProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "mux", [
-			dfs.In(-1, "x", dfs.W, .25, type_name="<inferred>"),#XXX should be binary
-			dfs.In(-2, "a", dfs.W, .5, type_name="<inferred>"),
-			dfs.In(-3, "b", dfs.W, .75, type_name="<inferred>"),
-			dfs.Out(-1, "q", dfs.E, .5, type_name="<inferred>"), ],
+			In(-1, "x", dfs.W, .25, type_name=TYPE_INFERRED),#XXX should be binary
+			In(-2, "a", dfs.W, .5, type_name=TYPE_INFERRED),
+			In(-3, "b", dfs.W, .75, type_name=TYPE_INFERRED),
+			Out(-1, "q", dfs.E, .5, type_name=TYPE_INFERRED), ],
 			pure=True, category="Special")
 
-
-# ------------------------------------------------------------------------------------------------------------
 
 class SBP(BlockPrototype) :
 	def __init__(self, type_name, category, terms, exe_name=None, commutative=False, pure=False) :
@@ -236,48 +412,50 @@ class SBP(BlockPrototype) :
 			commutative=commutative,
 			pure=pure)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class UnaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ dfs.In(0, "a", dfs.W, .5), dfs.Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .5), Out(0, "y", dfs.E, .5) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			pure=True)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class BinaryOp(BlockPrototype) :
 	def __init__(self, type_name, category, exe_name=None, commutative=False) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ dfs.In(0, "a", dfs.W, .33), dfs.In(0, "b", dfs.W, .66), dfs.Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66), Out(0, "y", dfs.E, .5) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			commutative=commutative,
 			pure=True)
 
-# ------------------------------------------------------------------------------------------------------------
 
 class CFunctionProto(BlockPrototype):
 	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "CFunction", [], category="External")
 
-# ----------------------------------------------------------------------------
 
 class MacroProto(BlockPrototype):
 	pass
-#	def __init__(self) :
-#		BlockPrototype.__init__(self, "Macro", [], category="External")
 
-# ----------------------------------------------------------------------------
 
 class FunctionProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "FunctionBlock", [], category="External")
+	pass
+
+
+class TypecastProto(BlockPrototype) :
+	def __init__(self, type_name, category, to_type) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .5), Out(0, "y", dfs.E, .5, type_name=to_type) ],
+			exe_name=type_name,
+			category=category,
+			pure=True)
+
+
 
 # ----------------------------------------------------------------------------
 
@@ -287,7 +465,6 @@ VMEX_SIG = "_VM_EXPORT_"
 
 def is_vmex_line(s) :
 	ln = s.strip()
-#	print(s.__class__)
 	if not ln.startswith(VMEX_SIG) :
 		return None
 	return ln
@@ -316,7 +493,7 @@ def vmex_arg(a, known_types) :
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
-	direction = dfs.OUTPUT_TERM if "*" in sig else dfs.INPUT_TERM
+	direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
 	variadic = False
 	commutative = False
 	
@@ -390,14 +567,13 @@ def __cmod_create_proto(lib_name, export) :
 	block_name, (terms_in, terms_out) = export
 
 	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
-#	print "__cmod_create_proto: block_layout=", xxxx
 
 	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
-	inputs = [ dfs.In(-i, name, dfs.W, pos,
+	inputs = [ In(-i, name, dfs.W, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name), pos, i
 			in zip(terms_in, in_terms_pos, count()) ]
-	outputs = [ dfs.Out(-i, name, dfs.E, pos,
+	outputs = [ Out(-i, name, dfs.E, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name), pos, i
 			in zip(terms_out, out_terms_pos, count()) ]
@@ -423,7 +599,7 @@ def __is_header(fname) :
 	return ext.lower() in HEADER_EXTS
 
 
-def load_c_module(lib_name, file_path) :
+def load_c_library(lib_name, file_path) :
 	exports = extract_vmex(file_path, KNOWN_TYPES)
 	protos = [ __cmod_create_proto(lib_name, export) for export in exports ]
 	return protos
@@ -462,7 +638,7 @@ def __mc_assign_side(tb, center_x, center_y, x, y) :
 		(False, True) : dfs.E,
 		(False, False) : dfs.W
 	}
-	side = tb.terms[0].get_side(tb)
+	side = tb.get_term_side(tb.terms[0])
 	vertical = side in (dfs.N, dfs.S)
 #	print tb, x, y,  y>(k * x), y>((-k * (x-w))+u)
 	return sides[vertical, y > center_y if vertical else x > center_x ]
@@ -472,10 +648,10 @@ def __mc_assign_positions(term_sides, side) :
 	assert(side in (dfs.N, dfs.S, dfs.W, dfs.E))
 	terms = [ (tb, sd, y if side in (dfs.N, dfs.S) else x)
 		for tb, sd, (x, y) in term_sides if sd == side ]
-	terms.sort(key=lambda tb_sd_y: tb_sd_y[2])#(tb, sd, y): y)
+	terms.sort(key=lambda tb_sd_y: -tb_sd_y[2])#(tb, sd, y): y)
 	step = 1.0 / (len(terms) + 1)
 	term_positions = [ (tb, sd, (i + 1) * step) for (tb, sd, p), i in zip(terms, count()) ]
-#	print "step=", step, "term_positions=", term_positions
+#	print here(), "step=", step, "term_positions=", term_positions
 	return term_positions
 
 
@@ -548,6 +724,13 @@ def try_mkmac(model) :
 #	pprint(graph)
 
 
+def is_builtin_block(prototype) :
+	"""
+	return True if prototype instance is for built in block
+	"""
+	return not bool(prototype.library)
+
+
 def is_macro_name(s) :
 	return s.strip().startswith("@macro:")
 
@@ -558,9 +741,43 @@ def get_macro_name(s) :
 	return s.split(":")[-1]
 
 
+def is_function_name(s) :
+	return s.strip().startswith("@function:")
+
+
+def get_function_name(s) :
+	if not is_function_name(s) :
+		return None
+	return s.split(":")[-1]
+
+
+def sheet_block_name(s) :
+	name, _ = sheet_block_name_and_class(s)
+	return name
+
+
+def sheet_block_name_and_class(s) :
+	parts = s.split(":")
+	if len(parts) != 2 :
+		return None
+	prefix, name = parts
+	if prefix == "@macro" : #TODO name sheet prefixs
+		return name, MacroProto
+	elif prefix == "@function" :
+		return name, FunctionProto
+	else :
+		return None
+
+
 lib_block_data_t = namedtuple("lib_block_data", ("raw_workbench", "raw_sheet", "cooked_workbench", "cooked_sheet"))
 
-def __create_macro(lib_name, block_name, sheet) :
+
+def create_proto_from_sheet(sheet_name, sheet) :
+	block_name, proto_class = sheet_block_name_and_class(sheet_name)
+	return __create_sheet_wrapper("<local>", block_name, sheet, proto_class)
+
+
+def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 
 	width, height, terms = try_mkmac(sheet)
 
@@ -569,35 +786,25 @@ def __create_macro(lib_name, block_name, sheet) :
 
 #		variadic = False #TODO infer from connected block
 #		commutative = False #TODO infer from connected block
-#		type_name = "<inferred>" #TODO infer from connected block
+#		type_name = TYPE_INFERRED #TODO infer from connected block
 
 #		print(here(), term_name, side, pos)
 
-	terms_in = [ (t.value[0], dfs.INPUT_TERM, False, False, "<inferred>", pos, side)
+	terms_in = [ (t.value[0], INPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == InputProto ]
-	terms_out = [ (t.value[0], dfs.OUTPUT_TERM, False, False, "<inferred>", pos, side)
+	terms_out = [ (t.value[0], OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
 
-	inputs = [ dfs.In(-i, name, side, pos,
+	inputs = [ In(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name, pos, side), i
 			in zip(terms_in, count()) ]
-	outputs = [ dfs.Out(-i, name, side, pos,
+	outputs = [ Out(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name, pos, side), i
 			in zip(terms_out, count()) ]
 
-
-#	inputs = [ dfs.In(-i, name, dfs.W, pos,
-#			type_name=type_name, variadic=variadic, commutative=commutative)
-#		for (name, direction, variadic, commutative, type_name), pos, i
-#			in zip(terms_in, in_terms_pos, count()) ]
-#	outputs = [ dfs.Out(-i, name, dfs.E, pos,
-#			type_name=type_name, variadic=variadic, commutative=commutative)
-#		for (name, direction, variadic, commutative, type_name), pos, i
-#			in zip(terms_out, out_terms_pos, count()) ]
-
-	proto = MacroProto(block_name,
+	proto = prototype_type(block_name,
 			inputs + outputs,
 			exe_name=block_name,
 			default_size=(width, height),
@@ -608,30 +815,46 @@ def __create_macro(lib_name, block_name, sheet) :
 	return proto
 
 
-def load_workbench_library(lib_name, file_path) :
+def __create_macro(lib_name, block_name, sheet) :
+	return __create_sheet_wrapper(lib_name, block_name, sheet, MacroProto)
+
+
+def __create_function(lib_name, block_name, sheet) :
+	return __create_sheet_wrapper(lib_name, block_name, sheet, FunctionProto)
+
+
+def load_workbench_library(lib_name, file_path, library=None, w_data=None) :
 	"""
 	lib_name - full library name, example 'logic.flipflops'
 	"""
-
-	with open(file_path, "rb") as f :
-		data = serializer.unpickle_workbench_data(f)
-
+	if file_path is None :
+		data = w_data
+	else :
+		with open(file_path, "rb") as f :
+			data = serializer.unpickle_workbench_data(f)
 	w = dfs.Workbench(
-		lib_dir=os.path.join(os.getcwd(), "library"),
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+		blockfactory=library,
 		passive=True,
 		do_create_block_factory=False)
+	serializer.restore_workbench(data, w, library=library)
+	return load_blocks_from_workbench(w, lib_name)
 
-	serializer.restore_workbench(data, w)
 
+def load_blocks_from_workbench(w, lib_name) :
+	"""
+	load macroes and functions from dfs.Workbench w
+	"""
 	blocks = []
-
 	for (name, sheet) in w.sheets.items() :
 		if is_macro_name(name) :
-#			print(here(), name, sheet)
 			block_name = get_macro_name(name)
 			proto = __create_macro(lib_name, block_name, sheet)
 			blocks.append(proto)
-
+		elif is_function_name(name) :
+			block_name = get_function_name(name)
+			proto = __create_function(lib_name, block_name, sheet)
+			blocks.append(proto)
 	return blocks
 
 
@@ -732,6 +955,46 @@ def __get_lib_file_info(ext, lib_name, filepath) :
 		using_types=tuple(using_types))
 
 
+def load_standalone_workbench_lib(path, lib_base_name, library=None, w_data=None) :
+	"""
+	return blocks loaded from .w library pointed to by path
+	"""
+
+#	root = os.path.dirname(path)
+#	lib_base_name = lib_name_from_path(root, path)
+
+#	ext, lib_name, _ = __lib_path_and_name(root, lib_base_name, path)
+#	file_info = __get_lib_file_info(ext, lib_name, path)
+#	if file_info is None :
+#		return None #XXX Exception?
+	file_info = lib_file_info_t(
+		path=path,
+		file_type="w",
+		using_types=tuple())
+
+	lib = lib_info_t(
+		lib_name=lib_base_name,
+		path=path,
+		files=(file_info,),
+		using_types=tuple())
+
+	lib_items = []
+	for file_info in sorted(lib.files) :
+
+		blocks = load_workbench_library(lib.lib_name, file_info.path, library=library, w_data=w_data)
+
+		items = [ (be_lib_block_t(lib.lib_name, file_info.path, file_info.file_type, b.type_name, b.type_name), b)
+			for b in blocks ]
+		lib_items.extend(items)
+
+	return be_library_t(
+		name=lib.lib_name,
+		path=lib.path,
+		allowed_targets=None,#TODO
+		include_files=(path,),
+		items=lib_items)
+
+
 def scan_library(lib_basedir, path) :
 	"""
 	return instance of lib_info_t with list of instances of lib_file_info_t
@@ -756,7 +1019,7 @@ def scan_library(lib_basedir, path) :
 		using_types=tuple())
 
 
-def load_library(lib):
+def load_library(lib, library=None) :
 	"""
 	return blocks loaded from library described by lib_info_t instance lib
 	"""
@@ -769,13 +1032,13 @@ def load_library(lib):
 		if file_info.file_type == "c" :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
-				blocks = load_c_module(lib.lib_name, file_info.path)
+				blocks = load_c_library(lib.lib_name, file_info.path)
 		elif file_info.file_type == "w" :
-			blocks = load_workbench_library(lib.lib_name, file_info.path)
+			blocks = load_workbench_library(lib.lib_name, file_info.path, library=library)
 		else :
 			raise Exception(here(), "unknown lib file type '" + file_info.file_type + "'")
 
-		items = [ (be_lib_block_t(lib.lib_name, file_info.path, "c", b.type_name, b.type_name), b)
+		items = [ (be_lib_block_t(lib.lib_name, file_info.path, file_info.file_type, b.type_name, b.type_name), b)
 			for b in blocks ]
 		lib_items.extend(items)
 
@@ -823,7 +1086,7 @@ def sort_libs(libs) :
 	return s
 
 
-def load_library_sheet(library, full_name, sheet_name) :
+def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 	"""
 	search library for item full_name and return sheet with sheet_name from this context
 	raises Exception if there is problem, returns None if just not found
@@ -835,8 +1098,9 @@ def load_library_sheet(library, full_name, sheet_name) :
 
 	lib, (item, proto) = lib_data
 
-	with open(item.file_path) as f :
-		w_data = serializer.unpickle_workbench_data(f)
+	if w_data is None :
+		with open(item.file_path) as f :
+			w_data = serializer.unpickle_workbench_data(f)
 
 	res_found = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, sheet_name))
 
@@ -849,28 +1113,132 @@ def load_library_sheet(library, full_name, sheet_name) :
 	return sheet
 
 
+#TODO refac needed
+def compare_proto_to_type(prototype_instance, prototype_type) :
+	return prototype_instance.__class__ == prototype_type
+
+
+#TODO refac needed
+def get_proto_name(prototype) :
+	return prototype.__class__.__name__
+
+
+def get_block_sheets(w) :
+	"""
+	return macro/function sheet names from workbench instance w
+	"""
+	return tuple(name for name in w.sheets if is_macro_name(name) or is_function_name(name))
+
+
+def prototype_sanity_check(proto) :
+	"""
+	return (True, None) if prototype instance proto makes sense and (False, reason) if not
+	"""
+	errors = []
+#term direction
+	weird_term_dir = tuple(t for t in proto.terms if not t.direction in (INPUT_TERM, OUTPUT_TERM))
+	if weird_term_dir :
+		errors.append(("unknown_term_direction", weird_term_dir))
+#term name uniqness
+	unique_terms = set()
+	colliding_terms = set()
+	for t in proto.terms :
+		if t.name in unique_terms :
+			colliding_terms.add(t.name)
+		unique_terms.add(t.name)
+	if colliding_terms :
+		errors.append(("colliding_term_names", colliding_terms))
+#term types are in KNOWN_TYPES
+	unknown_term_type = tuple(t for t in proto.terms if not t.type_name in KNOWN_TYPES)
+	if unknown_term_type :
+		errors.append(("unknown_term_type", unknown_term_type))
+#has category or library
+	if proto.category and not proto.library :
+		errors.append(("no_cat_nor_lib", None))
+
+	return (False, tuple(errors)) if errors else (True, None)
+
+
+def clone_sheet(sheet, lib) :
+	f = StringIO()
+	serializer.pickle_dfs_model(sheet, f)
+	f.seek(0)
+	cloned = serializer.unpickle_dfs_model(f, lib=lib)
+	return cloned
+
+
 # ------------------------------------------------------------------------------------------------------------
 
+def builtin_blocks() :
+#TODO use (ordered) dictionary
+	return [
+		JointProto(),
+		ConstProto(),
+		DelayProto(),
 
-def get_block_data(lib, block) :
-#	print here(), lib, block
-	pprint(block)
+#		IDelayProto(),
 
+		ProbeProto(),
+		TapProto(),
+		TapEndProto(),
+#		SignalProto(),
+#		NoteProto(),
+		SysRqProto(),
+		InputProto(),
+		OutputProto(),
+		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
+		PipeProto(),
+		PipeEndProto(),
+		MuxProto(),
 
-# ------------------------------------------------------------------------------------------------------------
+		BinaryOp("xor", "Logic", commutative=True),
+		BinaryOp("or", "Logic", commutative=True),
+		BinaryOp("nor", "Logic", commutative=True),
+		BinaryOp("and", "Logic", commutative=True),
+		BinaryOp("nand", "Logic", commutative=True),
+		UnaryOp("not", "Logic"),
+
+		BinaryOp("bwxor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwnor", "Bitwise Logic", commutative=True),
+		BinaryOp("bwand", "Bitwise Logic", commutative=True),
+		BinaryOp("bwnand", "Bitwise Logic", commutative=True),
+		UnaryOp("bwnot", "Bitwise Logic"),
+		BinaryOp("lsl", "Bitwise Logic", commutative=False),
+		BinaryOp("lsr", "Bitwise Logic", commutative=False),
+
+		BinaryOp("add", "Arithmetic", commutative=True),
+		BinaryOp("sub", "Arithmetic", commutative=False),
+		BinaryOp("mul", "Arithmetic", commutative=True),
+		BinaryOp("div", "Arithmetic", commutative=False),
+		BinaryOp("mod", "Arithmetic", commutative=False),
+		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+			In(-2, "d", dfs.W, .66),
+			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+		BinaryOp("lt", "Arithmetic", commutative=False),
+		BinaryOp("gt", "Arithmetic", commutative=False),
+		BinaryOp("eq", "Arithmetic", commutative=False),
+		BinaryOp("lte", "Arithmetic", commutative=False),
+		BinaryOp("gte", "Arithmetic", commutative=False),
+
+#		TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
+#		TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
+		TypecastProto("word", "Type Casting", VM_TYPE_WORD),
+		TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
+		TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
+	]
 
 
 class BasicBlocksFactory(object) :
 
 
 	def load_library(self, lib_basedir) :
-#		libs = load_libraries(lib_basedir)
-#		self.libs += libs
-#		for lib in libs :
-#			self.__blocks += [ proto for item, proto in lib.items ]
 
 		basedir = os.path.abspath(lib_basedir)
-		(_, dirnames, _), = tuple(islice(os.walk(basedir), 1))
+		dir_walk = tuple(islice(os.walk(basedir), 1))
+		if not dir_walk :
+			return None
+		(_, dirnames, _), = dir_walk
 
 		libs = {}
 		for d in dirnames :
@@ -880,17 +1248,27 @@ class BasicBlocksFactory(object) :
 
 		sorted_libs = sort_libs(libs.values())
 
-#		loaded_libs = []
-
 		for l in sorted_libs :
 			loaded = load_library(libs[l])
 			self.libs.append(loaded)
-			self.__blocks += [ proto for item, proto in loaded.items ]
+			for item, proto in loaded.items :
+				ok, errors = prototype_sanity_check(proto)
+				if ok :
+					self.__blocks.append(proto)
+				else :
+					print(here(), "skipped proto", proto, "because", errors)
+		return (True, )
 
-	#	print here(), loaded_libs
 
-#		return loaded_libs
-
+	def load_standalone_workbench_lib(self, path, lib_name, library=None, w_data=None) :
+		loaded = load_standalone_workbench_lib(path, lib_name, library=library, w_data=w_data)
+		self.libs.append(loaded)
+		for item, proto in loaded.items :
+			ok, errors = prototype_sanity_check(proto)
+			if ok :
+				self.__blocks.append(proto)
+			else :
+				print(here(), "skipped proto", proto, "because", errors)
 
 		return (True, )
 
@@ -931,48 +1309,57 @@ class BasicBlocksFactory(object) :
 	block_list = property(lambda self: self.__blocks)
 
 
-	def __init__(self) :
+	def __init__(self, load_basic_blocks=True) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
-#TODO use (ordered) dictionary
-		self.__blocks = [
-			JointProto(),
-			ConstProto(),
-			DelayProto(),
-			ProbeProto(),
-			TapProto(),
-			TapEndProto(),
-#			SignalProto(),
-#			NoteProto(),
-			SysRqProto(),
-			InputProto(),
-			OutputProto(),
-			SBP("Sink", "Special", [ dfs.In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
-			PipeProto(),
-			PipeEndProto(),
-			MuxProto(),
+		self.__blocks = []
+		if load_basic_blocks :
+			self.__blocks += builtin_blocks()
 
-			BinaryOp("xor", "Logic", commutative=True),
-			BinaryOp("or", "Logic", commutative=True),
-			BinaryOp("nor", "Logic", commutative=True),
-			BinaryOp("and", "Logic", commutative=True),
-			BinaryOp("nand", "Logic", commutative=True),
-			UnaryOp("not", "Logic"),
 
-			BinaryOp("add", "Arithmetic", commutative=True),
-			BinaryOp("sub", "Arithmetic", commutative=False),
-			BinaryOp("mul", "Arithmetic", commutative=True),
-			BinaryOp("div", "Arithmetic", commutative=False),
-			BinaryOp("mod", "Arithmetic", commutative=False),
-			SBP("divmod", "Arithmetic", [ dfs.In(-1, "n", dfs.W, .33),
-				dfs.In(-2, "d", dfs.W, .66),
-				dfs.Out(-1, "q", dfs.E, .33), dfs.Out(-2, "r", dfs.E, .66) ], pure=True),
-			BinaryOp("lt", "Arithmetic", commutative=False),
-			BinaryOp("gt", "Arithmetic", commutative=False),
-			BinaryOp("eq", "Arithmetic", commutative=False),
-			BinaryOp("lte", "Arithmetic", commutative=False),
-			BinaryOp("gte", "Arithmetic", commutative=False),
-		]
+class SuperLibrary(object) :
+	"""
+	copies interface of BasicBlocksFactory (except for block_list), merging multiple libraries
+	intended for handling local blocks and multiple library paths while keeping them separated
+	"""
+
+	def get_block_by_name(self, full_type, fuzzy=True) :
+		for l in self.librarians :
+			try :
+				hit = l.get_block_by_name(full_type, fuzzy=fuzzy)
+			except Exception :
+				pass
+			else :
+				return hit
+		raise Exception("type_name '" + full_type + "' not found")
+
+
+	def get_block_and_lib(self, full_type) :
+		for l in self.librarians :
+			hit = l.get_block_and_lib(full_type)
+			if not hit is None :
+				return hit
+
+
+	def load_library(self, lib_basedir) :
+		l = BasicBlocksFactory(load_basic_blocks=False)
+		self.librarians.append(l)
+		return l.load_library(lib_basedir)
+
+
+	def get_libs(self) :
+		for l in self.librarians :
+			for lib in l.libs :
+				yield lib
+
+
+	libs = property(lambda self: self.get_libs())
+
+	def __init__(self, librarians) :
+		"""
+		librarians is list of BasicBlocksFactory instances
+		"""
+		self.librarians = librarians
 
 
 # ------------------------------------------------------------------------------------------------------------

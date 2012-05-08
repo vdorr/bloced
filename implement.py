@@ -66,26 +66,26 @@ def __dag_sanity_check(g, stop_on_first=True) :
 		for t, nr, preds in p :
 			if not t in b.prototype.terms :
 				return (False, 0)
-			if t.direction != dfs.INPUT_TERM :
+			if t.direction != core.INPUT_TERM :
 				return (False, 1)
 			if len(preds) != 1 :
 				return (False, 2, (b, t, preds))
 			for b_pred, t_pred, n_pred in preds :
 				if not b_pred in g :
 					return (False, 3)
-				if t_pred.direction != dfs.OUTPUT_TERM :
+				if t_pred.direction != core.OUTPUT_TERM :
 					return (False, 4)
 				if not t_pred in b_pred.prototype.terms :
 					return (False, 5)
 		for t, nr, succs in s :
 			if not t in b.prototype.terms :
 				return (False, 6)
-			if t.direction != dfs.OUTPUT_TERM :
+			if t.direction != core.OUTPUT_TERM :
 				return (False, 7)
 			for b_succ, t_succ, n_succ in succs :
 				if not b_succ in g :
 					return (False, 8)
-				if t_succ.direction != dfs.INPUT_TERM :
+				if t_succ.direction != core.INPUT_TERM :
 					return (False, 9)
 				if not t_succ in b_succ.prototype.terms :
 					return (False, 10)
@@ -105,7 +105,7 @@ def __dag_sanity_check(g, stop_on_first=True) :
 #	(neighbours, ) = [ succs for t, succs in neighbours?!?!?!? if t == bt]
 #	assert(not (block, term) in neighbours) # raise should be better
 #	neighbours.append((block, term))
-#	assert(len(neighbours)==1 if bt.direction == dfs.INPUT_TERM else True)
+#	assert(len(neighbours)==1 if bt.direction == core.INPUT_TERM else True)
 
 
 def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
@@ -151,9 +151,9 @@ def __replace_block_with_subgraph(g, n, subgraph, map_in, map_out) :
 #	return (p, s) or (s, p) based on value of direction, that is list with terms of given direction first
 #	"""
 #	p, s = ps
-#	if direction == dfs.INPUT_TERM :
+#	if direction == core.INPUT_TERM :
 #		return s, p
-#	elif direction == dfs.OUTPUT_TERM :
+#	elif direction == core.OUTPUT_TERM :
 #		return p, s
 #	else :
 #		raise Exception("unknown term direction")
@@ -178,36 +178,36 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 
 #TODO unify loops
 
-#	__do_part_block_replace(g, n, s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM)
-#	__do_part_block_replace(g, n, p, map_in, dfs.INPUT_TERM, dfs.OUTPUT_TERM)
+#	__do_part_block_replace(g, n, s, map_out, core.OUTPUT_TERM, core.INPUT_TERM)
+#	__do_part_block_replace(g, n, p, map_in, core.INPUT_TERM, core.OUTPUT_TERM)
 #	return None
 
 	for in_t, in_t_nr, values in p :
-		assert(in_t.direction == dfs.INPUT_TERM)
+		assert(in_t.direction == core.INPUT_TERM)
 		succs = map_in[in_t, in_t_nr] if (in_t, in_t_nr) in map_in else []
 		for b_pred, t_pred, t_pred_nr in values :
-			assert(t_pred.direction == dfs.OUTPUT_TERM)
+			assert(t_pred.direction == core.OUTPUT_TERM)
 			b_pred_succ = g[b_pred].s
 			__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
 			for b, t, nr in succs :
-				assert(t.direction == dfs.INPUT_TERM)
+				assert(t.direction == core.INPUT_TERM)
 				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 	for out_t, out_t_nr, values in s :
-		assert(out_t.direction == dfs.OUTPUT_TERM)
+		assert(out_t.direction == core.OUTPUT_TERM)
 		preds = map_out[out_t, out_t_nr] if (out_t, out_t_nr) in map_out else []
 		for b_succ, t_succ, t_succ_nr in values :
-			assert(t_succ.direction == dfs.INPUT_TERM)
+			assert(t_succ.direction == core.INPUT_TERM)
 			b_succ_pred = g[b_succ].p
 			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
 			for b, t, nr in preds :
-				assert(t.direction == dfs.OUTPUT_TERM)
+				assert(t.direction == core.OUTPUT_TERM)
 				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
 
-#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, dfs.OUTPUT_TERM, dfs.INPUT_TERM),) :
+#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, core.OUTPUT_TERM, core.INPUT_TERM),) :
 #		assert(n_t.direction == dir_from)
 #		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
 #		for b_adj, t_adj, t_adj_nr in values :
@@ -244,8 +244,8 @@ def chain_blocks(g, n, m) :
 	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
 	motivated by need to express calls in main function, this is probably BAD THING
 	"""
-	n_out = dfs.VirtualOut("y")
-	m_in = dfs.VirtualIn("x")
+	n_out = core.VirtualOut("y")
+	m_in = core.VirtualIn("x")
 	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
 	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
@@ -280,18 +280,22 @@ def block_value_by_name(n, value_name) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
 def __cut_joint_alt(g, j) :
 #	print "__cut_joint_alt:", g[j].p
 #	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
+#	print here(), g[j]
 	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
 	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
 
+
 #XXX is there a way how to do it functionally?
 def __expand_joints_new(g) :
-	for j in [ b for b in g if isinstance(b.prototype, core.JointProto) ] :
+	for j in [ b for b in g if core.compare_proto_to_type(b.prototype, core.JointProto) ] :
 		__cut_joint_alt(g, j)
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -315,7 +319,7 @@ def get_taps(g) :
 	"""
 	return { tap_name : tap, ... }
 	"""
-	tap_list = [ b for b, (p, s) in g.items() if isinstance(b.prototype, core.TapProto) ]
+	tap_list = [ b for b, (p, s) in g.items() if core.compare_proto_to_type(b.prototype, core.TapProto) ]
 	taps = { b.value : b for b in tap_list }
 	assert(len(tap_list)==len(taps))
 	return taps
@@ -325,7 +329,7 @@ def get_tap_ends(g) :
 	"""
 	return { tap_name : [ tap_end1, ...], ... }
 	"""
-	tap_ends_list = { b for b in g.keys() if isinstance(b.prototype, core.TapEndProto) }
+	tap_ends_list = { b for b in g.keys() if core.compare_proto_to_type(b.prototype, core.TapEndProto) }
 	tap_ends = groupby_to_dict(tap_ends_list, lambda b: b.value, lambda b: b, lambda x: list(x))
 	assert( len(tap_ends_list) == sum([len(v) for v in tap_ends.values()]) )
 	return tap_ends
@@ -356,14 +360,14 @@ def __expddel(d, nr) :
 
 def __expand_delays(blocks, conns) :
 
-	delays = { b for b in blocks if isinstance(b.prototype, core.DelayProto) }
+	delays = { b for b in blocks if core.compare_proto_to_type(b.prototype, core.DelayProto) }
 
 	expd = dict([ __expddel(delay, nr) for delay, nr in zip(delays, count()) ])
 
 	def mkvert(src, io) :
 		b, t = src
 		block, term = ( ( expd[b][io], expd[b][io].terms[0] )
-			if isinstance(b.prototype, core.DelayProto)
+			if core.compare_proto_to_type(b.prototype, core.DelayProto)
 			else (b, t) )
 		return (block, ) + t_unpack(term)
 
@@ -383,17 +387,15 @@ def get_terms_flattened(block) :
 			yield t, 0
 
 def __in_terms(block) :
-#	print "__in_terms:", block.__class__
 #TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.INPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.INPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == dfs.INPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.INPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == core.INPUT_TERM  ]
 
 def __out_terms(block) :
-#TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == dfs.OUTPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == dfs.OUTPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == dfs.OUTPUT_TERM  ]
+	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
+#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.OUTPUT_TERM  ]
+#	return [ t for t in block.terms if t.direction == core.OUTPUT_TERM  ]
 
 #def __adj_edges(b, conns, neighbours) :
 #	inputs
@@ -468,7 +470,7 @@ def infer_block_type(block, preds, types, known_types) :
 	inferred = None
 #	print(here(), block)
 	for t, t_nr, preds in preds :
-		if t.type_name == "<inferred>" :
+		if t.type_name == core.TYPE_INFERRED :
 			inherited = types[block, t, t_nr]
 #			print(here(), inherited)
 			if inferred is None or compare_types(known_types, inherited, inferred) > 0 :
@@ -482,16 +484,16 @@ def infer_block_type(block, preds, types, known_types) :
 def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, mt_nr, visited) :
 	mt_type_name = mt.type_name
 #	print(here(), n, nt, nt_nr, "<-", m, mt, mt_nr, "type:", mt_type_name)
-	if mt_type_name == "<inferred>"	:
-		if m.prototype.__class__ == core.DelayOutProto :
+	if mt_type_name == core.TYPE_INFERRED :
+		if core.compare_proto_to_type(m.prototype, core.DelayOutProto) :
 			value_type, _ = parse_literal(delays[m], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
-		elif m.prototype.__class__ == core.ConstProto :
+		elif core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			value_type, _ = parse_literal(m.value[0], known_types=known_types)
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
 			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
-	if nt.type_name == "<inferred>"	:
+	if nt.type_name == core.TYPE_INFERRED :
 		types[n, nt, nt_nr] = mt_type_name
 
 
@@ -809,11 +811,12 @@ def sethi_ullman(g) :
 
 def temp_init(known_types) :
 	tmp = { tp_name : []
-		for tp_name in known_types if not tp_name in ("void", "<inferred>") }
+		for tp_name in known_types if not tp_name in (core.TYPE_VOID, core.TYPE_INFERRED) }
 	return tmp
 
 
-def get_tmp_slot(tmp, slot_type="vm_word_t") :
+def get_tmp_slot(tmp, slot_type=None) :
+	assert(not slot_type is None)
 	if "empty" in tmp[slot_type] :
 		slot = tmp[slot_type].index("empty")
 	else :
@@ -822,15 +825,16 @@ def get_tmp_slot(tmp, slot_type="vm_word_t") :
 	return slot
 
 
-def add_tmp_ref(tmp, refs, slot_type="vm_word_t") :
+def add_tmp_ref(tmp, refs, slot_type=None) :
+	assert(not slot_type is None)
 	assert(len(refs)>0)
-	assert(slot_type != "<inferred>")
+	assert(slot_type != core.TYPE_INFERRED)
 	slot = get_tmp_slot(tmp, slot_type=slot_type)
 	tmp[slot_type][slot] = list(refs)
 	return slot
 
 
-def pop_tmp_ref(tmp, b, t, t_nr, slot_type="vm_word_t") :
+def pop_tmp_ref(tmp, b, t, t_nr) :
 	for slot_type, t_tmp in tmp.items() :
 		for slot, nr in zip(t_tmp, count()) :
 			if slot != "empty" and (b, t, t_nr) in slot :
@@ -875,7 +879,7 @@ def init_pipe_protos(known_types) :
 #TODO generalize for other IPC schemes
 	g_protos = {}
 	for type_name in known_types :
-		if type_name != "<inferred>" :
+		if type_name != core.TYPE_INFERRED :
 			gw_proto = core.GlobalWriteProto(type_name)
 			gr_proto = core.GlobalReadProto(type_name)
 			g_protos[type_name] = (gw_proto, gr_proto)
@@ -883,7 +887,7 @@ def init_pipe_protos(known_types) :
 
 
 def extract_pipes(g, known_types, g_protos, pipe_replacement) :
-	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
+	pipes = { n for n in g if core.compare_proto_to_type(n.prototype, core.PipeProto) }
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
 		pipe_default = block_value_by_name(n, "Default")
@@ -894,14 +898,14 @@ def extract_pipes(g, known_types, g_protos, pipe_replacement) :
 
 
 def replace_pipes(g, g_protos, pipe_replacement) :
-	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if n.prototype.__class__ == core.PipeEndProto }
+	pipe_ends = { n : block_value_by_name(n, "Name") for n in g if core.compare_proto_to_type(n.prototype, core.PipeEndProto) }
 
 	unmatched = [ pe for pe in pipe_ends
 		if not (block_value_by_name(pe, "Name") in pipe_replacement) ]
 	if unmatched :
 		raise Exception("unmatched pipes found! {0}".format(str(unmatched)))
 
-	pipes = { n for n in g if n.prototype.__class__ == core.PipeProto }
+	pipes = { n for n in g if core.compare_proto_to_type(n.prototype, core.PipeProto) }
 
 	for n in pipes :
 		pipe_name = block_value_by_name(n, "Name")
@@ -921,13 +925,23 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def __expand_macro(g, library, n, known_types, cache) :
+def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
 
-	sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+#	print here(), full_name
+
+	sheet = None
+	if n.prototype.library == "<local>" :
+#		print here(), full_name
+		sheet_name = "@macro:" + name
+		if sheet_name in local_block_sheets :
+			sheet = core.clone_sheet(local_block_sheets[sheet_name][1], library)
+	else :
+		sheet = core.load_library_sheet(library, full_name, "@macro:" + name)
+
 	if sheet is None :
-		raise Exception("failed to expand macr '" + full_name + "'")
+		raise Exception("failed to expand macro '" + full_name + "'")
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
 
 #TODO
@@ -938,8 +952,8 @@ def __expand_macro(g, library, n, known_types, cache) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
-	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if b.prototype.__class__ == core.InputProto }
-	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if b.prototype.__class__ == core.OutputProto }
+	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if core.compare_proto_to_type(b.prototype, core.InputProto) }
+	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if core.compare_proto_to_type(b.prototype, core.OutputProto) }
 
 	for io_blocks in (inputs, outputs) :
 		for io, _ in io_blocks.values() :
@@ -959,17 +973,17 @@ def __expand_macro(g, library, n, known_types, cache) :
 	return (delays, )
 
 
-def expand_macroes(g, library, known_types, block_cache=None) :
+def expand_macroes(g, library, known_types, local_block_sheets, block_cache=None) :
 	cache = block_cache_init() if block_cache is None else block_cache
 	new_delays = {}
 	prev_batch = set()
-	macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+	macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
 	while macroes != prev_batch :
 		for n in sorted(macroes) :
-			delays, = __expand_macro(g, library, n, known_types, cache)
+			delays, = __expand_macro(g, library, n, known_types, cache, local_block_sheets)
 			new_delays.update(delays)
 		prev_batch = set(macroes)
-		macroes = { b for b in g if isinstance(b.prototype, core.MacroProto) }
+		macroes = { b for b in g if core.compare_proto_to_type(b.prototype, core.MacroProto) }
 	if macroes :
 		raise Exception("failed to {0} expand macroes".format(len(macroes)))
 	return (new_delays, )
@@ -981,6 +995,11 @@ def block_cache_init() :
 
 # ------------------------------------------------------------------------------------------------------------
 
+def create_function_call(name) :
+	block = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
+	block.value = (name, )
+	return block
+
 
 def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	graph, delays = make_dag(model, meta, known_types)
@@ -990,15 +1009,33 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
+#def process_sheet_list(sheets, global_meta, codegen, known_types, lib) :
+
+#	l = [ make_dag(s, None, known_types, do_join_taps=False)
+#		for name, s in sorted(sheets.items(), key=lambda x: x[0])
+#		if not name in special ]
+#	graph, delays = dag_merge(l)
+#	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+#	delays.update(new_delays)
+#	join_taps(graph)
+#	types = infer_types(graph, delays, known_types=known_types)
+#	extract_pipes(graph, known_types, g_protos, pipe_replacement)
+#	tsk_name = "loop"
+
+
+#	return tsk_name, g, delays, tsk_setup_meta, types
+
+
 #TODO break down to smaller functions if possible
-def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj) :
+def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
 
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
-	unknown = [ name for name in special if not name in special_sheets ]
+	unknown = [ name for name in special
+		if (not name in special_sheets) and (core.sheet_block_name_and_class(name) is None) ]
 	if unknown :
 		raise Exception("Unknown special sheet name(s) '{0}'".format(unknown))
 
@@ -1008,6 +1045,15 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	block_cache = block_cache_init()
 
 	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
+
+	local_block_sheets = {}
+	for name, sheet_list_iter in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
+		if core.is_macro_name(name) or core.is_function_name(name) :
+			sheet_list = tuple(sheet_list_iter)
+			print here(), name, sheet_list
+			assert(len(sheet_list)==1)
+			local_block_sheets[name], = sheet_list
+
 	for name, sheet_list in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
 		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
@@ -1016,12 +1062,16 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
 			g, d = dag_merge(l)
-			new_d, = expand_macroes(g, lib, known_types, block_cache=block_cache)
+			new_d, = expand_macroes(g, lib, known_types, local_block_sheets, block_cache=block_cache)
 			d.update(new_d)
 			join_taps(g)
 			types = infer_types(g, d, known_types=known_types)
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+		elif core.is_macro_name(name) :
+			print here(), name
+		elif core.is_function_name(name) :
+			print here(), name
 		else :
 			raise Exception("impossible exception")
 
@@ -1029,7 +1079,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
+	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
 	delays.update(new_delays)
 	join_taps(graph)
 	types = infer_types(graph, delays, known_types=known_types)
@@ -1037,15 +1087,12 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	tsk_name = "loop"
 	graph_data.append((tsk_name, graph, delays, {}, types))
 
-	loop_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-	loop_call.value = (tsk_name, )
-	init_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-	init_call.value = ("init", )
+	loop_call = create_function_call(tsk_name)
+	init_call = create_function_call("init")
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
 	first_call = loop_call
 	if "@setup" in special :
-		setup_call = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
-		setup_call.value = ("setup", )
+		setup_call = create_function_call("setup")
 		main_tsk_g[setup_call] = adjs_t([], [])
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 		first_call = setup_call
@@ -1066,7 +1113,7 @@ def implement_workbench(sheets, global_meta, codegen, known_types, lib, out_fobj
 	include_files = []
 	for l in lib.libs :
 		if l.name in libs_used :
-			include_files.extend(l.include_files)
+			include_files.extend(l.include_files)#TODO maybe use only file name
 
 	glob_vars = [ (pipe_name, pipe_type, pipe_default)
 		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
@@ -1086,35 +1133,36 @@ def main() :
 #	fname = args.file[0]
 	import serializer
 	action = sys.argv[1]
-	fname = sys.argv[2]
+	fname = os.path.abspath(sys.argv[2])
 	if len(sys.argv) == 4 :
 		pass#TODO use output file
 
-	if os.path.splitext(fname)[1].lower() == ".w" :
-		w = dfs.Workbench(
-			lib_dir=os.path.join(os.getcwd(), "library"),
-			passive=True)
-		blockfactory = w.blockfactory
-		try :
-			with open(fname, "rb") as f :
-				serializer.unpickle_workbench(f, w)
-		except :
-			print("error loading workbench file")
-			raise
-#			exit(666)
-		sheets = w.sheets
-		global_meta = w.get_meta()
-	else :
-		blockfactory = core.create_block_factory(
-				scan_dir=os.path.join(os.getcwd(), "library"))
-		try :
-			with open(fname, "rb") as f :
-				model = serializer.unpickle_dfs_model(f, lib=blockfactory)
-		except Exception as e :
-			print("error loading sheet file", e)
-			exit(666)
-		sheets = { "tsk" : model }
-		global_meta = {}
+	if os.path.splitext(fname)[1].lower() != ".w" :#TODO path separator
+		print("formats other than .w are not supported anymore")
+		exit(1)
+
+	main_lib = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
+	local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
+	local_lib.load_standalone_workbench_lib(fname, "<local>")
+#	print here(), local_lib.block_list
+	library = core.SuperLibrary([main_lib, local_lib])
+
+	w = dfs.Workbench(
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True)
+
+#	library = w.blockfactory
+
+	try :
+		with open(fname, "rb") as f :
+			serializer.unpickle_workbench(f, w, use_cached_proto=False, library=library)
+	except :
+		print("error loading workbench file")
+		raise
+#		exit(666)
+	sheets = w.sheets
+	global_meta = w.get_meta()
+
 
 	if action == "c" :
 		import ccodegen as cg
@@ -1130,7 +1178,7 @@ def main() :
 			self.buffer = ""
 
 	out_fobj = DummyFile()
-	implement_workbench(sheets, global_meta, cg, core.KNOWN_TYPES, blockfactory, out_fobj)
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, out_fobj)
 	print(out_fobj.buffer)
 	exit(0)
 #	elif action == "mkmac" :

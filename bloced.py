@@ -58,6 +58,11 @@ BIT_MB_1 = 0x100
 BIT_MB_2 = 0x200
 BIT_MB_3 = 0x400
 
+
+def get_basic_mod_keys(state) :
+	return state & ~(BIT_CAPSLOCK | BIT_NUMLOCK)
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 class Configuration(object):
@@ -248,17 +253,21 @@ else :
 
 class Block(Canvas, BlockBase) :
 
+
 	def term_onMouseDown(self, e) :
 		self.term_hit = True
 		self.editor.clear_selection()
 		return self.editor.blckMouseDown(self, e)
 
+
 	def term_onMouseMove(self, e) :
 		return self.editor.blckMouseMove(self, e)
+
 
 	def term_onMouseUp(self, e) :
 		self.term_hit = False
 		return self.editor.blckMouseUp(self, e)
+
 
 #	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
 #		core.InputProto, core.OutputProto)
@@ -266,7 +275,8 @@ class Block(Canvas, BlockBase) :
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
-#		print here(), self.model.prototype, self.model.prototype.values
+#		print here()#, self.model.prototype, self.model.prototype.values
+		self.__dbl_click = True
 		if self.model.prototype.values :
 			items = [ (name, val) for (name, _), val
 				in zip(self.model.prototype.values, self.model.value)]
@@ -294,11 +304,14 @@ class Block(Canvas, BlockBase) :
 #		self.config(width=self.model.width, height=self.model.height, bg="white",
 #			borderwidth=0, highlightthickness=0)
 
+
 	def update_text(self) :
 		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
 
+
 	def select_next(self) :
 		self.editor.select_next()
+
 
 	def __update_label(self, name, pos, text) :
 		if name in self.__labels :
@@ -312,8 +325,10 @@ class Block(Canvas, BlockBase) :
 		self.__labels[name] = lbl
 		return lbl.canvas_item
 
+
 	def popup(self, e) :
 		self.editor.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
+
 
 	def __init__(self, editor, model) :
 		self.editor = editor
@@ -321,6 +336,7 @@ class Block(Canvas, BlockBase) :
 		self.model = model
 		self.__labels = {}
 		self.mouse_down_at = None
+		self.__dbl_click = False
 
 		Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
@@ -356,6 +372,7 @@ class Block(Canvas, BlockBase) :
 		self.create_terms = True
 		self.reshape()
 
+
 	def reshape(self) :
 		self.window2term.clear()
 		self.__term2txt.clear()
@@ -366,6 +383,7 @@ class Block(Canvas, BlockBase) :
 #		for k, v in self.get_wires() :
 #			self.editor.update_connection(*(k + (True,)))
 		self.update_text()
+
 
 	def regenerate_terms(self) :
 
@@ -382,7 +400,7 @@ class Block(Canvas, BlockBase) :
 			term_tag = t.name
 			term_label = self.model.get_term_presentation_text(t, nr)
 
-			t_side = t.get_side(self.model)
+			t_side = self.model.get_term_side(t)
 
 #XXX XXX XXX
 #			fnt = self.editor.font_h if t_side in (W, E) else self.editor.font_v
@@ -395,7 +413,7 @@ class Block(Canvas, BlockBase) :
 			poly = get_term_poly(
 				x,#x-(term_size if t_side == E else 0),
 				y,#y-(term_size if t_side == S else 0),
-				txt_height, t.get_side(self.model), t.direction, txt_width)
+				txt_height, self.model.get_term_side(t), t.direction, txt_width)
 
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
@@ -406,6 +424,7 @@ class Block(Canvas, BlockBase) :
 
 			self.window2term[w] = t
 			self.__term2txt[t] = txt
+
 
 	def onMouseDownW(self, e) :
 		if self.term_hit :
@@ -420,6 +439,7 @@ class Block(Canvas, BlockBase) :
 			self.editor.create_selection_from_list(sel_blocks, [])
 		self.editor.model.begin_edit()
 		self.affected_wires = self.get_wires(sel_blocks=sel_blocks)
+
 
 	def onMouseMoveW(self, e) :
 		if self.term_hit :
@@ -439,7 +459,11 @@ class Block(Canvas, BlockBase) :
 			for k, v in self.affected_wires :
 				self.editor.update_connection(*(k + (True,)))
 		self.affected_wires = None
-		self.editor.model.end_edit()
+		if self.__dbl_click :
+			self.__dbl_click = False
+		else :
+			self.editor.model.end_edit()
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -510,7 +534,7 @@ class BlockEditor(Frame, GraphModelListener) :
 	def __get_term_at(self, blck, dstx, dsty, filt_dir=None) :
 		xo1, yo1, ro1, bo1 = tuple(self.canv.bbox(blck.window))
 		tdstx, tdsty = dstx - xo1, dsty - yo1
-		if blck.model.prototype.__class__ != core.JointProto :
+		if not core.compare_proto_to_type(blck.model.prototype, core.JointProto) :
 			terms = blck.find_overlapping(tdstx-1, tdsty-1, tdstx+1, tdsty+1)
 			dstterms = [ blck.window2term[t] for t in terms if t in blck.window2term ]
 		else :
@@ -548,14 +572,14 @@ class BlockEditor(Frame, GraphModelListener) :
 		dsty = e.y + yo0
 
 		tblock, twire = self.__get_obj_at(dstx, dsty,
-			INPUT_TERM if srcterm.direction == OUTPUT_TERM else OUTPUT_TERM)
+			core.INPUT_TERM if srcterm.direction == core.OUTPUT_TERM else core.OUTPUT_TERM)
 
 		if tblock :
 #			print "blckMouseUp:", tblock
 			blck, dstterm = tblock
 #			if isinstance(blck.model.prototype, core.JointProto) :
 #				print "kvak", blck, blck.model, blck.model.terms, dstterm
-#				dstterm = Out(0, "", C, 0) if srcterm.direction == INPUT_TERM else In(0, "", C, 0)
+#				dstterm = Out(0, "", C, 0) if srcterm.direction == core.INPUT_TERM else In(0, "", C, 0)
 #				blck.model.terms.append(dstterm)
 #				self.canv.tag_raise(blck.window)
 #			print "kvak2", sender.model, srcterm, blck.model, dstterm
@@ -567,17 +591,22 @@ class BlockEditor(Frame, GraphModelListener) :
 #				self.model.end_edit()
 #		else :
 #			self.model.end_edit()
-
-#		elif twire : # and srcterm.direction == INPUT_TERM :
-##TODO TODO TODO
-#			return None
-##			self.model.can_connect(sender.model, srcterm, blck.model, dstterm)
-#			print("blckMouseUp:", twire)
-##			sender.model, srcterm
-#			proto = core.JointProto()
-#			w, h = proto.default_size
-#			b = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
-#			self.model.add_block(b)
+		elif twire and srcterm.direction == core.INPUT_TERM :
+			self.model.begin_edit()
+			src_blck, src_term, dst_blck, dst_term = twire
+			self.model.remove_connection(src_blck, src_term, dst_blck, dst_term)
+			proto = core.JointProto()
+			w, h = proto.default_size
+			joint = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
+			self.model.add_block(joint)
+			t_in = [ t for t in joint.terms if t.direction == core.INPUT_TERM ][0]
+			t_out = [ t for t in joint.terms if t.direction == core.OUTPUT_TERM ][0]
+			self.model.add_connection(src_blck,
+				src_term[0] if isinstance(src_term, tuple) else src_term, joint, t_in, {})
+			self.model.add_connection(joint, t_out, dst_blck,
+				dst_term[0] if isinstance(dst_term, tuple) else dst_term, {})
+			self.model.add_connection(joint, t_out, sender.model, srcterm, {})
+			self.model.end_edit()
 
 	# ----------------------------------------------------------------------------------------------------
 
@@ -695,17 +724,17 @@ class BlockEditor(Frame, GraphModelListener) :
 		bump = cfg.BLOCK_WIRE_STUB
 		bumps = { N: (0, -bump), S: (0, bump), W: (-bump, 0), E: (bump, 0), C: (0, 0) }
 
-		bump0x, bump0y = bumps[st.get_side(sb)]
+		bump0x, bump0y = bumps[sb.get_term_side(st)]
 		s = autoroute.pnt(int(s0[0]+bump0x), int(s0[1]+bump0y))
 
-		bump1x, bump1y = bumps[tt.get_side(tb)]
+		bump1x, bump1y = bumps[tb.get_term_side(tt)]
 		t = autoroute.pnt(int(tA[0]+bump1x), int(tA[1]+bump1y))
 
 		route = None
 		if fullroute :
-			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if st.get_side(sb) != C
+			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sb.get_term_side(st) != C
 				else autoroute.rct(sb.left, sb.top, 1, 1))
-			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tt.get_side(tb) != C
+			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tb.get_term_side(tt) != C
 				else autoroute.rct(tb.left, tb.top, 1, 1))
 			bbox = autoroute.choose_bbox(r1, r2,
 				autoroute.rct(*self.canvas_scrollregion), bump + 1)
@@ -1109,10 +1138,10 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.bind("<ButtonRelease-1>", self.default_mouseup)
 #		self.canv.bind("<Delete>", lambda a: self.delete_selection())
 		self.canv.bind("<Escape>", lambda a: self.cancel_action_pending())
-		self.canv.bind("<l>", lambda a: self.rotate_selection(0, 0, -90))
-		self.canv.bind("<r>", lambda a: self.rotate_selection(0, 0, 90))
-		self.canv.bind("<h>", lambda a: self.rotate_selection(0, 180, 0))
-		self.canv.bind("<v>", lambda a: self.rotate_selection(180, 0, 0))
+		self.canv.bind("<l>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 0, -90))
+		self.canv.bind("<r>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 0, 90))
+		self.canv.bind("<h>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(0, 180, 0))
+		self.canv.bind("<v>", lambda e: None if get_basic_mod_keys(e.state) else self.rotate_selection(180, 0, 0))
 		self.canv.bind("<Left>", lambda a: self.move_selection(-cfg.GRID_SIZE, 0))
 		self.canv.bind("<Right>", lambda a: self.move_selection(cfg.GRID_SIZE, 0))
 		self.canv.bind("<Up>", lambda a: self.move_selection(0, -cfg.GRID_SIZE))
@@ -1128,8 +1157,6 @@ class BlockEditor(Frame, GraphModelListener) :
 		#self.canv.bind("<Motion>", lambda e: pprint((e.x, e.y)))
 
 # ------------------------------------------------------------------------------------------------------------
-
-NEW = True
 
 class BlockEditorWindow(object) :
 
@@ -1315,7 +1342,7 @@ class BlockEditorWindow(object) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
 		if old in self.__menu_vars :
-			self.__menu_vars.pop(old)
+			print here(), self.__menu_vars.pop(old)
 #		print(here(), mnu, index, new.text, old.text)
 		mnu.delete(index)
 		self.__add_submenu_item(mnu, new, index=index)
@@ -1484,12 +1511,46 @@ class BlockEditorWindow(object) :
 
 	def __change_callback(self, w, event, data) :
 		print(here(), w, event, data)
+		sheet_name = None
+		changed = False
 		if event == "sheet_added" :
-			sheet, name = data #?
-			self.add_sheet(sheet, name)
+			sheet, sheet_name = data #?
+			self.add_sheet(sheet, sheet_name)
+			changed = True
 		elif event == "sheet_deleted" :
-			sheet, name = data #?
-			self.delete_sheet(sheet, name)
+			sheet, sheet_name = data #?
+			self.delete_sheet(sheet, sheet_name)
+			changed = True
+#		if changed :
+#			self.__changed_event()
+		if not sheet_name is None :
+			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
+				self.__list_local_block()
+
+
+	def begin_paste_local_block(self, sheet_name) :
+		sheet = self.work.sheets[sheet_name]
+		try :
+			proto = core.create_proto_from_sheet(sheet_name, sheet)
+		except Exception as e :
+			proto = None
+		if proto is None :
+			print(here(), e) #TODO say something to user
+		else :
+			self.begin_paste_block(proto)
+
+
+	def __list_local_block(self) :
+		sheets = core.get_block_sheets(self.work)
+		cmds = [ CmdMnu(core.sheet_block_name(sheet_name), None, partial(self.begin_paste_local_block, sheet_name))
+			for sheet_name in sheets ]
+#		print here(), cmds
+		old = self.local_blocks_mnu_edit
+		self.local_blocks_mnu_edit = CascadeMnu("Workbench", cmds)
+		self.replace_cascade(old, self.local_blocks_mnu_edit)
+		old = self.local_blocks_mnu_cntxt
+		self.local_blocks_mnu_cntxt = CascadeMnu("Workbench", cmds)
+		self.replace_cascade(old, self.local_blocks_mnu_cntxt)
 
 
 	def delete_sheet(self, sheet, name) :
@@ -1642,6 +1703,25 @@ class BlockEditorWindow(object) :
 			self.work.rename_sheet(name=sheet_name, new_name=new_name)
 
 
+	def lib_menu_items(self, local_blocks_mnu) :
+		blocks = sorted(self.work.blockfactory.block_list, key=lambda b: 1 if b.library else 0)
+		block_grouped = { k : tuple(blcklst) for k, blcklst in groupby(blocks, lambda b: 1 if b.library else 0) }
+		builtin_blocks = block_grouped[0] if 0 in block_grouped else tuple()
+		lib_blocks = block_grouped[1] if 1 in block_grouped else tuple()
+		for cat, b_iter in groupby(builtin_blocks, lambda b: b.category) :
+			yield CascadeMnu(cat,
+				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
+		yield SepMnu()
+		yield local_blocks_mnu
+		if not lib_blocks :
+			raise StopIteration()
+		yield SepMnu()
+		for cat, b_iter in groupby(lib_blocks, lambda b: b.category) :
+			blocks_sorted = sorted(b_iter, key=lambda b: b.type_name)
+			yield CascadeMnu(cat,
+				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in blocks_sorted ] )
+
+
 	def setup_menus(self) :
 
 		self.last_block_inserted = None
@@ -1693,19 +1773,21 @@ class BlockEditorWindow(object) :
 #			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
-		#TODO should be explicitly sorted
-		self.block_list = ([ CascadeMnu(cat,
-			[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in b_iter ] )
-				for cat, b_iter in groupby(self.work.blockfactory.block_list, lambda b: b.category) ])
+
+		self.local_blocks_mnu_edit = CascadeMnu("Workbench", [])
+		block_list_edit = tuple(self.lib_menu_items(self.local_blocks_mnu_edit))
 		self.add_top_menu("&Library",
 #			[ CmdMnu("&Insert last", "Ctrl+B", self.mnu_blocks_insert_last), SepMnu() ] +
-			self.block_list)
+			block_list_edit)
 
-		editor_menu = [ CascadeMnu("Library", self.block_list),
+		self.local_blocks_mnu_cntxt = CascadeMnu("Workbench", [])
+		block_list_cntxt = tuple(self.lib_menu_items(self.local_blocks_mnu_cntxt))
+		editor_menu = [ CascadeMnu("Library", block_list_cntxt),
 			SepMnu(), mnu_undo, mnu_redo,
 			SepMnu(), mnu_cut, mnu_copy, mnu_paste, mnu_delete,
 			SepMnu(), mnu_select_all ]
 		self.editor_popup = self.add_top_menu("", items=editor_menu, root=Menu(self.root))
+
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
 

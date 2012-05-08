@@ -94,11 +94,12 @@ def get_dfs_model_data2(blocks, connections, connections_meta, model_meta) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-def restore_dfs_model(types, struct, meta, lib) :
+def restore_dfs_model(types, struct, meta, lib, use_cached_proto=True) :
 	m = dfs.GraphModel()
 	m.enable_logging = False
 	fact = core.create_block_factory() if lib is None else lib
-	load_to_dfs_model(m, types, struct, meta, fact, deserializing=True)
+	load_to_dfs_model(m, types, struct, meta, fact, deserializing=True,
+		use_cached_proto=use_cached_proto)
 	m.enable_logging = True
 	return m
 
@@ -108,7 +109,9 @@ def __stname(t0) :
 	return t0[0] if isinstance(t0, tuple) else t0
 
 
-def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
+def load_to_dfs_model(m, types, struct, meta, fact,
+		deserializing=False,#TODO rename
+		use_cached_proto=True) :
 	"""
 	load deserialized types, struct, meta into supplied GraphModel instance
 	model is restored using block factory fact
@@ -127,9 +130,18 @@ def load_to_dfs_model(m, types, struct, meta, fact, deserializing=False) :
 
 	blocks = {}
 	for n, type_name in types :
-		t = fact.get_block_by_name(type_name)
-		b = dfs.BlockModel(t, m)
 		new_block_meta = block_meta[n]
+#		print here(), "cached_prototype" in new_block_meta#, use_cached_proto, new_block_meta
+		use_lib_proto = True
+		if not new_block_meta is None and "cached_prototype" in new_block_meta :
+#			print here()
+			bp = new_block_meta.pop("cached_prototype")
+			if use_cached_proto :
+				t = core.block_proto_from_proto_data(bp)
+				use_lib_proto = False
+		if use_lib_proto :
+			t = fact.get_block_by_name(type_name)
+		b = dfs.BlockModel(t, m)
 		b.set_meta({} if new_block_meta is None else new_block_meta)
 		blocks[n] = b
 		m.add_block(b)
@@ -196,7 +208,7 @@ def get_workbench_data(w) :
 	return x
 
 
-def unpickle_workbench(f, w) :
+def unpickle_workbench(f, w, use_cached_proto=True, library=None) :
 	"""
 	read pickled serialized Workbench data from file-like object f,
 	and load it into supplied Workbench instance w
@@ -206,7 +218,9 @@ def unpickle_workbench(f, w) :
 	except Exception as e :
 		return (False, "load_error", e)
 
-	return restore_workbench((version, meta, resources), w)
+	return restore_workbench((version, meta, resources), w,
+		use_cached_proto=use_cached_proto,
+		library=library)
 
 
 def get_resource(data, res_type, res_version, res_name) :
@@ -237,7 +251,7 @@ def check_w_data_legality(data) :
 
 
 #TODO this is not the right place for method like this
-def restore_workbench(data, w) :
+def restore_workbench(data, w, use_cached_proto=True, library=None) :
 	"""
 	load data into supplied Workbench instance w
 	"""
@@ -246,12 +260,15 @@ def restore_workbench(data, w) :
 
 	w.set_meta(meta)
 
+	lib = w.blockfactory if library is None else library
+
 	for r_type, r_version, r_name, resrc in resources :
 		if r_type == RES_TYPE_SHEET :
 			if r_version == RES_TYPE_SHEET_VERSION :
 				types, struct, meta = resrc
 #				pprint((types, struct, meta))
-				m = restore_dfs_model(types, struct, meta, w.blockfactory)
+				m = restore_dfs_model(types, struct, meta, lib,
+					use_cached_proto=use_cached_proto)
 				w.add_sheet(sheet=m, name=r_name)
 			else :
 				pass
