@@ -702,9 +702,9 @@ def load_c_library(lib_name, file_path) :
 
 
 def guess_block_size(terms_N, terms_S, terms_W, terms_E) :
-	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * dfs.TERM_SIZE
+	mc_width = max([ len(terms_N) + 2, len(terms_S) + 2 ]) * dfs.TERM_SIZE
 	mc_width = mc_width if mc_width >= dfs.MIN_BLOCK_WIDTH else dfs.MIN_BLOCK_WIDTH
-	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * dfs.TERM_SIZE
+	mc_height = max([ len(terms_W) + 2, len(terms_E) + 2 ]) * dfs.TERM_SIZE
 	mc_height = mc_height if mc_height >= dfs.MIN_BLOCK_HEIGHT else dfs.MIN_BLOCK_HEIGHT
 	return mc_width, mc_height
 

@@ -42,7 +42,7 @@ E = "e"
 
 term_size = 8
 
-TERM_SIZE = 8
+TERM_SIZE = 11
 
 #for macroes and foreign functions
 MIN_BLOCK_WIDTH = 64
@@ -165,7 +165,7 @@ class BlockModel(object) :
 #XXX XXX XXX
 #		index = t_nr
 		index = self.get_term_index(t, t_nr) if t.variadic else 1
-		c = (index - 1) * term_size if t.variadic else 0
+		c = (index - 0) * term_size if t.variadic else 0
 #XXX XXX XXX
 
 		p = self.get_term_pos(t)
