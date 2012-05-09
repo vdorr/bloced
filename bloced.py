@@ -716,8 +716,13 @@ class BlockEditor(Frame, GraphModelListener) :
 
 #		print "update_connection: ", sb, st, sn, tb, tt, tn, line, path
 
-		s0 = sb.get_term_location(st, sn)
-		tA = tb.get_term_location(tt, tn)
+#		txt_height = self.txt_height
+#			txt_width = self.editor.font.measure(sb.get_term_presentation_text(st, sn))
+
+		s0 = sb.get_term_location(st, sn,
+			self.font.measure(sb.get_term_presentation_text(st, sn)), self.txt_height)
+		tA = tb.get_term_location(tt, tn,
+			self.font.measure(tb.get_term_presentation_text(tt, tn)), self.txt_height)
 
 #		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
 

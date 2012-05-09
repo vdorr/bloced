@@ -156,26 +156,53 @@ class BlockModel(object) :
 		return (1 - t.default_pos) if x or y else t.default_pos
 
 
+	def get_term_and_lbl_pos_NEW(self, t, t_nr, term_width, term_height, center=True) :
+		same_side_terms = tuple(sorted((term for term, _ in self.get_terms_flat() if term.direction == t.direction), key=lambda term: term.default_pos))
+		w, h = self.width, self.height
+
+		side = self.get_term_side(t)
+
+		if side in (N, S) :
+			a = w
+		elif side in (W, E) :
+			a = h
+		elif side == C :
+			return (w/2, h/2), (0, 0)
+		else :
+			raise Exception()
+
+
+		term_index = self.get_term_index(t, t_nr) if t.variadic else 1
+		side_index = same_side_terms.index(t)
+		(side_index + term_index) * term_height + (len(same_side_terms) / 2) * term_height
+
+
 	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
+
+		self.get_term_and_lbl_pos_NEW(t, t_nr, text_width, txt_height, center=center)
 
 #		dw, dh = self.__prototype.default_size
 
-		t_size = txt_height
+		t_size = txt_height#XXX may depend on orientation
 		shift = t_size/2 if center else 0
 #XXX XXX XXX
 #		index = t_nr
 		index = self.get_term_index(t, t_nr) if t.variadic else 1
-		c = (index - 0) * term_size if t.variadic else 0
+
+#		print here(), t.name, t_nr, self.get_term_index(t, t_nr) if t.variadic else 666
+
+		c = (((index - 0) * t_size)) if t.variadic else 0
 #XXX XXX XXX
 
 		p = self.get_term_pos(t)
 		tw = text_width
 		side = self.get_term_side(t)
 
-		if t.variadic :
-			w, h = self.width, self.height
-		else :
-			w, h = self.default_size
+#		if t.variadic :
+#			w, h = self.width, self.height
+#		else :
+#			w, h = self.default_size
+		w, h = self.default_size
 
 		if side == N :
 			pos = ((w*p-shift+c, 0),	(0, 0))
@@ -197,6 +224,26 @@ class BlockModel(object) :
 
 #		return (int(x), int(y)), (x+txtx, int(y-(0.2*txt_height)+txty))
 		return (int(x), int(y)), (int(x+txtx), int(y+txty))
+
+
+	def get_term_location(self, t, t_nr, text_width, text_height) :
+		(x, y), _ = self.get_term_and_lbl_pos(t, t_nr, text_width, text_height, center=False)
+		return (x+self.left, y+self.top)
+
+
+	def get_label_pos(self, txt_width, txt_height) :
+		side =  [W, N, E, S][self.orientation[2]//90]
+		if side == W :
+			pos = (0, 0)
+		elif side == N :
+			pos = (self.width-txt_height, 0)
+		elif side == E :
+			pos = (self.width-txt_width, self.height-txt_height)
+		elif side == S :
+			pos = (0, self.height-txt_height)
+		else :
+			raise Exception()
+		return pos
 
 
 	def __lt__(self, other):
@@ -466,31 +513,6 @@ class BlockModel(object) :
 		if (t_nr, "index") in self.__term_meta[t.name] :
 			self.__term_meta[t.name].pop((t_nr, "index")) #and also the rest, if ever some rest will be
 #			self.__term_meta.pop((t.name, t_nr, "index")) #and also the rest, if ever some rest will be
-
-
-	def get_term_location(self, t, t_nr) :
-#		print "get_term_location:", t, t_nr
-#		retval = t.get_location_on_blockDEPRECATED(self, t_nr)
-		(x, y), _ = self.get_term_and_lbl_pos(t, t_nr, 0, 0, center=False)
-#		print "get_term_location:", retval, " vs.", (x+self.left, y+self.top)
-		return (x+self.left, y+self.top)
-#		assert(retval==...
-#		return retval
-
-
-	def get_label_pos(self, txt_width, txt_height) :
-		side =  [W, N, E, S][self.orientation[2]//90]
-		if side == W :
-			pos = (0, 0)
-		elif side == N :
-			pos = (self.width-txt_height, 0)
-		elif side == E :
-			pos = (self.width-txt_width, self.height-txt_height)
-		elif side == S :
-			pos = (0, self.height-txt_height)
-		else :
-			raise Exception()
-		return pos
 
 #	def __get__connections(self) :
 ##		print self.__graph.connections
