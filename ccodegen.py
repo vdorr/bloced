@@ -6,7 +6,7 @@ from itertools import count
 from pprint import pprint
 from itertools import groupby
 from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
-	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used
+	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used, in_terms, out_terms
 from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
@@ -42,6 +42,52 @@ __OPS = {
 	"eq" :		lambda n, args : "(" + "==".join(args) + ")",
 	#"divmod"
 }
+
+
+def __make_call(n, args, outs, tmp_args) :
+
+	tmp_args = { type_name : 0 for type_name in core.KNOWN_TYPES }
+
+	inputs = in_terms(n)
+	outputs = out_terms(n)
+	assert(len(args)==len(inputs))
+	assert(len(outs)==len(outputs))
+
+	arg_list = []
+	var_arg_list = []
+
+	prev_variadic = False
+	var_arg_cnt = None
+	var_arg_name = None
+
+
+	for a, (t, t_nr), i in zip(args, inputs, count()) :
+
+		if t.variadic :
+
+			if and t.name != var_arg_name :
+				var_arg_name = t.name
+				var_arg_cnt = tmp_args[t.type_name]
+
+			var_arg_list.append(a)
+
+		if var_arg_list and ((t.name != var_arg_name) or i == (len(args) - 1)) :
+
+			if (var_arg_cnt + len(var_arg_list)) > tmp_args[t.type_name] :
+				tmp_args[t.type_name] = var_arg_cnt
+
+			arg_list.append(str(len(var_arg_list)))
+			arg_list.append("TODO")
+			var_arg_cnt = None
+			var_arg_list = []
+			var_arg_name = None
+
+		if not t.variadic :
+			arg_list.append(a)
+
+
+
+
 
 
 def __implement(g, n, args, outs) :

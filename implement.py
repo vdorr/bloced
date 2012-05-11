@@ -269,8 +269,8 @@ def remove_block(g, n) :
 	"""
 	remove block n from graph g
 	"""
-	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
-	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
+	map_in = { (t, t_nr) : tuple() for t, t_nr in in_terms(n) }
+	map_out = { (t, t_nr) : tuple() for t, t_nr in out_terms(n) }
 	remove_block_and_patch(g, n, {}, map_in, map_out)
 
 
@@ -376,8 +376,6 @@ def __expand_delays(blocks, conns) :
 	return list((set(blocks)-delays).union(chain(*expd.values()))), conns2, expd
 
 
-# ------------------------------------------------------------------------------------------------------------
-
 def get_terms_flattened(block) :
 	for t in block.terms :
 		if t.variadic :
@@ -386,32 +384,15 @@ def get_terms_flattened(block) :
 		else :
 			yield t, 0
 
-def __in_terms(block) :
+
+def in_terms(block) :
 #TODO TODO TODO proper sorting!!!!!
 	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.INPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == core.INPUT_TERM  ]
 
-def __out_terms(block) :
+
+def out_terms(block) :
 	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.OUTPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == core.OUTPUT_TERM  ]
 
-#def __adj_edges(b, conns, neighbours) :
-#	inputs
-#	outputs
-
-#def __adj_in_edges(b, conns, neighbours) :
-#	preds = reverse_dict_of_lists(s_adjl, lambda values: set(values))
-#	print b, "inputs:", __in_terms(b.prototype.terms)
-
-#def __adj_out_edges(b, conns, neighbours) :
-##	print b, neighbours
-#	print b, "outputs:", __out_terms(b.prototype.terms)
-##	return { st : dst for (sb, st), dst in conns.items() if src[0] in neighbours }
-
-#def __merge_g_and_conns(g, conns) :
-#	return { b : adjs_t(__adj_in_edges(b, conns, p), __adj_out_edges(b, conns, s)) for b, (p, s) in g.items() }
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -532,8 +513,8 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
-			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in __in_terms(b) ],
-			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
+			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in in_terms(b) ],
+			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in out_terms(b) ])
 		for b in blocks }
 
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)

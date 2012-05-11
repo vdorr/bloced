@@ -1203,10 +1203,6 @@ class BlockEditorWindow(object) :
 #			self.bloced.undo.redo()
 
 
-	def mnu_edit_preferences(self, a=None) :
-		pass
-
-
 	def mnu_edit_select_all(self, a=None) :
 		self.bloced.select_all()
 
@@ -1774,8 +1770,8 @@ class BlockEditorWindow(object) :
 			mnu_delete, #CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
 			SepMnu(),
 			mnu_select_all, #CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all),
-#			SepMnu(),
-#			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
+			SepMnu(),
+			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
 
@@ -1855,6 +1851,16 @@ class BlockEditorWindow(object) :
 			("build.core", "arduino"),
 		)
 		d = InputDialog(self.root, "Edit custom target",
+			items=items)
+		if d.value :
+			pprint(d.value)
+
+
+	def mnu_edit_preferences(self, a=None) :
+		items = (
+			("Arduino directory", ""),
+		)
+		d = InputDialog(self.root, "Edit Preferences",
 			items=items)
 		if d.value :
 			pprint(d.value)
