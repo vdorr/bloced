@@ -90,7 +90,7 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 					assert(all(t.type_name == arg_type for t, _ in arg_group))
 					array_size = tmp_args[arg_type]
 					array_size = 0 if array_size is None else array_size
-					code.extend("{0}_tmp_arg[{1}]={2}".format(arg_type, array_size+i, a)
+					code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
 						for (_, a), i in zip(arg_group, count()))
 					tmp_args[arg_type] = array_size + len(arg_group)
 					arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, len(arg_group))
