@@ -376,22 +376,29 @@ def __expand_delays(blocks, conns) :
 	return list((set(blocks)-delays).union(chain(*expd.values()))), conns2, expd
 
 
-def get_terms_flattened(block) :
+#TODO TODO TODO proper sorting by prototype stack order
+def get_terms_flattened(block, direction=None, fill_for_unconnected_var_terms=False) :
 	for t in block.terms :
+		if not direction is None and direction != t.direction :
+			continue
 		if t.variadic :
 			for nr, index in sorted(block.get_indexed_terms(t), key=lambda x: x[1])[:-1] :
 				yield t, nr
+			else :
+				if fill_for_unconnected_var_terms :
+					yield t, None
 		else :
 			yield t, 0
 
 
 def in_terms(block) :
-#TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
+#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
+	return tuple(get_terms_flattened(block, direction=core.INPUT_TERM))
 
 
 def out_terms(block) :
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
+#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
+	return tuple(get_terms_flattened(block, direction=core.OUTPUT_TERM))
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1050,9 +1057,11 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
 		elif core.is_macro_name(name) :
-			print here(), name
+#			print here(), name
+			pass
 		elif core.is_function_name(name) :
-			print here(), name
+#			print here(), name
+			pass
 		else :
 			raise Exception("impossible exception")
 
