@@ -4,9 +4,7 @@
 #ifndef __ARDUINO_IOWRAP_H__
 #define __ARDUINO_IOWRAP_H__
 
-#define _VM_EXPORT_ 
-typedef int vm_word_t;
-typedef long vm_dword_t;
+#include "vm.h"
 
 /**
 	read digital input

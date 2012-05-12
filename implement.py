@@ -1110,6 +1110,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 	#TODO say something about what you've done
+	return libs_used,
 
 
 # ------------------------------------------------------------------------------------------------------------

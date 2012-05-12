@@ -148,6 +148,7 @@ src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 #TODO temp file mode
 def build_source(board, source,
 		aux_src_dirs=[],
+		aux_idirs=[],
 		boards_txt=None,
 		board_db={},
 		ignore_file="amkignore",
@@ -181,6 +182,7 @@ blob_stream
 	r = build(board, workdir,
 		wdir_recurse=False,
 #		aux_src_files=[ source_f.name ],#XXX
+		aux_idirs=aux_idirs,
 		aux_src_dirs=aux_src_dirs,
 		boards_txt=boards_txt,
 		board_db=board_db,
@@ -220,6 +222,7 @@ def build(board, workdir,
 		wdir_recurse=True,
 		aux_src_dirs=[],
 		aux_src_files=[],
+		aux_idirs=[],
 		boards_txt=None,
 		board_db={},
 		ignore_file="amkignore",
@@ -281,7 +284,7 @@ def build(board, workdir,
 	re_ignore = re.compile("("+")|(".join(ign_res)+")")
 	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 
-	sources, idirs = list(aux_src_files), []
+	sources, idirs = list(aux_src_files), list(aux_idirs)
 	src_total, idir_total = 0, 0
 	for directory, recurse in src_dirs:
 		try :

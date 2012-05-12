@@ -1022,24 +1022,19 @@ class Workbench(object) :
 		try :
 			w = Workbench(passive=True, do_create_block_factory=False,
 				blockfactory=self.blockfactory)
-
 			local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
 			local_lib.load_standalone_workbench_lib(None, "<local>",
 				library=w.blockfactory,
 				w_data=w_data)
-#			print here(), local_lib.block_list[0]
 			library = core.SuperLibrary([w.blockfactory, local_lib])
-			print here()
 			serializer.restore_workbench(w_data, w,
 				use_cached_proto=False,
 				library=library)
-			print here()
-			implement.implement_workbench(w, w.sheets, w.get_meta(),
+			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
-			print here()
 		except Exception as e:
-			import traceback
-			print here(), traceback.format_exc()
+#			import traceback
+#			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
 
@@ -1054,17 +1049,28 @@ class Workbench(object) :
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
+		source_dirs = set()
+		for l in library.libs :
+			if l.name in libs_used :
+				for src_file in l.source_files :
+					source_dirs.add(os.path.dirname(src_file))
+
+		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=[
 				(os.path.join(base_include_dir, "cores", "arduino"), False),
 				(os.path.join(base_include_dir, "variants", variant), False),
-				(os.path.join(os.getcwd(), "library", "arduino"), False)
-			],#TODO derive from libraries used
+#				(os.path.join(install_path, "library", "arduino"), False),
+			] + [ (path, True) for path in source_dirs ],#TODO derive from libraries used
+			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
 			boards_txt=build.BOARDS_TXT,
 #			board_db={},
 			ignore_file=None,#"amkignore",
+
 			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
+#			ignore_lines=[],
+
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"
 #			prog_adapter="arduino", #None for dfu-programmer

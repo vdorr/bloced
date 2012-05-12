@@ -588,49 +588,6 @@ def extract_exports(src_str, known_types) :
 
 	vmex_funcs = [ parse_vmex_export(vmex, known_types) for vmex in exports ]
 
-#	for vmex in exports :
-#		vmex_funcs.append(parse_vmex_export(vmex, known_types))
-
-#	pprint(vmex_funcs)
-
-#	src_lines = src_str.split(os.linesep)
-#	exports = [ parse_vmex_line(ln) for ln in
-#		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
-
-#	for ret_type, name, args_list in exports :
-
-##XXX
-##		break
-##XXX
-
-##		print here(), name#, ret_type, args_list
-
-#		if ret_type[0] != VMEX_SIG :
-#			continue # should not happen
-
-#		vmex_ret_type = None
-#		for tp in ret_type :
-#			if tp in known_types :
-#				vmex_ret_type = tp
-
-#		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
-#		if outputs :
-#			assert(vmex_ret_type == "void")
-#		inputs = [ a for a in args_list if not a in outputs ]
-#		assert(set(outputs+inputs)==set(args_list))
-
-#		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
-#		if outputs :
-#			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
-#		elif ret_type[-1] != "void" :
-#			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
-#		else :
-#			terms_out = []
-##		print name, ret_type#, terms_in, terms_out
-
-#		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
-#		vmex_funcs.append((name, (terms_in, terms_out)))
-
 	return vmex_funcs
 
 
@@ -984,7 +941,7 @@ def get_workbench_dependencies(fname) :
 be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
 
-be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
+be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "source_files", "items"))
 
 
 def split_full_type_name(full_type) :
@@ -1084,7 +1041,8 @@ def load_standalone_workbench_lib(path, lib_base_name, library=None, w_data=None
 		name=lib.lib_name,
 		path=lib.path,
 		allowed_targets=None,#TODO
-		include_files=(path,),
+		include_files=None,
+		source_files=(path,),
 		items=lib_items)
 
 
@@ -1118,6 +1076,7 @@ def load_library(lib, library=None) :
 	"""
 	lib_items = []
 	include_files = []
+	source_files = []
 	for file_info in sorted(lib.files) :
 
 		blocks = []
@@ -1126,6 +1085,9 @@ def load_library(lib, library=None) :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
 				blocks = load_c_library(lib.lib_name, file_info.path)
+			else :
+				source_files.append(file_info.path)#XXX is this filter sufficient
+#				print here(), file_info.path
 		elif file_info.file_type == "w" :
 			blocks = load_workbench_library(lib.lib_name, file_info.path, library=library)
 		else :
@@ -1140,6 +1102,7 @@ def load_library(lib, library=None) :
 		path=lib.path,
 		allowed_targets=None,#TODO
 		include_files=tuple(include_files),#f.path for f in lib.files),
+		source_files=tuple(source_files),
 		items=lib_items)
 
 
