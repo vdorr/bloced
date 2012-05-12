@@ -1068,8 +1068,8 @@ class Workbench(object) :
 #			board_db={},
 			ignore_file=None,#"amkignore",
 
-			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
-#			ignore_lines=[],
+#			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
+			ignore_lines=[ "*" + os.path.sep + "main.cpp" ],#TODO make configurable
 
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"

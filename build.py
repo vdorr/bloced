@@ -14,6 +14,8 @@ from collections import namedtuple, OrderedDict
 from itertools import islice, count
 import shutil
 
+from utils import here
+
 try :
 	from serial.tools.list_ports import comports
 	from serial import Serial
@@ -400,7 +402,7 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 				rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
 					"-fdata-sections"], out=out)
 				if rc[0] == 0 :
-					print("compiled:" + out)
+					print("compiled:" + source + " into " + out)
 					objects.append(os.path.split(out)[-1])
 				else :
 					break
@@ -411,6 +413,7 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
 				optimization, "-o", a_out, "-lm",] +
 				objects + link_libs + link_dirs)
+			print here(), streams
 
 		shutil.rmtree(workdir)
 
