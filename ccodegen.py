@@ -74,8 +74,6 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 	outputs = tuple(get_terms_flattened(n, direction=core.OUTPUT_TERM,
 		fill_for_unconnected_var_terms=True))
 
-	print here(), n, len(inputs)
-
 #	assert(len(args)==len(inputs))
 #	assert((len(outs)==len(outputs)) or (len(outs)==0 and len(outputs)==1) and not outputs[0][0].variadic)
 
@@ -83,7 +81,6 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 
 	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
 		for (name, variadic), arg_group_it in __arg_grouper(term_pairs, arguments) :
-			print here(), n, name, variadic
 			if variadic :
 				arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
 				if not arg_group :
@@ -111,7 +108,6 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 #			print here(), type_name, cnt
 			tmp_var_args[type_name] = cnt
 
-	print here(), n, arg_list
 	return n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
 
 
