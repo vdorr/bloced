@@ -218,11 +218,9 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in evaluated :
-#			print(here(), del_out.type_name)
-			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
-				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
-			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
-#		print here(), del_out
+			del_type = types[del_out, del_out.terms[0], 0]
+			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
+			code.append("{0}_tmp{1} = {2}del{3}".format(del_type, slot, state_var_prefix, n.nr))
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
