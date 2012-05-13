@@ -1,6 +1,8 @@
 
-import sys
-import os
+"""
+non-compliant c header parser
+"""
+
 from pprint import pprint
 #from collections import namedtuple
 from utils import here
@@ -33,7 +35,7 @@ __SIMPLE_TOK = {
 }
 
 
-def classify_token(tok, linesep) :
+def __classify_token(tok, linesep) :
 	assert(tok==tok.strip())
 	assert(len(tok))
 	if tok[0] in __SIMPLE_TOK :
@@ -47,9 +49,8 @@ def classify_token(tok, linesep) :
 
 
 def is_declaration(l) :
-	ret_type = l_bracket = r_bracket = True
 	allowed = (T_COMMENT, T_OTHER)
-	for tok_type, tok in l :
+	for tok_type, _ in l :
 
 		if tok_type == T_LEFT_BRACKET :
 			allowed = (T_COMMENT, T_OTHER, T_COMMA)
@@ -94,7 +95,6 @@ def tokenize(s, linesep) :
 
 
 #TODO return eols, maybe
-#TODO handle "..."
 def tokenize2(s, linesep) :
 	tok = ""
 	sep = "*(),."
@@ -114,18 +114,18 @@ def tokenize2(s, linesep) :
 
 		if c.isspace() and not in_comment:
 			if tok :
-				yield classify_token(tok, linesep)
+				yield __classify_token(tok, linesep)
 			tok = ""
 		elif c in sep and not in_comment :
 			if tok :
-				yield classify_token(tok, linesep)
+				yield __classify_token(tok, linesep)
 				tok = ""
-			yield classify_token(c, linesep)
+			yield __classify_token(c, linesep)
 		else :
 			tok += c
 		prev = c
 	if tok :
-		yield classify_token(tok, linesep)
+		yield __classify_token(tok, linesep)
 
 
 def identify_type(lst) :
