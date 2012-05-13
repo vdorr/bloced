@@ -273,7 +273,6 @@ class DelayProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
 			values=[("Default", None)])
-		self.loop_break = True
 
 
 class DelayInProto(BlockPrototype):
@@ -286,16 +285,17 @@ class DelayOutProto(BlockPrototype):
 		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
-class IDelayProto(BlockPrototype):
+class InitDelayProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelay", [ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "InitDelay",
+			[ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
 			category="Special")
-#		self.loop_break = True
 
 
-class IDelayOutProto(BlockPrototype):
+class InitDelayOutProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelayOut", [ In(0, "x", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
+		BlockPrototype.__init__(self, "InitDelayOut",
+			[ In(0, "init", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
 
 
 class ProbeProto(BlockPrototype):
@@ -1170,8 +1170,9 @@ def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 
 
 #TODO refac needed
-def compare_proto_to_type(prototype_instance, prototype_type) :
-	return prototype_instance.__class__ == prototype_type
+def compare_proto_to_type(prototype_instance, *prototype_types) :
+#	print here(), prototype_instance, prototype_instance.__class__, prototype_types, prototype_instance.__class__ in prototype_types
+	return prototype_instance.__class__ in prototype_types
 
 
 #TODO refac needed
@@ -1232,7 +1233,7 @@ def builtin_blocks() :
 		ConstProto(),
 		DelayProto(),
 
-#		IDelayProto(),
+		InitDelayProto(),
 
 		ProbeProto(),
 		TapProto(),
@@ -1268,9 +1269,9 @@ def builtin_blocks() :
 		BinaryOp("mul", "Arithmetic", commutative=True),
 		BinaryOp("div", "Arithmetic", commutative=False),
 		BinaryOp("mod", "Arithmetic", commutative=False),
-		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
-			In(-2, "d", dfs.W, .66),
-			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+#		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+#			In(-2, "d", dfs.W, .66),
+#			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
 		UnaryOp("abs", "Arithmetic"),
 		BinaryOp("lt", "Arithmetic", commutative=False),
 		BinaryOp("gt", "Arithmetic", commutative=False),

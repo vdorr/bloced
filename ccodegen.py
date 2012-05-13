@@ -222,14 +222,22 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
 			code.append("{0}_tmp{1} = {2}del{3}".format(del_type, slot, state_var_prefix, n.nr))
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
-	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto) :
+	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
+		print here(), n, args
 		assert(n==del_out)
 #		print(here(), "del_in=", del_in, n.delay, visited.keys())
 		if del_in in evaluated : #visited :
+			print here()
 			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
+			print here()
+#			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
+#				expr = "!"+str(args)+"!"
+##				expr = "{0}".format(state_var_prefix, n.nr)
+#			else :
+#				expr = "{0}del{1}".format(state_var_prefix, n.nr)
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
 	else :
 #		print(here(), n.prototype.type_name)
@@ -303,7 +311,12 @@ def churn_task_code(task_name, cg_out) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
-		_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
+		if d.value[0] is None : #initializable delay
+			state_vars.append("\t{0} {1}del{2}_init = 0;{3}".format(
+				core.VM_TYPE_WORD, state_var_prefix, i, linesep))
+			del_init = 0
+		else :
+			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, del_init, linesep))
 
