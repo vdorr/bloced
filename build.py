@@ -13,6 +13,7 @@ from pprint import pprint
 from collections import namedtuple, OrderedDict
 from itertools import islice, count
 import shutil
+import platform
 
 try :
 	from serial.tools.list_ports import comports
@@ -48,11 +49,11 @@ def __re_from_glob_list(globs) :
 	return re.compile(expr)
 
 
-__src_exts = ( "*.c", "*.cpp" )
-__hdr_exts = ( "*.h", "*.hpp" )
+__SRC_EXTS = ( "*.c", "*.cpp" )
+__HDR_EXTS = ( "*.h", "*.hpp" )
 
-__re_src = __re_from_glob_list(__src_exts)
-__re_hdr = __re_from_glob_list(__hdr_exts)
+__re_src = __re_from_glob_list(__SRC_EXTS)
+__re_hdr = __re_from_glob_list(__HDR_EXTS)
 
 
 def list_resources(workdir, recurse, ignore=lambda fn: False,
@@ -216,11 +217,32 @@ def compile_gcc() :
 	pass
 
 
+def get_paths() :
+	return get_avr_arduino_paths(all_in_one_arduino_dir=None)
+
+
+def get_avr_arduino_paths(all_in_one_arduino_dir=None) :
+	system = platform.system()
+	if system == "Windows" :
+		libc_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "avr")
+		tools_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "bin")
+		target_files_dir = os.path.join(all_in_one_arduino_dir, "hardware", "arduino")
+	elif system == "Linux" :
+		libc_dir = "/usr/lib/avr"
+		tools_dir = "/usr/bin"
+		target_files_dir = "/usr/share/arduino/hardware/arduino/"
+	else :
+		raise Exception("unknown system: '" + system + "'")
+
+	return libc_dir, tools_dir, target_files_dir
+
+
 def build(board, workdir,
 		wdir_recurse=True,
 		aux_src_dirs=[],
 		aux_src_files=[],
 		boards_txt=None,
+		libc_dir="/usr/lib/avr", #TODO
 		board_db={},
 		ignore_file="amkignore",
 		ignore_lines=[], #TODO TODO TODO
@@ -309,8 +331,11 @@ def build(board, workdir,
 
 	redir_streams = True
 
-	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
-		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
+#	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
+#		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
+	board_idirs = (libc_dir, os.path.join(libc_dir, "include"),
+		os.path.join(libc_dir, "util"),
+		os.path.join(libc_dir, "compat"))
 	defs = { "F_CPU" : f_cpu }
 	rc = gcc_compile(redir_streams, sources, os.path.join(workdir, a_out),
 		mcu, optimization,
