@@ -1424,11 +1424,11 @@ class BlockEditorWindow(object) :
 		return False
 
 
-	def mnu_mode_build(self) :
+	def mnu_mode_build(self, a=None) :
 		self.work.build()
 
 
-	def mnu_mode_run(self) :
+	def mnu_mode_run(self, a=None) :
 		if not self.work.have_blob() :
 			self.work.build()
 		self.work.upload()

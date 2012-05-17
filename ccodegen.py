@@ -6,7 +6,7 @@ from itertools import count
 from pprint import pprint
 from itertools import groupby
 from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
-	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used, in_terms, out_terms
+	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used, get_terms_flattened
 from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
@@ -43,54 +43,75 @@ __OPS = {
 	#"divmod"
 }
 
+def __arg_zipper(term_pairs, arguments) :
+	i = 0
+	for t, t_nr in term_pairs :
+#		print here(), t, t_nr, i
+		if t_nr is None :
+			yield (t, t_nr), None
+		else :
+			if i < len(arguments) :
+				yield (t, t_nr), arguments[i] 
+				i += 1
+			else :
+				yield (t, t_nr), None
 
-def __make_call(n, args, outs, tmp_args) :
 
-	tmp_args = { type_name : 0 for type_name in core.KNOWN_TYPES }
+def __arg_grouper(term_pairs, arguments) :
+	return  groupby(tuple(__arg_zipper(term_pairs, arguments)), key=lambda i: (i[0][0].name, i[0][0].variadic))
 
-	inputs = in_terms(n)
-	outputs = out_terms(n)
-	assert(len(args)==len(inputs))
-	assert(len(outs)==len(outputs))
+
+def __make_call(n, args, outs, tmp_var_args, code) :
+
+	assert(n.prototype.exe_name != None)
+
+	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
+#	inputs = in_terms(n)
+#	outputs = out_terms(n)
+
+	inputs = tuple(get_terms_flattened(n, direction=core.INPUT_TERM,
+		fill_for_unconnected_var_terms=True))
+	outputs = tuple(get_terms_flattened(n, direction=core.OUTPUT_TERM,
+		fill_for_unconnected_var_terms=True))
+
+#	assert(len(args)==len(inputs))
+#	assert((len(outs)==len(outputs)) or (len(outs)==0 and len(outputs)==1) and not outputs[0][0].variadic)
 
 	arg_list = []
-	var_arg_list = []
 
-	prev_variadic = False
-	var_arg_cnt = None
-	var_arg_name = None
+	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
+		for (name, variadic), arg_group_it in __arg_grouper(term_pairs, arguments) :
+			if variadic :
+				arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
+				if not arg_group :
+					arg_code = "NULL"
+				else :
+					arg_type = arg_group[0][0].type_name
+					assert(all(t.type_name == arg_type for t, _ in arg_group))
+					array_size = tmp_args[arg_type]
+					array_size = 0 if array_size is None else array_size
+					code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
+						for (_, a), i in zip(arg_group, count()))
+					tmp_args[arg_type] = array_size + len(arg_group)
+					arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, len(arg_group))
+				arg_list.append(str(len(arg_group)))
+				arg_list.append(arg_code)
+			else :
+				((t, t_nr), a), = arg_group_it
+				assert((len(outputs)==1 and not t.variadic) if a is None else True);
+				if not a is None :
+					arg_list.append(a)
 
+	for type_name, cnt in tmp_args.items() :
+		array_size = tmp_var_args[type_name]
+		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
+#			print here(), type_name, cnt
+			tmp_var_args[type_name] = cnt
 
-	for a, (t, t_nr), i in zip(args, inputs, count()) :
-
-		if t.variadic :
-
-			if and t.name != var_arg_name :
-				var_arg_name = t.name
-				var_arg_cnt = tmp_args[t.type_name]
-
-			var_arg_list.append(a)
-
-		if var_arg_list and ((t.name != var_arg_name) or i == (len(args) - 1)) :
-
-			if (var_arg_cnt + len(var_arg_list)) > tmp_args[t.type_name] :
-				tmp_args[t.type_name] = var_arg_cnt
-
-			arg_list.append(str(len(var_arg_list)))
-			arg_list.append("TODO")
-			var_arg_cnt = None
-			var_arg_list = []
-			var_arg_name = None
-
-		if not t.variadic :
-			arg_list.append(a)
-
-
-
+	return n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
 
 
-
-def __implement(g, n, args, outs) :
+def __implement(g, n, tmp_args, args, outs, code) :
 #, types, known_types, pipe_vars) :
 #	print here(2), n, args, outs
 #	print(here(), n.prototype.type_name, n.prototype.library)
@@ -121,11 +142,12 @@ def __implement(g, n, args, outs) :
 		assert(len(out)==1)
 		return "({0})({1})".format(out[0].type_name, args[0])
 	else :
-		assert(n.prototype.exe_name != None)
-		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
+		return __make_call(n, args, outs, tmp_args, code)
+#		assert(n.prototype.exe_name != None)
+#		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
-def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
+def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
 		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited) :
 #	print "__post_visit:", n.to_string()
 
@@ -196,24 +218,30 @@ def __post_visit(g, code, tmp, subtrees, expd_dels, types, known_types,
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
 		if not del_out in evaluated :
-#			print(here(), del_out.type_name)
-			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ],
-				slot_type=del_out.type_name)#XXX typed signal XXX with inferred type!!!!!
-			code.append("{0}_tmp{1} = {2}del{3}".format(del_out.type_name, slot, state_var_prefix, n.nr))
-#		print here(), del_out
+			del_type = types[del_out, del_out.terms[0], 0]
+			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
+			code.append("{0}_tmp{1} = {2}del{3}".format(del_type, slot, state_var_prefix, n.nr))
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
-	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto) :
+	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
+		print here(), n, args
 		assert(n==del_out)
 #		print(here(), "del_in=", del_in, n.delay, visited.keys())
 		if del_in in evaluated : #visited :
+			print here()
 			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
+			print here()
+#			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
+#				expr = "!"+str(args)+"!"
+##				expr = "{0}".format(state_var_prefix, n.nr)
+#			else :
+#				expr = "{0}del{1}".format(state_var_prefix, n.nr)
 			expr = "{0}del{1}".format(state_var_prefix, n.nr)
 	else :
 #		print(here(), n.prototype.type_name)
-		expr = __implement(g, n, args, outs)#, types, known_types, pipe_vars)
+		expr = __implement(g, n, tmp_args, args, outs, code)#, types, known_types, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
 #	print "\texpr:", expr, "is_expr:", is_expr#, "tmp=", tmp
@@ -255,8 +283,9 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	dummies = set()
 	state_var_prefix = task_name + "_"
 	evaluated = {}
+	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
 
-	post_visit_callback = partial(__post_visit, g, code, tmp, subtrees,
+	post_visit_callback = partial(__post_visit, g, code, tmp, tmp_args, subtrees,
 		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used, evaluated)
 
 #	pprint(g)
@@ -267,35 +296,13 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, (code, types, tmp, expd_dels, pipe_vars, dummies, meta, known_types)
-
-
-#def merge_codegen_output(a, b) :
-
-#	code0, types0, tmp0, expd_dels0, global_vars0, dummies0 = a
-#	code1, types1, tmp1, expd_dels1, global_vars1, dummies1 = b
-
-#	code = code0 + code1
-
-#	types = dict(types0)
-#	types.update(types1)
-
-#	tmp = tmp_merge(tmp0, tmp1)
-
-#	expd_dels = dict(expd_dels0)
-#	expd_dels.update(expd_dels1)
-
-#	dummies = dummies0.union(dummies1)
-
-#	global_vars = None#TODO
-
-#	return code, types, tmp, expd_dels, global_vars, dummies
+	return task_name, (code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types)
 
 
 def churn_task_code(task_name, cg_out) :
 #TODO list known meta values
 
-	code, types, tmp, expd_dels, global_vars, dummies, meta, known_types = cg_out
+	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types = cg_out
 
 	state_var_prefix = task_name + "_"
 	state_vars = []
@@ -304,7 +311,12 @@ def churn_task_code(task_name, cg_out) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
-		_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
+		if d.value[0] is None : #initializable delay
+			state_vars.append("\t{0} {1}del{2}_init = 0;{3}".format(
+				core.VM_TYPE_WORD, state_var_prefix, i, linesep))
+			del_init = 0
+		else :
+			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
 			del_type, state_var_prefix, i, del_init, linesep))
 
@@ -314,6 +326,10 @@ def churn_task_code(task_name, cg_out) :
 		if slot_cnt > 0 :
 			names = [ "{0}_tmp{1}".format(slot_type, i) for i in range(slot_cnt) ]
 			temp_vars.append("\t" + slot_type + " " + ", ".join(names) + ";" + linesep)
+
+	for slot_type, array_size in sorted(tmp_args.items(), key=lambda item: item[0]) :
+		if not array_size is None :
+			temp_vars.append("\t{0} {0}_tmp_arg[{1}];{2}".format(slot_type, array_size, linesep))
 
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
 

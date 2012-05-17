@@ -273,7 +273,6 @@ class DelayProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
 			values=[("Default", None)])
-		self.loop_break = True
 
 
 class DelayInProto(BlockPrototype):
@@ -286,16 +285,17 @@ class DelayOutProto(BlockPrototype):
 		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
-class IDelayProto(BlockPrototype):
+class InitDelayProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelay", [ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "InitDelay",
+			[ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
 			category="Special")
-#		self.loop_break = True
 
 
-class IDelayOutProto(BlockPrototype):
+class InitDelayOutProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelayOut", [ In(0, "x", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
+		BlockPrototype.__init__(self, "InitDelayOut",
+			[ In(0, "init", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
 
 
 class ProbeProto(BlockPrototype):
@@ -587,49 +587,6 @@ def extract_exports(src_str, known_types) :
 			exports.append((ret_type, name, args_list))
 
 	vmex_funcs = [ parse_vmex_export(vmex, known_types) for vmex in exports ]
-
-#	for vmex in exports :
-#		vmex_funcs.append(parse_vmex_export(vmex, known_types))
-
-#	pprint(vmex_funcs)
-
-#	src_lines = src_str.split(os.linesep)
-#	exports = [ parse_vmex_line(ln) for ln in
-#		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
-
-#	for ret_type, name, args_list in exports :
-
-##XXX
-##		break
-##XXX
-
-##		print here(), name#, ret_type, args_list
-
-#		if ret_type[0] != VMEX_SIG :
-#			continue # should not happen
-
-#		vmex_ret_type = None
-#		for tp in ret_type :
-#			if tp in known_types :
-#				vmex_ret_type = tp
-
-#		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
-#		if outputs :
-#			assert(vmex_ret_type == "void")
-#		inputs = [ a for a in args_list if not a in outputs ]
-#		assert(set(outputs+inputs)==set(args_list))
-
-#		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
-#		if outputs :
-#			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
-#		elif ret_type[-1] != "void" :
-#			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
-#		else :
-#			terms_out = []
-##		print name, ret_type#, terms_in, terms_out
-
-#		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
-#		vmex_funcs.append((name, (terms_in, terms_out)))
 
 	return vmex_funcs
 
@@ -984,7 +941,7 @@ def get_workbench_dependencies(fname) :
 be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
 
-be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
+be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "source_files", "items"))
 
 
 def split_full_type_name(full_type) :
@@ -1084,7 +1041,8 @@ def load_standalone_workbench_lib(path, lib_base_name, library=None, w_data=None
 		name=lib.lib_name,
 		path=lib.path,
 		allowed_targets=None,#TODO
-		include_files=(path,),
+		include_files=None,
+		source_files=(path,),
 		items=lib_items)
 
 
@@ -1118,6 +1076,7 @@ def load_library(lib, library=None) :
 	"""
 	lib_items = []
 	include_files = []
+	source_files = []
 	for file_info in sorted(lib.files) :
 
 		blocks = []
@@ -1126,6 +1085,9 @@ def load_library(lib, library=None) :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
 				blocks = load_c_library(lib.lib_name, file_info.path)
+			else :
+				source_files.append(file_info.path)#XXX is this filter sufficient
+#				print here(), file_info.path
 		elif file_info.file_type == "w" :
 			blocks = load_workbench_library(lib.lib_name, file_info.path, library=library)
 		else :
@@ -1140,6 +1102,7 @@ def load_library(lib, library=None) :
 		path=lib.path,
 		allowed_targets=None,#TODO
 		include_files=tuple(include_files),#f.path for f in lib.files),
+		source_files=tuple(source_files),
 		items=lib_items)
 
 
@@ -1207,8 +1170,9 @@ def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 
 
 #TODO refac needed
-def compare_proto_to_type(prototype_instance, prototype_type) :
-	return prototype_instance.__class__ == prototype_type
+def compare_proto_to_type(prototype_instance, *prototype_types) :
+#	print here(), prototype_instance, prototype_instance.__class__, prototype_types, prototype_instance.__class__ in prototype_types
+	return prototype_instance.__class__ in prototype_types
 
 
 #TODO refac needed
@@ -1269,7 +1233,7 @@ def builtin_blocks() :
 		ConstProto(),
 		DelayProto(),
 
-#		IDelayProto(),
+		InitDelayProto(),
 
 		ProbeProto(),
 		TapProto(),
@@ -1305,9 +1269,9 @@ def builtin_blocks() :
 		BinaryOp("mul", "Arithmetic", commutative=True),
 		BinaryOp("div", "Arithmetic", commutative=False),
 		BinaryOp("mod", "Arithmetic", commutative=False),
-		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
-			In(-2, "d", dfs.W, .66),
-			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+#		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+#			In(-2, "d", dfs.W, .66),
+#			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
 		UnaryOp("abs", "Arithmetic"),
 		BinaryOp("lt", "Arithmetic", commutative=False),
 		BinaryOp("gt", "Arithmetic", commutative=False),

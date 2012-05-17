@@ -4,9 +4,7 @@
 #ifndef __ARDUINO_IOWRAP_H__
 #define __ARDUINO_IOWRAP_H__
 
-#define _VM_EXPORT_ 
-typedef int vm_word_t;
-typedef long vm_dword_t;
+#include "vm.h"
 
 /**
 	read digital input
@@ -76,10 +74,17 @@ _VM_EXPORT_ vm_dword_t time_ms();
 */
 _VM_EXPORT_ vm_dword_t time_us();
 
+///**
+//	return number of microseconds since start of machine
+//*/
+//_VM_EXPORT_ void print(vm_word_t s);
+
 /**
-	return number of microseconds since start of machine
+	configure serial channel
+	@param ch number of serial channel
+	@param speed baudrate
 */
-_VM_EXPORT_ void print(vm_word_t s);
+_VM_EXPORT_ void set_serial(vm_word_t ch, vm_word_t speed);
 
 #endif
 
