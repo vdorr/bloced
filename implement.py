@@ -556,19 +556,11 @@ def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 		delays[din] = delays[dout] = k.value[0]
 	types = {} if allready_inferred is None else allready_inferred
 
-	print here()
-	pprint(g)
-
 	dft_alt(g,
 		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
 		post_visit=partial(__infer_types_post_visit, g, types, known_types),
 		roots_sorter=__inferr_types_dft_roots_sorter,
 		sinks_to_sources=True)
-
-
-	print here()
-	pprint(types)
-
 
 	return types
 

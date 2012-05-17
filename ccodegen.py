@@ -147,6 +147,15 @@ def __implement(g, n, tmp_args, args, outs, code) :
 #		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 
 
+def __get_initdel_value(code, n, state_var_prefix, del_type, tmp_slot, expr) :
+	code.append("if ( {0}del{1}_init ) {{".format(state_var_prefix, n.nr))
+	code.append("{0}_tmp{1} = {2}del{3};".format(del_type, tmp_slot, state_var_prefix, n.nr))
+	code.append("} else {")
+	code.append("{0}del{1}_init = 1;".format(state_var_prefix, n.nr))
+	code.append("{0}_tmp{1} = {2};".format(del_type, tmp_slot, expr))
+	code.append("}")
+
+
 def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
 		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited) :
 #	print "__post_visit:", n.to_string()
@@ -214,31 +223,49 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				raise Exception("holy shit! %s not found, %s %s" %
 					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
+
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
+
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
-		if not del_out in evaluated :
+
+		is_initdel = core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto)
+
+		if not del_out in evaluated or is_initdel :
+#			print here(), del_out
 			del_type = types[del_out, del_out.terms[0], 0]
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
-			code.append("{0}_tmp{1} = {2}del{3}".format(del_type, slot, state_var_prefix, n.nr))
+			if  is_initdel :
+#				print here(), args
+				assert(len(args)==1 and len(outs)==0)
+				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0])
+#				code.append("if ( {0}del{1}_init ) {{".format(state_var_prefix, n.nr))
+#				code.append("{0}del{1}_init = 0;".format(state_var_prefix, n.nr))
+#				code.append("{0}_tmp{1} = {2};".format(del_type, slot, args[0]))
+#				code.append("} else {")
+#				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
+#				code.append("}")
+			else :
+				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
+
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
-		print here(), n, args
+#		print here(), n, args
 		assert(n==del_out)
 #		print(here(), "del_in=", del_in, n.delay, visited.keys())
 		if del_in in evaluated : #visited :
-			print here()
+#			print here(), del_out
 			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+
 			expr = "{0}_tmp{1}".format(slot_type, slot)
+
 		else :
-			print here()
-#			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
-#				expr = "!"+str(args)+"!"
-##				expr = "{0}".format(state_var_prefix, n.nr)
-#			else :
-#				expr = "{0}del{1}".format(state_var_prefix, n.nr)
-			expr = "{0}del{1}".format(state_var_prefix, n.nr)
+			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
+#				print here()
+				expr = "{0}del{1}".format(state_var_prefix, n.nr)
+			else :
+				expr = "{0}del{1}".format(state_var_prefix, n.nr)
 	else :
 #		print(here(), n.prototype.type_name)
 		expr = __implement(g, n, tmp_args, args, outs, code)#, types, known_types, pipe_vars)
@@ -313,7 +340,7 @@ def churn_task_code(task_name, cg_out) :
 		del_type = types[del_out, del_out.terms[0], 0]
 		if d.value[0] is None : #initializable delay
 			state_vars.append("\t{0} {1}del{2}_init = 0;{3}".format(
-				core.VM_TYPE_WORD, state_var_prefix, i, linesep))
+				core.VM_TYPE_WORD, state_var_prefix, i, linesep))#TODO use vm_bool_t
 			del_init = 0
 		else :
 			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
