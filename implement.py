@@ -282,11 +282,9 @@ def block_value_by_name(n, value_name) :
 
 
 def __cut_joint_alt(g, j) :
-#	print "__cut_joint_alt:", g[j].p
-#	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
-#	print here(), g[j]
 	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
-	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+	map_in = { (it, it_nr) : [ v for _, _, vertices in succs for v in vertices ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
 
@@ -295,7 +293,6 @@ def __cut_joint_alt(g, j) :
 def __expand_joints_new(g) :
 	for j in [ b for b in g if core.compare_proto_to_type(b.prototype, core.JointProto) ] :
 		__cut_joint_alt(g, j)
-
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -571,29 +568,16 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
 	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
 
-#	print here()
-#	pprint(blocks)
-#	print here()
-#	pprint(conns1)
-#	print here()
-#	pprint(delays)
-
-
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
 			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in in_terms(b) ],
 			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in out_terms(b) ])
 		for b in blocks }
 
-#	print here()
-#	pprint(graph)
-
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
 		raise Exception("make_dag: produced graph is insane")
 
-#	print here()
-#	pprint(graph)
 	__expand_joints_new(graph)
 
 	if do_join_taps :

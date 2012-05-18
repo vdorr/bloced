@@ -223,28 +223,18 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				raise Exception("holy shit! %s not found, %s %s" %
 					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
-
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
-
 		del_in, del_out = expd_dels[n.delay]
 		assert(n==del_in)
-
-		is_initdel = core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto)
-
-		if not del_out in evaluated or is_initdel :
-#			print here(), del_out
+#		is_initdel = core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto)
+		if not del_out in evaluated :# or is_initdel :
+#			print here(), del_in.terms
 			del_type = types[del_out, del_out.terms[0], 0]
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
-			if  is_initdel :
+			if core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto) :# is_initdel :
 #				print here(), args
 				assert(len(args)==1 and len(outs)==0)
 				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0])
-#				code.append("if ( {0}del{1}_init ) {{".format(state_var_prefix, n.nr))
-#				code.append("{0}del{1}_init = 0;".format(state_var_prefix, n.nr))
-#				code.append("{0}_tmp{1} = {2};".format(del_type, slot, args[0]))
-#				code.append("} else {")
-#				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
-#				code.append("}")
 			else :
 				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
@@ -257,13 +247,16 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		if del_in in evaluated : #visited :
 #			print here(), del_out
 			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
-
 			expr = "{0}_tmp{1}".format(slot_type, slot)
-
 		else :
 			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
-#				print here()
-				expr = "{0}del{1}".format(state_var_prefix, n.nr)
+				assert(len(args)==1 and len(outs)==0)
+				del_type = types[del_out, del_out.terms[0], 0]
+				slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
+				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0])
+				slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+				expr = "{0}_tmp{1}".format(slot_type, slot)
+#				print here(), tmp
 			else :
 				expr = "{0}del{1}".format(state_var_prefix, n.nr)
 	else :
