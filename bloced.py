@@ -493,6 +493,84 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	# ----------------------------------------------------------------------------------------------------
 
+
+	def layout_reroute(self) :
+		if not self.selection :
+			return None
+
+		self.model.begin_edit()
+		for block in self.selection.blocks :
+			for k, _ in block.get_wires() :
+				self.update_connection(*(k + (True,)))
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	def equal_spacing(self, axis) :
+		if not self.selection or len(self.selection.blocks) < 3 :
+			return None
+
+		if axis == "x" :
+			get_coord = lambda block: (block.model.left, block.model.width)
+			set_coord = lambda block, a: block.model._BlockModel__set_left(a)
+		elif axis == "y" :
+			get_coord = lambda block: (block.model.top, block.model.height)
+			set_coord = lambda block, a: block.model._BlockModel__set_top(a)
+		else :
+			raise Exception("unknown spacing")
+
+		blocks = tuple(sorted(((b, get_coord(b)) for b in self.selection.blocks),
+			key=lambda b: b[1][0]))
+
+		min_a = min(a for b, (a, _) in blocks)
+		max_a = max(sum(a_sz) for b, a_sz in blocks)
+		blocks_size = sum(size for b, (_, size) in blocks)
+		spacing = (max_a - min_a - blocks_size) / (len(blocks) - 1)
+
+		self.model.begin_edit()
+		v = min_a
+		for block, (a, size) in blocks :
+			set_coord(block, v)
+			v += size + spacing
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	def layout_align(self, align) :
+		if not self.selection :
+			return None
+
+		if align == "lefts" :
+			f_scan = lambda blocks : min(b.left for b in blocks)
+			f_xfrm = lambda l, b : (l, b.top)
+		elif align == "centers" :
+			f_scan = lambda blocks : sum((b.left+b.width/2) for b in blocks) / len(blocks)
+			f_xfrm = lambda c, b : (c - b.width / 2, b.top)
+		elif align == "rights" :
+			f_scan = lambda blocks : max((b.left+b.width) for b in blocks)
+			f_xfrm = lambda r, b : (r-b.width, b.top)
+		elif align == "tops" :
+			f_scan = lambda blocks : min(b.top for b in blocks)
+			f_xfrm = lambda t, b : (b.left, t)
+		elif align == "middles" :
+			f_scan = lambda blocks : sum((b.top+b.height/2) for b in blocks) / len(blocks)
+			f_xfrm = lambda c, b : (b.left, c - b.height / 2)
+		elif align == "bottoms" :
+			f_scan = lambda blocks : max((b.top+b.height) for b in blocks)
+			f_xfrm = lambda t, b : (b.left, t-b.height)
+		else :
+			raise Exception("unknown alignment")
+
+		p = f_scan(tuple(block.model for block in self.selection.blocks))
+		self.model.begin_edit()
+		for block in self.selection.blocks :
+			block.model.left, block.model.top = f_xfrm(p, block.model)
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	# ----------------------------------------------------------------------------------------------------
+
 	def blckMouseDown(self, sender, e) :
 		tw = e.widget.find_overlapping(e.x-1, e.y-1, e.x+1, e.y+1)
 		if not tw or not tw[0] in sender.window2term :
@@ -1723,6 +1801,21 @@ class BlockEditorWindow(object) :
 				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in blocks_sorted ] )
 
 
+	def __layout_reroute(self) :
+		if self.bloced :
+			self.bloced.layout_reroute()
+
+
+	def __layout__equal_spacing(self, axis) :
+		if self.bloced :
+			self.bloced.equal_spacing(axis)
+
+
+	def __layout_align(self, align) :
+		if self.bloced :
+			self.bloced.layout_align(align)
+
+
 	def setup_menus(self) :
 
 		self.last_block_inserted = None
@@ -1812,6 +1905,20 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			self.__board_menu,
 			self.__port_menu,
+			])
+
+		self.__layout_menu = self.add_top_menu("L&ayout", [
+			CmdMnu("Reroute", None, self.__layout_reroute),
+			SepMnu(),
+			CmdMnu("Make equal vertical spacing", None, partial(self.__layout__equal_spacing, "y")),
+			CmdMnu("Make equal horizontal spacing", None, partial(self.__layout__equal_spacing, "x")),
+			SepMnu(),
+			CmdMnu("Align lefts", None, partial(self.__layout_align, "lefts")),
+			CmdMnu("Align rights", None, partial(self.__layout_align, "rights")),
+			CmdMnu("Align centers", None, partial(self.__layout_align, "centers")),
+			CmdMnu("Align tops", None, partial(self.__layout_align, "tops")),
+			CmdMnu("Align middles", None, partial(self.__layout_align, "middles")),
+			CmdMnu("Align bottoms", None, partial(self.__layout_align, "bottoms")),
 			])
 
 		self.add_top_menu("&Help", [
