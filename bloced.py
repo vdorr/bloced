@@ -493,7 +493,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	# ----------------------------------------------------------------------------------------------------
 
-
+#TODO move layout functions to model
 	def layout_reroute(self) :
 		if not self.selection :
 			return None
@@ -584,6 +584,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		dsty = e.y + yo
 #		tblock, _ = self.__get_obj_at(dstx, dsty)
 		block, term = self.__get_term_at(sender, dstx, dsty)
+		self.model.begin_edit()
 		if term :
 			p = (block.model, term)
 			conn = [ (src, dst) for src, dst in self.model.connections.items()
@@ -596,7 +597,6 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		self.offset = (e.x + xo, e.y + yo)
 		self.line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
-		self.model.begin_edit()
 
 
 	def blckMouseMove(self, sender, e) :
