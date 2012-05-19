@@ -1062,7 +1062,8 @@ class Workbench(object) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
-		libc_dir, tools_dir, boards_txt, _ = build.get_avr_arduino_paths(all_in_one_arduino_dir=None)
+		libc_dir, tools_dir, boards_txt, _ = build.get_avr_arduino_paths(
+			all_in_one_arduino_dir=self.config.get("Path", "all_in_one_arduino_dir"))
 
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=(
@@ -1349,6 +1350,7 @@ class Workbench(object) :
 #	@catch_all
 	def __init__(self, lib_dir=None,
 			passive=True,
+			config=None,
 			status_callback=None,
 			ports_callback=None,
 			monitor_callback=None,
@@ -1360,11 +1362,14 @@ class Workbench(object) :
 		default value for ALL meta is None, stick with it
 		"""
 
+		self.config = config
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else None
+
 		self.__persistent = ( "__port", "__board" )
 
 		self.__board = None
 		self.__port = None
-		self.__board_types = build.get_board_types()
+		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 
 		self.__blob = None
 		self.__blob_time = None

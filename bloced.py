@@ -32,6 +32,7 @@ if version_info.major == 3 :
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
 	from tkinter.simpledialog import Dialog
+	from configparser import SafeConfigParser
 else :
 	from Tkinter import * #TODO this is not good
 	import tkFont
@@ -39,6 +40,7 @@ else :
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
 	from tkSimpleDialog import Dialog
+	from ConfigParser import SafeConfigParser
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1973,6 +1975,11 @@ class BlockEditorWindow(object) :
 			pprint(d.value)
 
 
+	def __load_default_config(self, config) :
+		config.add_section("Path")
+		config.set("Path", "all_in_one_arduino_dir", "")
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1983,6 +1990,22 @@ class BlockEditorWindow(object) :
 			self.__settings = UserSettings()
 			print("failed to load user setting, defaults loaded")
 
+		self.config = SafeConfigParser()
+		config_file = os.path.join(os.getcwd(), "config.cfg")
+		try :
+			self.config.read(config_file)
+			self.config.get("Path", "all_in_one_arduino_dir", None)
+		except :
+			self.__load_default_config(self.config)
+			try :
+				with open(config_file, "w") as cf :
+					print here()
+					self.config.write(cf)
+			except :
+				print(here(), "error while writing '" + config_file + "'")
+
+		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
+
 		self.__sheets = {}#XXX see __change_callback
 
 		self.__tab_children = {}
@@ -1992,6 +2015,7 @@ class BlockEditorWindow(object) :
 
 		self.work = Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
+			config=self.config,
 			passive=False,
 			status_callback=self.__workbench_status_changed,
 			ports_callback=self.__port_list_changed,
