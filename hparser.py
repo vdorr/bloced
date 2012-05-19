@@ -96,12 +96,15 @@ def tokenize(s, linesep) :
 
 #TODO return eols, maybe
 def tokenize2(s, linesep) :
+	linesep = "\n"
 	tok = ""
 	sep = "*(),."
 	in_comment = False
 	prev = " "
 	comment_end = ""
 	for c in s :
+		if c == "\r" :
+			continue
 		if ( prev + c ) == "/*" and not in_comment :
 			in_comment = True
 			comment_end = "*/"

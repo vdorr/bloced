@@ -1363,7 +1363,7 @@ class Workbench(object) :
 		"""
 
 		self.config = config
-		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else None
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else ""
 
 		self.__persistent = ( "__port", "__board" )
 
