@@ -384,14 +384,14 @@ def __mkvert(src, expd) :
 	return (block, result_t, result_t_nr)
 
 
-def __expand_delays(blocks, conns) :
+def __expand_delays(blocks, conns, delay_numbering_start) :
 
 	delays = frozenset(b for b in blocks
 		if core.compare_proto_to_type(b.prototype, core.DelayProto, core.InitDelayProto))
 #	delays = { b for b in blocks if core.compare_proto_to_type(b.prototype, core.DelayProto) }
 #	print here(), delays
 
-	expd = dict(__expddel(delay, nr) for delay, nr in zip(delays, count()))
+	expd = dict(__expddel(delay, delay_numbering_start + nr) for delay, nr in zip(delays, count()))
 #	print here(), expd
 
 #	def mkvert(src, io) :
@@ -564,9 +564,9 @@ def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def make_dag(model, meta, known_types, do_join_taps=True) :
+def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=0) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
-	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
+	blocks, conns1, delays = __expand_delays(model.blocks, conns0, delay_numbering_start)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
@@ -576,7 +576,7 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
-		raise Exception("make_dag: produced graph is insane")
+		raise Exception(here() + ": produced graph is insane")
 
 	__expand_joints_new(graph)
 
@@ -979,7 +979,9 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 
 	if sheet is None :
 		raise Exception("failed to expand macro '" + full_name + "'")
-	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
+
+	offset = reduce(max, (b.nr for b in g if core.compare_proto_to_type(b.prototype, core.DelayInProto)), 0)#TODO
+	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False, delay_numbering_start=offset+1)
 
 #TODO
 #	print here(), full_name, full_name in cache
@@ -1148,6 +1150,11 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		chain_blocks(main_tsk_g, setup_call, loop_call)
 		first_call = setup_call
 	chain_blocks(main_tsk_g, init_call, first_call)
+
+	for _, _, dels, _, _ in graph_data :
+		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
+		assert(all(nr_eq for _, nr_eq in del_check))
+		assert(len(del_check)==len({nr for nr, _ in del_check}))
 
 	tsk_name = "main"
 	main_tsk_meta = { "endless_loop_wrap" : False}

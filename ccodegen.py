@@ -327,18 +327,18 @@ def churn_task_code(task_name, cg_out) :
 	state_var_prefix = task_name + "_"
 	state_vars = []
 #	print(dir(expd_dels.keys()[0]))
-	for d, i in zip(sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr), count()) :
+	for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr) :
 #	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
 		if d.value[0] is None : #initializable delay
 			state_vars.append("\t{0} {1}del{2}_init = 0;{3}".format(
-				core.VM_TYPE_WORD, state_var_prefix, i, linesep))#TODO use vm_bool_t
+				core.VM_TYPE_WORD, state_var_prefix, del_out.nr, linesep))#TODO use vm_bool_t
 			del_init = 0
 		else :
 			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
 		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
-			del_type, state_var_prefix, i, del_init, linesep))
+			del_type, state_var_prefix, del_out.nr, del_init, linesep))
 
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :
