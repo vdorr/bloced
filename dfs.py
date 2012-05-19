@@ -20,6 +20,7 @@ from sys import version_info
 from pprint import pprint
 from itertools import dropwhile, islice, count
 #from collections import namedtuple
+import traceback
 
 import core
 import build
@@ -1001,10 +1002,14 @@ class Workbench(object) :
 
 
 	def build(self) :
-		board_type = self.get_board()
-		sheets = self.__sheets
-		meta = self.get_meta()
-		self.build_job(board_type, sheets, meta)#TODO refac build invocation
+		try :
+			board_type = self.get_board()
+			sheets = self.__sheets
+			meta = self.get_meta()
+			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+		except Exception as e :
+			print here(), traceback.format_exc()
+			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
 
 
 	def build_job(self, board_type, sheets, meta) :
@@ -1033,7 +1038,6 @@ class Workbench(object) :
 			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
 		except Exception as e:
-#			import traceback
 #			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
@@ -1057,19 +1061,23 @@ class Workbench(object) :
 
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
+
+		libc_dir, tools_dir, boards_txt, _ = build.get_avr_arduino_paths(all_in_one_arduino_dir=None)
+
 		rc, = build.build_source(board_type, source,
-			aux_src_dirs=[
+			aux_src_dirs=(
 				(os.path.join(base_include_dir, "cores", "arduino"), False),
 				(os.path.join(base_include_dir, "variants", variant), False),
 #				(os.path.join(install_path, "library", "arduino"), False),
-			] + [ (path, True) for path in source_dirs ],#TODO derive from libraries used
+			) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
 			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
-			boards_txt=build.BOARDS_TXT,
+			boards_txt=boards_txt,
+			libc_dir=libc_dir,
 #			board_db={},
 			ignore_file=None,#"amkignore",
 
 #			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
-			ignore_lines=[ "*" + os.path.sep + "main.cpp" ],#TODO make configurable
+			ignore_lines=( "*" + os.path.sep + "main.cpp", ),#TODO make configurable
 
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"
