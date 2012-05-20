@@ -93,7 +93,7 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 					code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
 						for (_, a), i in zip(arg_group, count()))
 					tmp_args[arg_type] = array_size + len(arg_group)
-					arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, len(arg_group))
+					arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, array_size)
 				arg_list.append(str(len(arg_group)))
 				arg_list.append(arg_code)
 			else :
