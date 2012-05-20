@@ -84,7 +84,12 @@ _VM_EXPORT_ vm_dword_t time_us();
 	@param ch number of serial channel
 	@param speed baudrate
 */
-_VM_EXPORT_ void set_serial(vm_word_t ch, vm_word_t speed);
+_VM_EXPORT_ void start_serial(vm_word_t ch, vm_word_t speed);
+
+
+_VM_EXPORT_ void seed_rnd(vm_word_t seed);
+
+_VM_EXPORT_ vm_word_t rnd(vm_word_t max);
 
 #endif
 
