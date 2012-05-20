@@ -1049,7 +1049,10 @@ class Workbench(object) :
 		source = out_fobj.getvalue()
 		print(source)
 
-		base_include_dir = "/usr/share/arduino/hardware/arduino/"#TODO make configurable
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
+		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
+			all_in_one_arduino_dir=all_in_one_arduino_dir)
+
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
@@ -1062,13 +1065,10 @@ class Workbench(object) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
-		libc_dir, tools_dir, boards_txt, _ = build.get_avr_arduino_paths(
-			all_in_one_arduino_dir=self.config.get("Path", "all_in_one_arduino_dir"))
-
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=(
-				(os.path.join(base_include_dir, "cores", "arduino"), False),
-				(os.path.join(base_include_dir, "variants", variant), False),
+				(os.path.join(target_files_dir, "cores", "arduino"), False),
+				(os.path.join(target_files_dir, "variants", variant), False),
 #				(os.path.join(install_path, "library", "arduino"), False),
 			) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
 			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
@@ -1076,10 +1076,8 @@ class Workbench(object) :
 			libc_dir=libc_dir,
 #			board_db={},
 			ignore_file=None,#"amkignore",
-
-#			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
-			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ),#TODO make configurable
-
+#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
+			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"
 #			prog_adapter="arduino", #None for dfu-programmer

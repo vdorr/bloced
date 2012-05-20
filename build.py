@@ -464,10 +464,10 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 			rc = (666, )
 
 		if rc is None or not rc[0] :
-			success, _, streams = run(("avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
-				optimization, "-o", a_out, "-lm",) +
+			success, gcc_rc, streams = run(("avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
+				optimization, "-o", a_out, "-lm", "-t") + (optimization, "-mmcu=" + mcu) +
 				tuple(objects) + link_libs + link_dirs)
-			print here(), streams
+#			print here(), gcc_rc, success, objects, workdir, a_out, streams
 
 		shutil.rmtree(workdir)
 
