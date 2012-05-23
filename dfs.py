@@ -41,8 +41,6 @@ E = "e"
 
 #XXX these consts must go!
 
-term_size = 8
-
 TERM_SIZE = 11
 
 #for macroes and foreign functions
@@ -419,17 +417,17 @@ class BlockModel(object) :
 			self.__width = v
 
 
-	def __get_prop_height(self) :
+	def __get_prop_height(self, term_size=13) :
 		l = self.__height
 		trms = [ t for t in self.terms if t.default_side in (W, E) ]
-		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
+		varterms = sum(self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms)
 		return l + varterms * term_size
 
 
-	def __get_prop_width(self) :
+	def __get_prop_width(self, term_size=13) :
 		l = self.__width
 		trms = [ t for t in self.terms if t.default_side in (N, S) ]
-		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
+		varterms = sum(self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms)
 		return l + varterms * term_size
 
 
