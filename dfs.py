@@ -133,7 +133,14 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockModel(object) :
+class BlockModelData(object) :
+
+
+	def __init__(self, prototype, model) :
+		pass
+
+
+class BlockModel(BlockModelData) :
 
 	def get_term_side(self, t) :
 		flipv, fliph, rot = self.orientation
@@ -579,15 +586,15 @@ class BlockModel(object) :
 		return term_label
 
 
-	def __my_init(self, model, caption, left, top, width, height, terms, values) :
-		self.__orientation = (0, 0, 0)
-		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
-			caption, left, top, width, height, terms)
-		self.__model = model
-		self.__can_move = True
-		self.__prototype = None
-		self.__value = tuple(dv for name, dv in values) if values else None
-		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
+#	def __my_init(self, model, caption, left, top, width, height, terms, values) :
+#		self.__orientation = (0, 0, 0)
+#		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
+#			caption, left, top, width, height, terms)
+#		self.__model = model
+#		self.__can_move = True
+#		self.__prototype = None
+#		self.__value = tuple(dv for name, dv in values) if values else None
+#		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 
 	def __init__(self, prototype, model, left = 0, top = 0) :
@@ -595,9 +602,25 @@ class BlockModel(object) :
 		when there is no parent use for model argument value
 		'itentionally left blank' instead of GraphModel instance
 		"""
-		self.__my_init(model, prototype.type_name, left, top,
-			prototype.default_size[0], prototype.default_size[1],
-			prototype.terms, prototype.values)
+
+		super(BlockModel, self).__init__(prototype, model)
+
+#		self.__my_init(model, prototype.type_name, left, top,
+#			prototype.default_size[0], prototype.default_size[1],
+#			prototype.terms, prototype.values)
+
+		self.__orientation = (0, 0, 0)
+		self.__caption = prototype.type_name
+		self.__left = left
+		self.__top = top
+		self.__width, self.__height = prototype.default_size
+		self.__terms = prototype.terms
+		self.__model = model
+		self.__can_move = True
+		self.__value = tuple(dv for name, dv in prototype.values) if prototype.values else None
+		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in prototype.terms if t.variadic }
+
+
 		self.__prototype = prototype
 		self.__init_label_fmt_table()
 
@@ -984,25 +1007,116 @@ def catch_all(f) :
 	return wrap
 
 
-class Workbench(object) :
-
-	def __worker_thread(self, nr) :
-		pass
+class WorkbenchData(object) :
 
 
-	def __spawn_worker(self, nr) :
-#		return threading.start_new(self.__worker_thread, (nr,))
-		pass
+	sheets = property(lambda self: self.__sheets)
 
 
-	def add_job(self) :
-		pass
+	def get_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.PERSISTENT }
+		return m
+
+
+	meta = property(get_meta)
+
+
+#	def get_sheet_by_name(self, name) :
+#		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
+
+
+	def is_valid_name(self, a) :
+		first = set("@_abcdefghijklmnopqrstuvwxyz")	
+		other = first.union(":012345679")
+		s = a.lower()
+		return s and s[0] in first and all([ c in other for c in s ])
+
+
+	def get_free_sheet_name(self, seed="Sheet{0}", check_validity=True) :
+		"""
+		returns free sheet name
+		seed is format string with at least one placeholder
+		"""
+		i = 1
+		name = seed.format(i)
+		if check_validity and not self.is_valid_name(name) :
+			return None
+		while name in self.__sheets :
+			name = seed.format(i)
+			i += 1
+		return name
+
+
+	def __init__(self, lib_dir=None,
+			do_create_block_factory=True,
+			blockfactory=None) :
+
+		self.PERSISTENT = ( "__port", "__board" )
+
+		self.blockfactory = blockfactory
+		if do_create_block_factory :
+			self.blockfactory = core.create_block_factory(
+				scan_dir=lib_dir)
+
+		self.lock = Lock()
+
+		self.__sheets = {}
+		self.__meta = {}
+
+
+class Workbench(WorkbenchData) :
+
+
+	@sync
+	def rename_sheet(self, name=None, new_name=None) :
+		sheet, name = self.delete_sheet(name=name)
+		self.add_sheet(sheet=sheet, name=new_name)
+
+
+	def clear(self) :
+		for name in list(self.sheets.keys()) :
+			self.delete_sheet(name=name)
+		self.clear_meta()
+
+
+	def add_sheet(self, sheet=None, name=None) :
+#TODO raise event
+		if not self.is_valid_name(name) :
+			raise Exception("invalid_resource_name")
+		if name in self.sheets :
+			raise Exception("resource_name_allready_used")
+		if sheet is None :
+			sheet = GraphModel()
+#		print here(), name, sheet
+		self.sheets[name] = sheet
+		self.__changed("sheet_added", (sheet, name))
+
+
+	def delete_sheet(self, name=None) :
+#		if name != None :
+#			sheet, = self.get_sheet_by_name(name)
+		sheet = self.sheets.pop(name)
+		self.__changed("sheet_deleted", (sheet, name))
+		return (sheet, name)
+
+
+	def set_meta(self, m) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
+#XXX		self.__changed("meta_changed", self.get_meta())
+
+
+	def clear_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : None for k in self.PERSISTENT })
+		self.__changed("meta_changed", self.get_meta())
 
 
 	def build(self) :
 		try :
 			board_type = self.get_board()
-			sheets = self.__sheets
+			sheets = self.sheets
 			meta = self.get_meta()
 			self.build_job(board_type, sheets, meta)#TODO refac build invocation
 		except Exception as e :
@@ -1013,11 +1127,6 @@ class Workbench(object) :
 	def build_job(self, board_type, sheets, meta) :
 
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
-
-	#	class DummyFile(object):
-	#		def write(self, s) :
-	#			print(s)
-	#	out_fobj = DummyFile()
 
 		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
 
@@ -1036,7 +1145,7 @@ class Workbench(object) :
 			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
 		except Exception as e:
-#			print here(), traceback.format_exc()
+			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
 
@@ -1117,7 +1226,6 @@ class Workbench(object) :
 			print("programming succeeded")
 
 
-	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
 
 
@@ -1136,7 +1244,6 @@ class Workbench(object) :
 
 
 	@catch_all
-
 	def __timer_thread(self) :
 #		port_check = time.time()
 		while not self.__get_should_finish() :
@@ -1239,76 +1346,9 @@ class Workbench(object) :
 		return self.__port
 
 
-	def get_meta(self) :
-		prefix = "_" + self.__class__.__name__
-		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.__persistent }
-		return m
-
-
-	def set_meta(self, m) :
-		prefix = "_" + self.__class__.__name__
-		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
-
-
-	def clear_meta(self) :
-		prefix = "_" + self.__class__.__name__
-		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : None for k in self.__persistent })
-		self.__changed("meta_changed", self.get_meta())
-
-
-	meta = property(get_meta)
-
-
-	def add_sheet(self, sheet=None, name=None) :
-#TODO raise event
-		if not self.is_valid_name(name) :
-			raise Exception("invalid_resource_name")
-		if name in self.__sheets :
-			raise Exception("resource_name_allready_used")
-		if sheet is None :
-			sheet = GraphModel()
-#		print here(), name, sheet
-		self.__sheets[name] = sheet
-		self.__changed("sheet_added", (sheet, name))
-
-
-#	def get_sheet_by_name(self, name) :
-#		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
-
-
-	def delete_sheet(self, name=None) :
-#		if name != None :
-#			sheet, = self.get_sheet_by_name(name)
-		sheet = self.__sheets.pop(name)
-		self.__changed("sheet_deleted", (sheet, name))
-		return (sheet, name)
-
-
 	def __changed(self, event, data) :
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
-
-
-	def is_valid_name(self, a) :
-		first = set("@_abcdefghijklmnopqrstuvwxyz")	
-		other = first.union(":012345679")
-		s = a.lower()
-		return s and s[0] in first and all([ c in other for c in s ])
-
-
-	def get_free_sheet_name(self, seed="Sheet{0}", check_validity=True) :
-		"""
-		returns free sheet name
-		seed is format string with at least one placeholder
-		"""
-		i = 1
-		name = seed.format(i)
-		if check_validity and not self.is_valid_name(name) :
-			return None
-		while name in self.__sheets :
-			name = seed.format(i)
-			i += 1
-		return name
 
 
 #TODO TODO TODO
@@ -1316,12 +1356,6 @@ class Workbench(object) :
 #		self.__changed = True
 #		self.__set_current_file_name(self.__fname)
 		pass
-
-
-	def clear(self) :
-		for name in list(self.__sheets.keys()) :
-			self.delete_sheet(name=name)
-		self.clear_meta()
 
 
 	MULTITHREADED = True
@@ -1335,12 +1369,6 @@ class Workbench(object) :
 	@sync
 	def blob_time(self) :
 		return self.__blob_time
-
-
-	@sync
-	def rename_sheet(self, name=None, new_name=None) :
-		sheet, name = self.delete_sheet(name=name)
-		self.add_sheet(sheet=sheet, name=new_name)
 
 
 #	@catch_all
@@ -1358,10 +1386,13 @@ class Workbench(object) :
 		default value for ALL meta is None, stick with it
 		"""
 
+		super(Workbench, self).__init__(lib_dir=lib_dir,
+			do_create_block_factory=do_create_block_factory,
+			blockfactory=blockfactory)
+
+
 		self.config = config
 		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else ""
-
-		self.__persistent = ( "__port", "__board" )
 
 		self.__board = None
 		self.__port = None
@@ -1381,18 +1412,9 @@ class Workbench(object) :
 
 		self.__ports = []
 
-		self.blockfactory = blockfactory
-		if do_create_block_factory :
-			self.blockfactory = core.create_block_factory(
-				scan_dir=lib_dir)
-
-		self.__sheets = {}
-		self.__meta = {}
-
 		self.__should_finish = False
 		self.__messages = Queue()
 		self.__jobs = Queue()
-		self.lock = Lock()
 #XXX
 		if not passive :
 			self.set_port_list(build.get_ports())
@@ -1402,7 +1424,6 @@ class Workbench(object) :
 		else :
 			self.tmr = Thread(target=self.__timer_thread)
 			self.tmr.start()
-#		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
 
 
 	def finish(self) :
