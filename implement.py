@@ -447,11 +447,11 @@ value_t = namedtuple("value_t", [ "value_type", "value"])#, "resource"
 
 
 def __parse_num_lit(value, base=10, known_types=None) :
-	s = value.strip()
-	if s[-1] in "fF" or "." in s:
+	s = value.strip().lower()
+	if (s[-1] == "f" and not s.startswith("0x")) or "." in s :
 		return ("vm_float_t", float(s))
 	else :
-		if s[-1] in "lL" :
+		if s[-1] == "l" :
 			return ("vm_dword_t", int(s[:-1], base))
 		else :
 			v = int(s, base)
