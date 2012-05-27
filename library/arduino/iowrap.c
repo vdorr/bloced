@@ -73,3 +73,21 @@ vm_dword_t time_us()
 	return micros();
 }
 
+extern void serial_begin(vm_word_t nr, vm_word_t speed);
+
+void start_serial(vm_word_t ch, vm_word_t speed)
+{
+	serial_begin(ch, speed);
+}
+
+void seed_rnd(vm_word_t seed)
+{
+	srand(seed);
+}
+
+vm_word_t rnd(vm_word_t max)
+{
+	return rand() % max;
+}
+
+

@@ -269,8 +269,8 @@ def remove_block(g, n) :
 	"""
 	remove block n from graph g
 	"""
-	map_in = { (t, t_nr) : tuple() for t, t_nr in __in_terms(n) }
-	map_out = { (t, t_nr) : tuple() for t, t_nr in __out_terms(n) }
+	map_in = { (t, t_nr) : tuple() for t, t_nr in in_terms(n) }
+	map_out = { (t, t_nr) : tuple() for t, t_nr in out_terms(n) }
 	remove_block_and_patch(g, n, {}, map_in, map_out)
 
 
@@ -282,11 +282,9 @@ def block_value_by_name(n, value_name) :
 
 
 def __cut_joint_alt(g, j) :
-#	print "__cut_joint_alt:", g[j].p
-#	(((it, it_nr, ((pb, pt, pt_nr),)),), succs) = g[j]
-#	print here(), g[j]
 	((it, it_nr, ((pb, pt, pt_nr),)),), succs = g[j]
-	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+#	map_in = { (it, it_nr) : [ (b, t, nr) for (ot, ot_nr, ((b, t, nr),)) in succs ] } # works only for joints!
+	map_in = { (it, it_nr) : [ v for _, _, vertices in succs for v in vertices ] } # works only for joints!
 	map_out = { (out_term, out_term_nr) : (pb, pt, pt_nr) for out_term, out_term_nr, _ in succs }
 	__replace_block_with_subgraph(g, j, {}, map_in, map_out)
 
@@ -295,7 +293,6 @@ def __cut_joint_alt(g, j) :
 def __expand_joints_new(g) :
 	for j in [ b for b in g if core.compare_proto_to_type(b.prototype, core.JointProto) ] :
 		__cut_joint_alt(g, j)
-
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -347,71 +344,102 @@ def join_taps(g) :
 # ------------------------------------------------------------------------------------------------------------
 
 def t_unpack(term) :
-	return term if isinstance(term, tuple) else (term, 0) # XXX XXX use 0 instead of None?
+	return term if isinstance(term, tuple) else (term, 0)
 
 
 def __expddel(d, nr) :
 	i = dfs.BlockModel(core.DelayInProto(), None)
-	o = dfs.BlockModel(core.DelayOutProto(), None)
+#	print here(), d, nr
+	if core.compare_proto_to_type(d.prototype, core.InitDelayProto) :
+#		print here()
+		o = dfs.BlockModel(core.InitDelayOutProto(), None)
+	else :
+		o = dfs.BlockModel(core.DelayOutProto(), None)
 	i.nr = o.nr = nr
 	i.delay = o.delay = d
-	return (d, (i, o)) # TODO return expddel_t((i, i.terms[0]), (o, o.terms[0]))
+	return d, (i, o)
 
 
-def __expand_delays(blocks, conns) :
+def __mkvert(src, expd) :
+	b, t0 = src
+	t, _ = t_unpack(t0)
 
-	delays = { b for b in blocks if core.compare_proto_to_type(b.prototype, core.DelayProto) }
+	if core.compare_proto_to_type(b.prototype, core.DelayProto, core.InitDelayProto) :
+		block = expd[b][ 1 if t.name in ("y", "init") else 0 ]
+		term, = get_terms_flattened(block, direction=t.direction)
+#	if core.compare_proto_to_type(b.prototype, core.DelayProto) :
+#		io = 1 if t.direction == core.OUTPUT_TERM else 0
+#		block = expd[b][io]
+#		term, = block.terms
+#	elif core.compare_proto_to_type(b.prototype, core.InitDelayProto) :
+#		io = 1 if t.name in ("y", "init") else 0
+#		block = expd[b][io]
+#		print here(), src, block, tuple(get_terms_flattened(block, direction=t.direction)), io
+#		term, = get_terms_flattened(block, direction=t.direction)
+	else :
+		block, term = src
 
-	expd = dict([ __expddel(delay, nr) for delay, nr in zip(delays, count()) ])
+	result_t, result_t_nr = t_unpack(term)
+	assert(t.direction==result_t.direction)
+	return (block, result_t, result_t_nr)
 
-	def mkvert(src, io) :
-		b, t = src
-		block, term = ( ( expd[b][io], expd[b][io].terms[0] )
-			if core.compare_proto_to_type(b.prototype, core.DelayProto)
-			else (b, t) )
-		return (block, ) + t_unpack(term)
 
-	conns2 = { mkvert(s, 1) : [ mkvert(d, 0) for d in dests ] for s, dests in conns.items() }
+def __expand_delays(blocks, conns, delay_numbering_start) :
+
+	delays = frozenset(b for b in blocks
+		if core.compare_proto_to_type(b.prototype, core.DelayProto, core.InitDelayProto))
+#	delays = { b for b in blocks if core.compare_proto_to_type(b.prototype, core.DelayProto) }
+#	print here(), delays
+
+	expd = dict(__expddel(delay, delay_numbering_start + nr) for delay, nr in zip(delays, count()))
+#	print here(), expd
+
+#	def mkvert(src, io) :
+#		b, t = src
+#		block, term = ( ( expd[b][io], expd[b][io].terms[0] )
+#			if core.compare_proto_to_type(b.prototype, core.DelayProto)
+#			else (b, t) )
+
+#		return (block, ) + t_unpack(term)
+
+	conns2 = {}
+	for s, dests in conns.items() :
+		k = __mkvert(s, expd)
+		v = [ __mkvert(d, expd) for d in dests ]
+#		print here(), "s:", s, "dests:", dests, #"k:", k, "v:", v
+		conns2[k] = v
+
+#	sys.exit(0)
+
+#	conns2 = { __mkvert(s, 1, expd) : [ __mkvert(d, 0, expd) for d in dests ] for s, dests in conns.items() }
 
 	return list((set(blocks)-delays).union(chain(*expd.values()))), conns2, expd
 
 
-# ------------------------------------------------------------------------------------------------------------
-
-def get_terms_flattened(block) :
+#TODO TODO TODO proper sorting by prototype stack order
+def get_terms_flattened(block, direction=None, fill_for_unconnected_var_terms=False) :
 	for t in block.terms :
+		if not direction is None and direction != t.direction :
+			continue
 		if t.variadic :
 			for nr, index in sorted(block.get_indexed_terms(t), key=lambda x: x[1])[:-1] :
 				yield t, nr
+			else :
+				if fill_for_unconnected_var_terms :
+					yield t, None
 		else :
 			yield t, 0
 
-def __in_terms(block) :
-#TODO TODO TODO proper sorting!!!!!
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.INPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == core.INPUT_TERM  ]
 
-def __out_terms(block) :
-	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
-#	return [ (t, n if n != None else 0) for t, n in block.get_terms_flat() if t.direction == core.OUTPUT_TERM  ]
-#	return [ t for t in block.terms if t.direction == core.OUTPUT_TERM  ]
+def in_terms(block) :
+#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
+	return tuple(get_terms_flattened(block, direction=core.INPUT_TERM))
 
-#def __adj_edges(b, conns, neighbours) :
-#	inputs
-#	outputs
 
-#def __adj_in_edges(b, conns, neighbours) :
-#	preds = reverse_dict_of_lists(s_adjl, lambda values: set(values))
-#	print b, "inputs:", __in_terms(b.prototype.terms)
+def out_terms(block) :
+#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
+	return tuple(get_terms_flattened(block, direction=core.OUTPUT_TERM))
 
-#def __adj_out_edges(b, conns, neighbours) :
-##	print b, neighbours
-#	print b, "outputs:", __out_terms(b.prototype.terms)
-##	return { st : dst for (sb, st), dst in conns.items() if src[0] in neighbours }
-
-#def __merge_g_and_conns(g, conns) :
-#	return { b : adjs_t(__adj_in_edges(b, conns, p), __adj_out_edges(b, conns, s)) for b, (p, s) in g.items() }
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -419,11 +447,11 @@ value_t = namedtuple("value_t", [ "value_type", "value"])#, "resource"
 
 
 def __parse_num_lit(value, base=10, known_types=None) :
-	s = value.strip()
-	if s[-1] in "fF" or "." in s:
+	s = value.strip().lower()
+	if (s[-1] == "f" and not s.startswith("0x")) or "." in s :
 		return ("vm_float_t", float(s))
 	else :
-		if s[-1] in "lL" :
+		if s[-1] == "l" :
 			return ("vm_dword_t", int(s[:-1], base))
 		else :
 			v = int(s, base)
@@ -493,6 +521,8 @@ def __infer_types_pre_dive(g, delays, types, known_types, n, nt, nt_nr, m, mt, m
 			mt_type_name = types[m, mt, mt_nr] = value_type
 		else :
 			types[m, mt, mt_nr] = mt_type_name = infer_block_type(m, g[m].p, types, known_types)
+			if core.compare_proto_to_type(m.prototype, core.DelayOutProto) :
+				pass
 	if nt.type_name == core.TYPE_INFERRED :
 		types[n, nt, nt_nr] = mt_type_name
 
@@ -503,6 +533,11 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 	for t, t_nr, succs in s :
 		if not succs :
 			types[n, t, t_nr] = infer_block_type(n, p, types, known_types)
+
+
+def __inferr_types_dft_roots_sorter(g, roots) :
+	return sorted(__dft_alt_roots_sorter(g, roots),
+		key=lambda n: 0 if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) else 1)
 
 
 def infer_types(g, expd_dels, known_types, allready_inferred=None) :
@@ -517,28 +552,31 @@ def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 	for k, (din, dout) in expd_dels.items() :
 		delays[din] = delays[dout] = k.value[0]
 	types = {} if allready_inferred is None else allready_inferred
+
 	dft_alt(g,
 		post_dive=partial(__infer_types_pre_dive, g, delays, types, known_types),
 		post_visit=partial(__infer_types_post_visit, g, types, known_types),
+		roots_sorter=__inferr_types_dft_roots_sorter,
 		sinks_to_sources=True)
+
 	return types
 
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO	__check_directions(conns)
-def make_dag(model, meta, known_types, do_join_taps=True) :
+def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=0) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
-	blocks, conns1, delays = __expand_delays(model.blocks, conns0)
+	blocks, conns1, delays = __expand_delays(model.blocks, conns0, delay_numbering_start)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
-			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in __in_terms(b) ],
-			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in __out_terms(b) ])
+			[ (t, n, conns_rev[(b, t, n)] if (b, t, n) in conns_rev else []) for t, n in in_terms(b) ],
+			[ (t, n, conns1[(b, t, n)] if (b, t, n) in conns1 else []) for t, n in out_terms(b) ])
 		for b in blocks }
 
 	is_sane = __dag_sanity_check(graph, stop_on_first=False)
 	if not is_sane :
-		raise Exception("make_dag: produced graph is insane")
+		raise Exception(here() + ": produced graph is insane")
 
 	__expand_joints_new(graph)
 
@@ -548,7 +586,6 @@ def make_dag(model, meta, known_types, do_join_taps=True) :
 	return graph, delays
 
 # ------------------------------------------------------------------------------------------------------------
-
 
 def __dft_alt_roots_sorter(g, roots) :
 	comps = {}
@@ -712,11 +749,11 @@ def dft_alt(g,
 		post_visit = lambda *a, **b: None,
 		pre_tree = lambda *a, **b: None,
 		post_tree = lambda *a, **b: None,
-#		roots_sorter=__dft_alt_roots_sorter,
+		roots_sorter=__dft_alt_roots_sorter,
 		sinks_to_sources=True) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 
-	s = __dft_alt_roots_selector(g, sinks_to_sources, __dft_alt_roots_sorter)
+	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
 
 	visited = {}
 	for v in s :
@@ -942,7 +979,9 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 
 	if sheet is None :
 		raise Exception("failed to expand macro '" + full_name + "'")
-	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False)
+
+	offset = reduce(max, (b.nr for b in g if core.compare_proto_to_type(b.prototype, core.DelayInProto)), 0)#TODO
+	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False, delay_numbering_start=offset+1)
 
 #TODO
 #	print here(), full_name, full_name in cache
@@ -994,6 +1033,18 @@ def block_cache_init() :
 
 
 # ------------------------------------------------------------------------------------------------------------
+
+
+def __check_for_cycles_post_visit(n, visited) :
+	pass
+
+
+def check_for_cycles(g) :
+	pass
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 
 def create_function_call(name) :
 	block = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
@@ -1050,7 +1101,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	for name, sheet_list_iter in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
 		if core.is_macro_name(name) or core.is_function_name(name) :
 			sheet_list = tuple(sheet_list_iter)
-			print here(), name, sheet_list
+#			print here(), name, sheet_list
 			assert(len(sheet_list)==1)
 			local_block_sheets[name], = sheet_list
 
@@ -1069,9 +1120,11 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 			extract_pipes(g, known_types, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
 		elif core.is_macro_name(name) :
-			print here(), name
+#			print here(), name
+			pass
 		elif core.is_function_name(name) :
-			print here(), name
+#			print here(), name
+			pass
 		else :
 			raise Exception("impossible exception")
 
@@ -1098,6 +1151,11 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		first_call = setup_call
 	chain_blocks(main_tsk_g, init_call, first_call)
 
+	for _, _, dels, _, _ in graph_data :
+		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
+		assert(all(nr_eq for _, nr_eq in del_check))
+		assert(len(del_check)==len({nr for nr, _ in del_check}))
+
 	tsk_name = "main"
 	main_tsk_meta = { "endless_loop_wrap" : False}
 	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
@@ -1120,6 +1178,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 	#TODO say something about what you've done
+	return libs_used,
 
 
 # ------------------------------------------------------------------------------------------------------------

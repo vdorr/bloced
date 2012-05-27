@@ -15,6 +15,14 @@ from itertools import islice, count
 import shutil
 import platform
 
+
+try :
+	from utils import here
+except :
+	def here(depth=None) :
+		pass
+
+
 try :
 	from serial.tools.list_ports import comports
 	from serial import Serial
@@ -23,13 +31,17 @@ except :
 	print("can not find appropriate version of pySerial")
 	def comports() :
 		return []
-#TODO fake rest of imports
 
 
-def __run_external(args, workdir=None, redir=False) :
+def __run_external(args, workdir=None, redir=False, tools_dir="") :
 	redir_method = subprocess.PIPE if redir else None
+	if tools_dir :
+		arguments = (os.path.join(tools_dir, args[0]),) + tuple(args[1:])
+	else :
+		arguments = args
+#	print here(), tools_dir
 	try :
-		p = subprocess.Popen(args,
+		p = subprocess.Popen(arguments,
 			stdout=redir_method,
 			stderr=redir_method,
 			cwd=os.getcwd() if workdir is None else workdir )
@@ -134,8 +146,9 @@ def get_ports(do_test_read=True) :
 		return ports
 
 
-def get_board_types() :
-	return __parse_boards(BOARDS_TXT)
+def get_board_types(all_in_one_arduino_dir=None) :
+	_, _, boards_txt, _ = get_avr_arduino_paths(all_in_one_arduino_dir=all_in_one_arduino_dir)
+	return __parse_boards(boards_txt)
 
 
 def __print_streams(*v) :
@@ -146,24 +159,25 @@ def __print_streams(*v) :
 src_dir_t = namedtuple("src_dir", ["directory", "recurse"])
 
 
-#TODO temp file mode
 def build_source(board, source,
-		aux_src_dirs=[],
+		aux_src_dirs=tuple(),
+		aux_idirs=tuple(),
 		boards_txt=None,
-		board_db={},
+		libc_dir=None,
+		board_db=None,
 		ignore_file="amkignore",
-		ignore_lines=[],
+		ignore_lines=tuple(),
 		prog_port=None,
-		prog_driver="avrdude", # or "dfu-programmer"
-		prog_adapter="arduino", #None for dfu-programmer
+		prog_driver="avrdude",
+		prog_adapter="arduino",
 		optimization="-Os",
 		verbose=False,
 		skip_programming=False,
 		dry_run=False,
 		blob_stream=None) :
 	"""
-blob_stream
-	writable file-like object, of not None, hex file will be written to this file
+	blob_stream
+		writable file-like object, of not None, hex file will be written to this file
 	"""
 
 	workdir = tempfile.mkdtemp()
@@ -182,8 +196,10 @@ blob_stream
 	r = build(board, workdir,
 		wdir_recurse=False,
 #		aux_src_files=[ source_f.name ],#XXX
+		aux_idirs=aux_idirs,
 		aux_src_dirs=aux_src_dirs,
 		boards_txt=boards_txt,
+		libc_dir=libc_dir,
 		board_db=board_db,
 		ignore_file=ignore_file,
 		ignore_lines = ignore_lines,
@@ -208,13 +224,37 @@ blob_stream
 	return r
 
 
-#TODO
-def compile_incforth() :
-	pass
+#def get_paths() :
+#	return get_avr_arduino_paths(all_in_one_arduino_dir=None)
 
 
-def compile_gcc() :
-	pass
+#def get_avr_arduino_enviroment(all_in_one_arduino_dir=None) :
+#	libc_dir, tools_dir, target_files_dir  = get_avr_arduino_paths(
+#		all_in_one_arduino_dir=all_in_one_arduino_dir)
+#	return { "libc_dir" : libc_dir, "tools_dir" : tools_dir, "target_files_dir" : target_files_dir }
+
+
+def get_avr_arduino_paths(all_in_one_arduino_dir=None) :
+	"""
+	return platform specific paths to arduino and avr lib/toolchain
+	all_in_one_arduino_dir
+		on windows, path to arduino installation directory
+	"""
+	system = platform.system()
+	if system == "Windows" :
+		libc_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "avr")
+		tools_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "bin")
+		target_files_dir = os.path.join(all_in_one_arduino_dir, "hardware", "arduino")
+		boards_txt = os.path.join(target_files_dir, "boards.txt")
+	elif system == "Linux" :
+		libc_dir = "/usr/lib/avr"
+		tools_dir = "/usr/bin"
+		target_files_dir = "/usr/share/arduino/hardware/arduino/"
+		boards_txt = "/usr/share/arduino/hardware/arduino/boards.txt"
+	else :
+		raise Exception("unsupported system: '" + system + "'")
+
+	return libc_dir, tools_dir, boards_txt, target_files_dir
 
 
 def get_paths() :
@@ -239,22 +279,26 @@ def get_avr_arduino_paths(all_in_one_arduino_dir=None) :
 
 def build(board, workdir,
 		wdir_recurse=True,
-		aux_src_dirs=[],
-		aux_src_files=[],
+		aux_src_dirs=tuple(),
+		aux_src_files=tuple(),
+		aux_idirs=tuple(),
 		boards_txt=None,
-		libc_dir="/usr/lib/avr", #TODO
-		board_db={},
+		libc_dir=None,
+		tools_dir=None,
+		board_db=None,
 		ignore_file="amkignore",
-		ignore_lines=[], #TODO TODO TODO
+		ignore_lines=tuple(),
 		prog_port=None,
-		prog_driver="avrdude", # or "dfu-programmer"
-		prog_adapter="arduino", #None for dfu-programmer
+		prog_driver="avrdude",
+		prog_adapter="arduino",
 		optimization="-Os",
 		verbose=False,
 		skip_programming=False,
 		dry_run=False,
 		a_out="a.out",
-		a_hex="a.hex" ) :
+		a_hex="a.hex"
+#		**args #rest of enviroment dict
+		) :
 	"""
 	boards_txt
 		path to arduino-style boards.txt
@@ -275,9 +319,13 @@ def build(board, workdir,
 			"build.mcu" : "atmega328p", #for avrdude/dfu-programmer
 			"build.f_cpu" : "16000000L",
 			"upload.maximum_size" : "32000" } }
+	prog_adapter
+		'arduino' for Arduino boards or None for dfu-programmer
+	prog_driver
+		supported options are 'avrdude' and 'dfu-programmer'
 	"""
 
-	board_info = board_db
+	board_info = {} if board_db is None else board_db
 	if boards_txt :
 		boards_txt_data = __parse_boards(boards_txt)
 		if not boards_txt_data :
@@ -288,7 +336,7 @@ def build(board, workdir,
 		print("got no board informations, quitting")
 		return (200,)
 
-	src_dirs = [ src_dir_t(workdir, True) ] + aux_src_dirs
+	src_dirs = (src_dir_t(workdir, True), ) + aux_src_dirs
 
 	do_ignore = lambda fn: False
 	ignores = []
@@ -297,13 +345,13 @@ def build(board, workdir,
 		if ignores is None :
 			ignores = []
 			print("error reading ignore file '%s'" % ignore_file)
-	ignores += ignore_lines
+	ignores += list(ignore_lines)
 #	pprint(ignores)
 	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
 	re_ignore = re.compile("("+")|(".join(ign_res)+")")
 	do_ignore = lambda fn: bool(ign_res) and bool(re_ignore.match(fn))
 
-	sources, idirs = list(aux_src_files), []
+	sources, idirs = list(aux_src_files), list(aux_idirs)
 	src_total, idir_total = 0, 0
 	for directory, recurse in src_dirs:
 		try :
@@ -333,19 +381,22 @@ def build(board, workdir,
 
 #	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 #		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
-	board_idirs = (libc_dir, os.path.join(libc_dir, "include"),
+#TODO remove avr specific directories
+	board_idirs = ((tuple() if libc_dir is None else (libc_dir,)) + (
+		os.path.join(libc_dir, "include"),
 		os.path.join(libc_dir, "util"),
-		os.path.join(libc_dir, "compat"))
+		os.path.join(libc_dir, "compat")))
 	defs = { "F_CPU" : f_cpu }
-	rc = gcc_compile(redir_streams, sources, os.path.join(workdir, a_out),
+	rc = gcc_compile(redir_streams, tuple(sources), os.path.join(workdir, a_out),
 		mcu, optimization,
+		tools_dir=tools_dir,
 		defines=defs,
-		i_dirs=board_idirs+idirs,
-		l_libs = [])#[ "/usr/lib/avr/lib/libc.a" ]
+		i_dirs=board_idirs+tuple(idirs),
+		l_libs = tuple())#[ "/usr/lib/avr/lib/libc.a" ]
 	if rc[0] :
 		return rc
 
-	run = partial(__run_external, workdir=workdir, redir=True)
+	run = partial(__run_external, workdir=workdir, redir=True, tools_dir=tools_dir)
 #	run_loud = partial(__run_external, workdir=workdir, redir=False)
 #	run_loud = run
 
@@ -386,20 +437,21 @@ def build(board, workdir,
 
 
 def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
-		defines={},
-		i_dirs=[],
-		l_libs=[],
-		l_dirs=[]) :
+		tools_dir="",
+		defines=None,
+		i_dirs=tuple(),
+		l_libs=tuple(),
+		l_dirs=tuple()) :
 	"""
 	compile batch of c and/or c++ sources
 	"""
 	if not len(sources) :
 		return (2001, "no_sources")
-	include_dirs = [ "-I" + d for d in i_dirs ]
-	link_libs = [ "-l" + d for d in l_libs ]
-	link_dirs = [ "-L" + d for d in l_dirs ]
-	defs = [ "-D{0}={1}".format(k, v) for k, v in defines.items() ]
-	common_args = include_dirs + l_libs + [ optimization, "-mmcu=" + mcu ] + defs
+	include_dirs = tuple( "-I" + d for d in i_dirs )
+	link_libs = tuple( "-l" + d for d in l_libs )
+	link_dirs = tuple( "-L" + d for d in l_dirs )
+	defs = tuple( "-D{0}={1}".format(k, v) for k, v in defines.items() ) if defines else tuple()
+	common_args = include_dirs + l_libs + (optimization, "-mmcu=" + mcu) + defs
 
 	extensions = __extract_extensions(sources)
 	single_batch = all(e == extensions[0] for e in extensions)
@@ -407,32 +459,35 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 	if single_batch :
 		print("gcc compiling in single batch")
 		workdir = os.getcwd()
-		run = partial(__run_external, workdir=workdir, redir=redir_streams)
+		run = partial(__run_external, workdir=workdir, redir=redir_streams, tools_dir=tools_dir)
 		gcc_compile_sources(run, sources, common_args, out=a_out)
 	else :
 		objects = []
-		args = ["-g", "-c", "-w"] + common_args
+		args = ("-g", "-c", "-w") + common_args
 		rc = None
 		workdir = tempfile.mkdtemp()
-		run = partial(__run_external, workdir=workdir, redir=redir_streams)
+		run = partial(__run_external, workdir=workdir, redir=redir_streams, tools_dir=tools_dir)
 		print("gcc_compile working directory '{0}'".format(workdir))
 		try :
 			for source, i in zip(sources, count()) :
 				out = os.path.join(workdir, str(i) + os.path.extsep + "o")
-				rc = gcc_compile_sources(run, [source], args + ["-ffunction-sections",
-					"-fdata-sections"], out=out)
+				rc = gcc_compile_sources(run, (source,), args + ("-ffunction-sections",
+					"-fdata-sections"), out=out)
 				if rc[0] == 0 :
-					print("compiled:" + out)
+					print("compiled:" + source + " into " + out)
 					objects.append(os.path.split(out)[-1])
 				else :
 					break
 		except Exception :
+#			import traceback
+#			print here(), traceback.format_exc()
 			rc = (666, )
 
 		if rc is None or not rc[0] :
-			success, _, streams = run(["avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
-				optimization, "-o", a_out, "-lm",] +
-				objects + link_libs + link_dirs)
+			success, gcc_rc, streams = run(("avr-gcc", "-Wl,--gc-sections", #from build_arduino.py
+				optimization, "-o", a_out, "-lm", "-t") + (optimization, "-mmcu=" + mcu) +
+				tuple(objects) + link_libs + link_dirs)
+#			print here(), gcc_rc, success, objects, workdir, a_out, streams
 
 		shutil.rmtree(workdir)
 
@@ -477,9 +532,9 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 #from build_arduino.py
 #  cmdline = '%(avr_path)s%(compiler)s -c %(verbose)s -g -Os -w -ffunction-sections -fdata-sections
 #-mmcu=%(arch)s -DF_CPU=%(clock)dL -DARDUINO=%(env_version)d %(include_dirs)s %(source)s -o%(target)s' %
-	success, _, streams = run([compiler, "-g", "-w",
-		"-ffunction-sections", "-fdata-sections"] + common_args + sources +
-		(['-o', out] if out else []))
+	success, _, streams = run((compiler, "-g", "-w",
+		"-ffunction-sections", "-fdata-sections") + common_args + sources +
+		(('-o', out) if out else tuple()))
 
 	if success :
 		stdoutdata, stderrdata = streams
@@ -589,16 +644,14 @@ def program_dfu_programmer(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex
 # ----------------------------------------------------------------------------
 
 
-#TODO TODO TODO guess it, somehow
-BOARDS_TXT = "/usr/share/arduino/hardware/arduino/boards.txt"
-
-
-if __name__ == "__main__" :
-	AUX_SRC_DIR = "/usr/share/arduino/hardware/arduino/cores/arduino"
+def main() :
+	libc_dir, tools_dir, boards_txt, target_files_dir = get_avr_arduino_paths(all_in_one_arduino_dir=None)
 	rc, = build("uno", os.getcwd(),
 		wdir_recurse = True,
-		aux_src_dirs = [ src_dir_t(AUX_SRC_DIR, False) ],
-		boards_txt = BOARDS_TXT,
+		libc_dir = libc_dir,
+		tools_dir = tools_dir,
+		aux_src_dirs = [ src_dir_t(os.path.join(target_files_dir, "cores", "arduino"), False) ],
+		boards_txt = boards_txt,
 		ignore_file = "amkignore",
 		prog_port = "/dev/ttyACM0",
 		prog_driver = "avrdude", # or "dfu-programmer"
@@ -608,7 +661,20 @@ if __name__ == "__main__" :
 		skip_programming = False,
 		dry_run = False)
 	sys.exit(rc)
-#board_db = { "uno" : { "name":"uno board", "build.mcu" : "atmega328p", "build.f_cpu" : "16000000L", "upload.maximum_size" : "32000" } }
+
+#	board_db = {
+#		"uno" : {
+#			"name" : "uno board",
+#			"build.mcu" : "atmega328p",
+#			"build.f_cpu" : "16000000L",
+#			"upload.maximum_size" : "32000"
+#			}
+#		}
+
+
+if __name__ == "__main__" :
+	main()
+
 
 # ----------------------------------------------------------------------------
 

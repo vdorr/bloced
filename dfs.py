@@ -20,6 +20,7 @@ from sys import version_info
 from pprint import pprint
 from itertools import dropwhile, islice, count
 #from collections import namedtuple
+import traceback
 
 import core
 import build
@@ -40,9 +41,7 @@ E = "e"
 
 #XXX these consts must go!
 
-term_size = 8
-
-TERM_SIZE = 8
+TERM_SIZE = 11
 
 #for macroes and foreign functions
 MIN_BLOCK_WIDTH = 64
@@ -134,7 +133,31 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockModel(object) :
+
+class BlockModelData(object) :
+
+
+	prototype = property(lambda self: self.__prototype)
+
+
+	def __lt__(self, other):
+		return id(other) < id(self)
+
+
+	terms = property(lambda self: self.__terms)#XXX return copy instead of my instance?
+
+
+	def __init__(self, prototype, model) :
+		self.__prototype = prototype
+		self.__terms = prototype.terms
+
+
+class BlockModel(BlockModelData) :
+
+
+	def to_string(self) :
+		return "%s(%s)" % (self.prototype.type_name, str(self.value))
+
 
 	def get_term_side(self, t) :
 		flipv, fliph, rot = self.orientation
@@ -156,26 +179,53 @@ class BlockModel(object) :
 		return (1 - t.default_pos) if x or y else t.default_pos
 
 
+	def get_term_and_lbl_pos_NEW(self, t, t_nr, term_width, term_height, center=True) :
+		same_side_terms = tuple(sorted((term for term, _ in self.get_terms_flat() if term.direction == t.direction), key=lambda term: term.default_pos))
+		w, h = self.width, self.height
+
+		side = self.get_term_side(t)
+
+		if side in (N, S) :
+			a = w
+		elif side in (W, E) :
+			a = h
+		elif side == C :
+			return (w/2, h/2), (0, 0)
+		else :
+			raise Exception()
+
+
+		term_index = self.get_term_index(t, t_nr) if t.variadic else 1
+		side_index = same_side_terms.index(t)
+		(side_index + term_index) * term_height + (len(same_side_terms) / 2) * term_height
+
+
 	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
+
+		self.get_term_and_lbl_pos_NEW(t, t_nr, text_width, txt_height, center=center)
 
 #		dw, dh = self.__prototype.default_size
 
-		t_size = txt_height
+		t_size = txt_height#XXX may depend on orientation
 		shift = t_size/2 if center else 0
 #XXX XXX XXX
 #		index = t_nr
 		index = self.get_term_index(t, t_nr) if t.variadic else 1
-		c = (index - 1) * term_size if t.variadic else 0
+
+#		print here(), t.name, t_nr, self.get_term_index(t, t_nr) if t.variadic else 666
+
+		c = (((index - 0) * t_size)) if t.variadic else 0
 #XXX XXX XXX
 
 		p = self.get_term_pos(t)
 		tw = text_width
 		side = self.get_term_side(t)
 
-		if t.variadic :
-			w, h = self.width, self.height
-		else :
-			w, h = self.default_size
+#		if t.variadic :
+#			w, h = self.width, self.height
+#		else :
+#			w, h = self.default_size
+		w, h = self.default_size
 
 		if side == N :
 			pos = ((w*p-shift+c, 0),	(0, 0))
@@ -199,12 +249,24 @@ class BlockModel(object) :
 		return (int(x), int(y)), (int(x+txtx), int(y+txty))
 
 
-	def __lt__(self, other):
-		return id(other) < id(self)
+	def get_term_location(self, t, t_nr, text_width, text_height) :
+		(x, y), _ = self.get_term_and_lbl_pos(t, t_nr, text_width, text_height, center=False)
+		return (x+self.left, y+self.top)
 
 
-	def to_string(self) :
-		return "%s(%s)" % (self.prototype.type_name, str(self.value))
+	def get_label_pos(self, txt_width, txt_height) :
+		side =  [W, N, E, S][self.orientation[2]//90]
+		if side == W :
+			pos = (0, 0)
+		elif side == N :
+			pos = (self.width-txt_height, 0)
+		elif side == E :
+			pos = (self.width-txt_width, self.height-txt_height)
+		elif side == S :
+			pos = (0, self.height-txt_height)
+		else :
+			raise Exception()
+		return pos
 
 
 	class edit(object) :
@@ -301,10 +363,10 @@ class BlockModel(object) :
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 		}
-#		if (core.compare_proto_to_type(self.__prototype, core.MacroProto) or
-#				core.compare_proto_to_type(self.__prototype, core.FunctionProto)) :
-		if not core.is_builtin_block(self.__prototype)  :
-			meta["cached_prototype"] = self.__prototype.get_block_proto_data()
+#		if (core.compare_proto_to_type(self.prototype, core.MacroProto) or
+#				core.compare_proto_to_type(self.prototype, core.FunctionProto)) :
+		if not core.is_builtin_block(self.prototype)  :
+			meta["cached_prototype"] = self.prototype.get_block_proto_data()
 #			print here()
 #		print here(), meta
 		return meta
@@ -331,9 +393,6 @@ class BlockModel(object) :
 
 	def get_term_multiplicity(self, term) :
 		return self.__term_meta[term.name]["multiplicity"] if term.variadic else None
-
-
-	terms = property(lambda self: self.__terms)#XXX return copy instead of my instance?
 
 
 	def __get_orientation(self) :
@@ -371,17 +430,17 @@ class BlockModel(object) :
 			self.__width = v
 
 
-	def __get_prop_height(self) :
+	def __get_prop_height(self, term_size=13) :
 		l = self.__height
 		trms = [ t for t in self.terms if t.default_side in (W, E) ]
-		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
+		varterms = sum(self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms)
 		return l + varterms * term_size
 
 
-	def __get_prop_width(self) :
+	def __get_prop_width(self, term_size=13) :
 		l = self.__width
 		trms = [ t for t in self.terms if t.default_side in (N, S) ]
-		varterms = sum([ self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms ])
+		varterms = sum(self.get_term_multiplicity(t)-1 if t.variadic else 0 for t in trms)
 		return l + varterms * term_size
 
 
@@ -439,9 +498,6 @@ class BlockModel(object) :
 	center = property(__get_center, __set_center)
 
 
-	prototype = property(lambda self: self.__prototype)
-
-
 #XXX XXX XXX
 	def get_term_index(self, t, t_nr) :
 		index = self.__term_meta[t.name][t_nr, "index"]
@@ -466,31 +522,6 @@ class BlockModel(object) :
 		if (t_nr, "index") in self.__term_meta[t.name] :
 			self.__term_meta[t.name].pop((t_nr, "index")) #and also the rest, if ever some rest will be
 #			self.__term_meta.pop((t.name, t_nr, "index")) #and also the rest, if ever some rest will be
-
-
-	def get_term_location(self, t, t_nr) :
-#		print "get_term_location:", t, t_nr
-#		retval = t.get_location_on_blockDEPRECATED(self, t_nr)
-		(x, y), _ = self.get_term_and_lbl_pos(t, t_nr, 0, 0, center=False)
-#		print "get_term_location:", retval, " vs.", (x+self.left, y+self.top)
-		return (x+self.left, y+self.top)
-#		assert(retval==...
-#		return retval
-
-
-	def get_label_pos(self, txt_width, txt_height) :
-		side =  [W, N, E, S][self.orientation[2]//90]
-		if side == W :
-			pos = (0, 0)
-		elif side == N :
-			pos = (self.width-txt_height, 0)
-		elif side == E :
-			pos = (self.width-txt_width, self.height-txt_height)
-		elif side == S :
-			pos = (0, self.height-txt_height)
-		else :
-			raise Exception()
-		return pos
 
 #	def __get__connections(self) :
 ##		print self.__graph.connections
@@ -558,15 +589,15 @@ class BlockModel(object) :
 		return term_label
 
 
-	def __my_init(self, model, caption, left, top, width, height, terms, values) :
-		self.__orientation = (0, 0, 0)
-		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
-			caption, left, top, width, height, terms)
-		self.__model = model
-		self.__can_move = True
-		self.__prototype = None
-		self.__value = tuple(dv for name, dv in values) if values else None
-		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
+#	def __my_init(self, model, caption, left, top, width, height, terms, values) :
+#		self.__orientation = (0, 0, 0)
+#		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
+#			caption, left, top, width, height, terms)
+#		self.__model = model
+#		self.__can_move = True
+#		self.__prototype = None
+#		self.__value = tuple(dv for name, dv in values) if values else None
+#		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 
 	def __init__(self, prototype, model, left = 0, top = 0) :
@@ -574,15 +605,29 @@ class BlockModel(object) :
 		when there is no parent use for model argument value
 		'itentionally left blank' instead of GraphModel instance
 		"""
-		self.__my_init(model, prototype.type_name, left, top,
-			prototype.default_size[0], prototype.default_size[1],
-			prototype.terms, prototype.values)
-		self.__prototype = prototype
+
+		super(BlockModel, self).__init__(prototype, model)
+
+#		self.__my_init(model, prototype.type_name, left, top,
+#			prototype.default_size[0], prototype.default_size[1],
+#			prototype.terms, prototype.values)
+
+		self.__orientation = (0, 0, 0)
+		self.__caption = prototype.type_name
+		self.__left = left
+		self.__top = top
+		self.__width, self.__height = prototype.default_size
+		self.__model = model
+		self.__can_move = True
+		self.__value = tuple(dv for name, dv in prototype.values) if prototype.values else None
+		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in prototype.terms if t.variadic }
+
+
 		self.__init_label_fmt_table()
 
 
 	def __repr__(self) :
-		return "%s(%s)" % (self.__prototype.type_name, str(self.value))
+		return "%s(%s)" % (self.prototype.type_name, str(self.value))
 #		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
 
 # ------------------------------------------------------------------------------------------------------------
@@ -963,36 +1008,126 @@ def catch_all(f) :
 	return wrap
 
 
-class Workbench(object) :
-
-	def __worker_thread(self, nr) :
-		pass
+class WorkbenchData(object) :
 
 
-	def __spawn_worker(self, nr) :
-#		return threading.start_new(self.__worker_thread, (nr,))
-		pass
+	sheets = property(lambda self: self.__sheets)
 
 
-	def add_job(self) :
-		pass
+	def get_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.PERSISTENT }
+		return m
+
+
+	meta = property(get_meta)
+
+
+#	def get_sheet_by_name(self, name) :
+#		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
+
+
+	def is_valid_name(self, a) :
+		first = set("@_abcdefghijklmnopqrstuvwxyz")	
+		other = first.union(":012345679")
+		s = a.lower()
+		return s and s[0] in first and all([ c in other for c in s ])
+
+
+	def get_free_sheet_name(self, seed="Sheet{0}", check_validity=True) :
+		"""
+		returns free sheet name
+		seed is format string with at least one placeholder
+		"""
+		i = 1
+		name = seed.format(i)
+		if check_validity and not self.is_valid_name(name) :
+			return None
+		while name in self.__sheets :
+			name = seed.format(i)
+			i += 1
+		return name
+
+
+	def __init__(self, lib_dir=None,
+			do_create_block_factory=True,
+			blockfactory=None) :
+
+		self.PERSISTENT = ( "__port", "__board" )
+
+		self.blockfactory = blockfactory
+		if do_create_block_factory :
+			self.blockfactory = core.create_block_factory(
+				scan_dir=lib_dir)
+
+		self.lock = Lock()
+
+		self.__sheets = {}
+		self.__meta = {}
+
+
+class Workbench(WorkbenchData) :
+
+
+	@sync
+	def rename_sheet(self, name=None, new_name=None) :
+		sheet, name = self.delete_sheet(name=name)
+		self.add_sheet(sheet=sheet, name=new_name)
+
+
+	def clear(self) :
+		for name in list(self.sheets.keys()) :
+			self.delete_sheet(name=name)
+		self.clear_meta()
+
+
+	def add_sheet(self, sheet=None, name=None) :
+#TODO raise event
+		if not self.is_valid_name(name) :
+			raise Exception("invalid_resource_name")
+		if name in self.sheets :
+			raise Exception("resource_name_allready_used")
+		if sheet is None :
+			sheet = GraphModel()
+#		print here(), name, sheet
+		self.sheets[name] = sheet
+		self.__changed("sheet_added", (sheet, name))
+
+
+	def delete_sheet(self, name=None) :
+#		if name != None :
+#			sheet, = self.get_sheet_by_name(name)
+		sheet = self.sheets.pop(name)
+		self.__changed("sheet_deleted", (sheet, name))
+		return (sheet, name)
+
+
+	def set_meta(self, m) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
+#XXX		self.__changed("meta_changed", self.get_meta())
+
+
+	def clear_meta(self) :
+		prefix = "_" + self.__class__.__name__
+		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : None for k in self.PERSISTENT })
+		self.__changed("meta_changed", self.get_meta())
 
 
 	def build(self) :
-		board_type = self.get_board()
-		sheets = self.__sheets
-		meta = self.get_meta()
-		self.build_job(board_type, sheets, meta)#TODO refac build invocation
+		try :
+			board_type = self.get_board()
+			sheets = self.sheets
+			meta = self.get_meta()
+			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+		except Exception as e :
+			print here(), traceback.format_exc()
+			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
 
 
 	def build_job(self, board_type, sheets, meta) :
 
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
-
-	#	class DummyFile(object):
-	#		def write(self, s) :
-	#			print(s)
-	#	out_fobj = DummyFile()
 
 		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
 
@@ -1000,23 +1135,17 @@ class Workbench(object) :
 		try :
 			w = Workbench(passive=True, do_create_block_factory=False,
 				blockfactory=self.blockfactory)
-
 			local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
 			local_lib.load_standalone_workbench_lib(None, "<local>",
 				library=w.blockfactory,
 				w_data=w_data)
-			print here(), local_lib.block_list[0]
 			library = core.SuperLibrary([w.blockfactory, local_lib])
-			print here()
 			serializer.restore_workbench(w_data, w,
 				use_cached_proto=False,
 				library=library)
-			print here()
-			implement.implement_workbench(w, w.sheets, w.get_meta(),
+			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
-			print here()
 		except Exception as e:
-			import traceback
 			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
@@ -1028,21 +1157,35 @@ class Workbench(object) :
 		source = out_fobj.getvalue()
 		print(source)
 
-		base_include_dir = "/usr/share/arduino/hardware/arduino/"#TODO make configurable
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
+		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
+			all_in_one_arduino_dir=all_in_one_arduino_dir)
+
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
+		source_dirs = set()
+		for l in library.libs :
+			if l.name in libs_used :
+				for src_file in l.source_files :
+					source_dirs.add(os.path.dirname(src_file))
+
+		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
+
 		rc, = build.build_source(board_type, source,
-			aux_src_dirs=[
-				(os.path.join(base_include_dir, "cores", "arduino"), False),
-				(os.path.join(base_include_dir, "variants", variant), False),
-				(os.path.join(os.getcwd(), "library", "arduino"), False)
-			],#TODO derive from libraries used
-			boards_txt=build.BOARDS_TXT,
+			aux_src_dirs=(
+				(os.path.join(target_files_dir, "cores", "arduino"), False),
+				(os.path.join(target_files_dir, "variants", variant), False),
+#				(os.path.join(install_path, "library", "arduino"), False),
+			) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
+			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
+			boards_txt=boards_txt,
+			libc_dir=libc_dir,
 #			board_db={},
 			ignore_file=None,#"amkignore",
-			ignore_lines=[ "*.cpp", "*.hpp" ], #TODO remove this filter with adding cpp support to build.py
+#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
+			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
 #			prog_port=None,
 #			prog_driver="avrdude", # or "dfu-programmer"
 #			prog_adapter="arduino", #None for dfu-programmer
@@ -1084,7 +1227,6 @@ class Workbench(object) :
 			print("programming succeeded")
 
 
-	sheets = property(lambda self: self.__sheets)
 	state_info = property(lambda self: self.get_state_info())
 
 
@@ -1103,7 +1245,6 @@ class Workbench(object) :
 
 
 	@catch_all
-
 	def __timer_thread(self) :
 #		port_check = time.time()
 		while not self.__get_should_finish() :
@@ -1206,76 +1347,9 @@ class Workbench(object) :
 		return self.__port
 
 
-	def get_meta(self) :
-		prefix = "_" + self.__class__.__name__
-		m = { k : self.__dict__[(prefix+k) if k.startswith("__") else k] for k in self.__persistent }
-		return m
-
-
-	def set_meta(self, m) :
-		prefix = "_" + self.__class__.__name__
-		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : v for k, v in m.items() })
-
-
-	def clear_meta(self) :
-		prefix = "_" + self.__class__.__name__
-		self.__dict__.update({ (prefix+k) if k.startswith("__") else k : None for k in self.__persistent })
-		self.__changed("meta_changed", self.get_meta())
-
-
-	meta = property(get_meta)
-
-
-	def add_sheet(self, sheet=None, name=None) :
-#TODO raise event
-		if not self.is_valid_name(name) :
-			raise Exception("invalid_resource_name")
-		if name in self.__sheets :
-			raise Exception("resource_name_allready_used")
-		if sheet is None :
-			sheet = GraphModel()
-#		print here(), name, sheet
-		self.__sheets[name] = sheet
-		self.__changed("sheet_added", (sheet, name))
-
-
-#	def get_sheet_by_name(self, name) :
-#		return [ (s, i) for s, i in zip(self.__sheets, count()) if s.name == name ]
-
-
-	def delete_sheet(self, name=None) :
-#		if name != None :
-#			sheet, = self.get_sheet_by_name(name)
-		sheet = self.__sheets.pop(name)
-		self.__changed("sheet_deleted", (sheet, name))
-		return (sheet, name)
-
-
 	def __changed(self, event, data) :
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
-
-
-	def is_valid_name(self, a) :
-		first = set("@_abcdefghijklmnopqrstuvwxyz")	
-		other = first.union(":012345679")
-		s = a.lower()
-		return s and s[0] in first and all([ c in other for c in s ])
-
-
-	def get_free_sheet_name(self, seed="Sheet{0}", check_validity=True) :
-		"""
-		returns free sheet name
-		seed is format string with at least one placeholder
-		"""
-		i = 1
-		name = seed.format(i)
-		if check_validity and not self.is_valid_name(name) :
-			return None
-		while name in self.__sheets :
-			name = seed.format(i)
-			i += 1
-		return name
 
 
 #TODO TODO TODO
@@ -1283,12 +1357,6 @@ class Workbench(object) :
 #		self.__changed = True
 #		self.__set_current_file_name(self.__fname)
 		pass
-
-
-	def clear(self) :
-		for name in list(self.__sheets.keys()) :
-			self.delete_sheet(name=name)
-		self.clear_meta()
 
 
 	MULTITHREADED = True
@@ -1304,15 +1372,10 @@ class Workbench(object) :
 		return self.__blob_time
 
 
-	@sync
-	def rename_sheet(self, name=None, new_name=None) :
-		sheet, name = self.delete_sheet(name=name)
-		self.add_sheet(sheet=sheet, name=new_name)
-
-
 #	@catch_all
 	def __init__(self, lib_dir=None,
 			passive=True,
+			config=None,
 			status_callback=None,
 			ports_callback=None,
 			monitor_callback=None,
@@ -1324,11 +1387,17 @@ class Workbench(object) :
 		default value for ALL meta is None, stick with it
 		"""
 
-		self.__persistent = ( "__port", "__board" )
+		super(Workbench, self).__init__(lib_dir=lib_dir,
+			do_create_block_factory=do_create_block_factory,
+			blockfactory=blockfactory)
+
+
+		self.config = config
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else ""
 
 		self.__board = None
 		self.__port = None
-		self.__board_types = build.get_board_types()
+		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 
 		self.__blob = None
 		self.__blob_time = None
@@ -1344,18 +1413,9 @@ class Workbench(object) :
 
 		self.__ports = []
 
-		self.blockfactory = blockfactory
-		if do_create_block_factory :
-			self.blockfactory = core.create_block_factory(
-				scan_dir=lib_dir)
-
-		self.__sheets = {}
-		self.__meta = {}
-
 		self.__should_finish = False
 		self.__messages = Queue()
 		self.__jobs = Queue()
-		self.lock = Lock()
 #XXX
 		if not passive :
 			self.set_port_list(build.get_ports())
@@ -1365,7 +1425,6 @@ class Workbench(object) :
 		else :
 			self.tmr = Thread(target=self.__timer_thread)
 			self.tmr.start()
-#		self.__workers = [ self.__spawn_worker(i) for i in range(MAX_WORKERS) ]
 
 
 	def finish(self) :

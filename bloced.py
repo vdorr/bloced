@@ -32,6 +32,7 @@ if version_info.major == 3 :
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
 	from tkinter.simpledialog import Dialog
+	from configparser import SafeConfigParser
 else :
 	from Tkinter import * #TODO this is not good
 	import tkFont
@@ -39,6 +40,7 @@ else :
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
 	from tkSimpleDialog import Dialog
+	from ConfigParser import SafeConfigParser
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -493,6 +495,84 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	# ----------------------------------------------------------------------------------------------------
 
+#TODO move layout functions to model
+	def layout_reroute(self) :
+		if not self.selection :
+			return None
+
+		self.model.begin_edit()
+		for block in self.selection.blocks :
+			for k, _ in block.get_wires() :
+				self.update_connection(*(k + (True,)))
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	def equal_spacing(self, axis) :
+		if not self.selection or len(self.selection.blocks) < 3 :
+			return None
+
+		if axis == "x" :
+			get_coord = lambda block: (block.model.left, block.model.width)
+			set_coord = lambda block, a: block.model._BlockModel__set_left(a)
+		elif axis == "y" :
+			get_coord = lambda block: (block.model.top, block.model.height)
+			set_coord = lambda block, a: block.model._BlockModel__set_top(a)
+		else :
+			raise Exception("unknown spacing")
+
+		blocks = tuple(sorted(((b, get_coord(b)) for b in self.selection.blocks),
+			key=lambda b: b[1][0]))
+
+		min_a = min(a for b, (a, _) in blocks)
+		max_a = max(sum(a_sz) for b, a_sz in blocks)
+		blocks_size = sum(size for b, (_, size) in blocks)
+		spacing = (max_a - min_a - blocks_size) / (len(blocks) - 1)
+
+		self.model.begin_edit()
+		v = min_a
+		for block, (a, size) in blocks :
+			set_coord(block, v)
+			v += size + spacing
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	def layout_align(self, align) :
+		if not self.selection :
+			return None
+
+		if align == "lefts" :
+			f_scan = lambda blocks : min(b.left for b in blocks)
+			f_xfrm = lambda l, b : (l, b.top)
+		elif align == "centers" :
+			f_scan = lambda blocks : sum((b.left+b.width/2) for b in blocks) / len(blocks)
+			f_xfrm = lambda c, b : (c - b.width / 2, b.top)
+		elif align == "rights" :
+			f_scan = lambda blocks : max((b.left+b.width) for b in blocks)
+			f_xfrm = lambda r, b : (r-b.width, b.top)
+		elif align == "tops" :
+			f_scan = lambda blocks : min(b.top for b in blocks)
+			f_xfrm = lambda t, b : (b.left, t)
+		elif align == "middles" :
+			f_scan = lambda blocks : sum((b.top+b.height/2) for b in blocks) / len(blocks)
+			f_xfrm = lambda c, b : (b.left, c - b.height / 2)
+		elif align == "bottoms" :
+			f_scan = lambda blocks : max((b.top+b.height) for b in blocks)
+			f_xfrm = lambda t, b : (b.left, t-b.height)
+		else :
+			raise Exception("unknown alignment")
+
+		p = f_scan(tuple(block.model for block in self.selection.blocks))
+		self.model.begin_edit()
+		for block in self.selection.blocks :
+			block.model.left, block.model.top = f_xfrm(p, block.model)
+		self.model.end_edit()
+		self.resize_selection()
+
+
+	# ----------------------------------------------------------------------------------------------------
+
 	def blckMouseDown(self, sender, e) :
 		tw = e.widget.find_overlapping(e.x-1, e.y-1, e.x+1, e.y+1)
 		if not tw or not tw[0] in sender.window2term :
@@ -506,6 +586,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		dsty = e.y + yo
 #		tblock, _ = self.__get_obj_at(dstx, dsty)
 		block, term = self.__get_term_at(sender, dstx, dsty)
+		self.model.begin_edit()
 		if term :
 			p = (block.model, term)
 			conn = [ (src, dst) for src, dst in self.model.connections.items()
@@ -518,7 +599,6 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		self.offset = (e.x + xo, e.y + yo)
 		self.line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
-		self.model.begin_edit()
 
 
 	def blckMouseMove(self, sender, e) :
@@ -716,8 +796,13 @@ class BlockEditor(Frame, GraphModelListener) :
 
 #		print "update_connection: ", sb, st, sn, tb, tt, tn, line, path
 
-		s0 = sb.get_term_location(st, sn)
-		tA = tb.get_term_location(tt, tn)
+#		txt_height = self.txt_height
+#			txt_width = self.editor.font.measure(sb.get_term_presentation_text(st, sn))
+
+		s0 = sb.get_term_location(st, sn,
+			self.font.measure(sb.get_term_presentation_text(st, sn)), self.txt_height)
+		tA = tb.get_term_location(tt, tn,
+			self.font.measure(tb.get_term_presentation_text(tt, tn)), self.txt_height)
 
 #		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
 
@@ -1198,10 +1283,6 @@ class BlockEditorWindow(object) :
 #			self.bloced.undo.redo()
 
 
-	def mnu_edit_preferences(self, a=None) :
-		pass
-
-
 	def mnu_edit_select_all(self, a=None) :
 		self.bloced.select_all()
 
@@ -1423,11 +1504,11 @@ class BlockEditorWindow(object) :
 		return False
 
 
-	def mnu_mode_build(self) :
+	def mnu_mode_build(self, a=None) :
 		self.work.build()
 
 
-	def mnu_mode_run(self) :
+	def mnu_mode_run(self, a=None) :
 		if not self.work.have_blob() :
 			self.work.build()
 		self.work.upload()
@@ -1722,6 +1803,21 @@ class BlockEditorWindow(object) :
 				[ CmdMnu(proto.type_name, None, partial(self.begin_paste_block, proto)) for proto in blocks_sorted ] )
 
 
+	def __layout_reroute(self) :
+		if self.bloced :
+			self.bloced.layout_reroute()
+
+
+	def __layout__equal_spacing(self, axis) :
+		if self.bloced :
+			self.bloced.equal_spacing(axis)
+
+
+	def __layout_align(self, align) :
+		if self.bloced :
+			self.bloced.layout_align(align)
+
+
 	def setup_menus(self) :
 
 		self.last_block_inserted = None
@@ -1769,8 +1865,8 @@ class BlockEditorWindow(object) :
 			mnu_delete, #CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
 			SepMnu(),
 			mnu_select_all, #CmdMnu("Select &All", "Ctrl+A", self.mnu_edit_select_all),
-#			SepMnu(),
-#			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
+			SepMnu(),
+			CmdMnu("Pr&eferences", None, self.mnu_edit_preferences)
 			])
 
 
@@ -1811,6 +1907,20 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			self.__board_menu,
 			self.__port_menu,
+			])
+
+		self.__layout_menu = self.add_top_menu("L&ayout", [
+			CmdMnu("Reroute", None, self.__layout_reroute),
+			SepMnu(),
+			CmdMnu("Make equal vertical spacing", None, partial(self.__layout__equal_spacing, "y")),
+			CmdMnu("Make equal horizontal spacing", None, partial(self.__layout__equal_spacing, "x")),
+			SepMnu(),
+			CmdMnu("Align lefts", None, partial(self.__layout_align, "lefts")),
+			CmdMnu("Align rights", None, partial(self.__layout_align, "rights")),
+			CmdMnu("Align centers", None, partial(self.__layout_align, "centers")),
+			CmdMnu("Align tops", None, partial(self.__layout_align, "tops")),
+			CmdMnu("Align middles", None, partial(self.__layout_align, "middles")),
+			CmdMnu("Align bottoms", None, partial(self.__layout_align, "bottoms")),
 			])
 
 		self.add_top_menu("&Help", [
@@ -1855,6 +1965,21 @@ class BlockEditorWindow(object) :
 			pprint(d.value)
 
 
+	def mnu_edit_preferences(self, a=None) :
+		items = (
+			("Arduino directory", ""),
+		)
+		d = InputDialog(self.root, "Edit Preferences",
+			items=items)
+		if d.value :
+			pprint(d.value)
+
+
+	def __load_default_config(self, config) :
+		config.add_section("Path")
+		config.set("Path", "all_in_one_arduino_dir", "")
+
+
 #	@catch_all
 	def __init__(self, load_file=None) :
 
@@ -1865,6 +1990,22 @@ class BlockEditorWindow(object) :
 			self.__settings = UserSettings()
 			print("failed to load user setting, defaults loaded")
 
+		self.config = SafeConfigParser()
+		config_file = os.path.join(os.getcwd(), "config.cfg")
+		try :
+			self.config.read(config_file)
+			self.config.get("Path", "all_in_one_arduino_dir", None)
+		except :
+			self.__load_default_config(self.config)
+			try :
+				with open(config_file, "w") as cf :
+					print here()
+					self.config.write(cf)
+			except :
+				print(here(), "error while writing '" + config_file + "'")
+
+		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
+
 		self.__sheets = {}#XXX see __change_callback
 
 		self.__tab_children = {}
@@ -1874,6 +2015,7 @@ class BlockEditorWindow(object) :
 
 		self.work = Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
+			config=self.config,
 			passive=False,
 			status_callback=self.__workbench_status_changed,
 			ports_callback=self.__port_list_changed,

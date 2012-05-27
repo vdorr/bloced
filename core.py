@@ -273,7 +273,6 @@ class DelayProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
 			values=[("Default", None)])
-		self.loop_break = True
 
 
 class DelayInProto(BlockPrototype):
@@ -286,16 +285,17 @@ class DelayOutProto(BlockPrototype):
 		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
-class IDelayProto(BlockPrototype):
+class InitDelayProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelay", [ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
+		BlockPrototype.__init__(self, "InitDelay",
+			[ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
 			category="Special")
-#		self.loop_break = True
 
 
-class IDelayOutProto(BlockPrototype):
+class InitDelayOutProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "IDelayOut", [ In(0, "x", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
+		BlockPrototype.__init__(self, "InitDelayOut",
+			[ In(0, "init", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
 
 
 class ProbeProto(BlockPrototype):
@@ -460,19 +460,8 @@ class TypecastProto(BlockPrototype) :
 # ----------------------------------------------------------------------------
 
 
-VMEX_SIG = "_VM_EXPORT_"
-
-
-def is_vmex_line(s) :
-	ln = s.strip()
-	if not ln.startswith(VMEX_SIG) :
-		return None
-	return ln
-
-
 def parse_vmex_line(s) :
-	hparser.__hparser_linesep = "\n" #XXX XXX XXX XXX XXX
-	tokens = hparser.tokenize(s)
+	tokens = hparser.tokenize(s, os.linesep)
 #	print "parse_vmex_line:", tokens
 	if not tokens :
 		return None
@@ -487,56 +476,117 @@ term_type_t = namedtuple("term", (
 	"direction", "variadic", "commutative", "type_name"))
 
 
-def vmex_arg(a, known_types) :
+def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) :
 	sig, name = a
-#	print "vmex_arg", a
+#	print here(), name, a
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
-	direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
-	variadic = False
-	commutative = False
+	if direction is None :
+		direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
 	
 	(type_name, ) = [ tp for tp in sig if tp in known_types ]
 	return term_type_t(name, direction, variadic, commutative, type_name)
 
 
-def extract_exports(src_str, known_types) :
-	src_lines = src_str.split("\n")
-#	pprint(src_lines)
-	exports = [ parse_vmex_line(ln) for ln in
-		[ is_vmex_line(ln) for ln in src_lines ] if ln != None ]
+VMEX_SIG = "_VM_EXPORT_"
 
-#	print("extract_exports: ", len(exports))
-	vmex_funcs = []
 
-	for ret_type, name, args_list in exports :
+def is_vmex_line(s) :
+	ln = s.strip()
+	if not ln.startswith(VMEX_SIG) :
+		return None
+	return ln
 
-#		print ret_type, name, args_list
 
-		if ret_type[0] != VMEX_SIG :
-			continue # should not happen
-		vmex_ret_type = None
-		for tp in ret_type :
-			if tp in known_types :
-				vmex_ret_type = tp
-		outputs = [ (a_sig, a_name) for a_sig, a_name in args_list if "*" in a_sig ]
-		if outputs :
-			assert(vmex_ret_type == "void")
-		inputs = [ a for a in args_list if not a in outputs ]
-		assert(set(outputs+inputs)==set(args_list))
+def __group_vmex_args(args_list) :
+	va = False
+	group = []
+	for sig, name in args_list :
 
-		terms_in = [ vmex_arg(a, known_types) for a in inputs ]
-		if outputs :
-			terms_out = [ vmex_arg(a, known_types) for a in outputs ]
-		elif ret_type[-1] != "void" :
-			terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+		group.append((sig, name))
+
+		if "_VM_VA_CNT_" in sig :
+			va = True
+		elif "_VM_VA_LST_" in sig :
+			va = False
 		else :
-			terms_out = []
-#		print name, ret_type#, terms_in, terms_out
+			va = False
 
-		#TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
-		vmex_funcs.append((name, (terms_in, terms_out)))
+		if not va :
+			yield group
+			group = []
+
+
+#_VM_VA_CNT_ _VM_INPUT_
+#_VM_VA_LST_
+def parse_vmex_export(export, known_types) :
+	ret_type, name, args_list = export
+	assert(VMEX_SIG in ret_type)
+#	print here(), name
+	args_info = []
+
+	for arg_group in __group_vmex_args(args_list) :
+#		print here(), len(arg_group)
+
+		arg_group_len = len(arg_group)
+		if arg_group_len == 1 :
+			a = vmex_arg(arg_group[0], known_types)
+			args_info.append(a)
+		elif arg_group_len == 2 :
+			(cnt_sig, cnt_name), (lst_sig, lst_name) = arg_group
+#			print here(), cnt_name, cnt_sig, lst_name, lst_sig
+			if "_VM_VA_CNT_" and cnt_sig and "_VM_VA_LST_" in lst_sig and "*" in lst_sig :
+				if "_VM_INPUT_" in cnt_sig :
+					direction = INPUT_TERM
+				elif "_VM_OUTPUT_" in cnt_sig :
+					direction = OUTPUT_TERM
+				else :
+					raise Exception(here() + " variadic term declaration lacks direction")
+				a = vmex_arg((lst_sig, lst_name), known_types,
+					variadic=True,
+					direction=direction)
+				args_info.append(a)
+			else :
+				raise Exception(here() + " invalid variadic term declaration")
+		else :
+			raise Exception(here() + " argument grouping error")
+
+#		for sig, arg_name in arg_group :
+#			print here(), arg_name
+
+#	return name, term_type, direction, variadic, commutative
+
+#	print here()
+#	pprint(args_info)
+
+	vmex_ret_type = None
+	for tp in ret_type :
+		if tp in known_types :
+			vmex_ret_type = tp
+
+	terms_in = [ a for a in args_info if a.direction == INPUT_TERM ]
+	terms_out = [ a for a in args_info if a.direction == OUTPUT_TERM ]
+
+	if not terms_out and not "void" in ret_type :
+		terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+
+	return name, (terms_in, terms_out)
+
+
+def extract_exports(src_str, known_types) :
+
+	exports = []
+	for tk_list in hparser.extract_declarations(hparser.tokenize2(src_str, os.linesep)) :
+		preprocessed = tuple(hparser.drop_comments(tk_list))
+		decl = hparser.stripped_token_list(preprocessed)
+#		print here(), decl
+		if VMEX_SIG in decl : #TODO deeper syntax check
+			ret_type, name, args_list = hparser.parse_decl(decl)
+#			print here(), "'%s'" % name, ret_type
+			exports.append((ret_type, name, args_list))
+
+	vmex_funcs = [ parse_vmex_export(vmex, known_types) for vmex in exports ]
 
 	return vmex_funcs
 
@@ -609,9 +659,9 @@ def load_c_library(lib_name, file_path) :
 
 
 def guess_block_size(terms_N, terms_S, terms_W, terms_E) :
-	mc_width = max([ len(terms_W) + 1, len(terms_E) + 1 ]) * dfs.TERM_SIZE
+	mc_width = max([ len(terms_N) + 2, len(terms_S) + 2 ]) * dfs.TERM_SIZE
 	mc_width = mc_width if mc_width >= dfs.MIN_BLOCK_WIDTH else dfs.MIN_BLOCK_WIDTH
-	mc_height = max([ len(terms_N) + 1, len(terms_S) + 1 ]) * dfs.TERM_SIZE
+	mc_height = max([ len(terms_W) + 2, len(terms_E) + 2 ]) * dfs.TERM_SIZE
 	mc_height = mc_height if mc_height >= dfs.MIN_BLOCK_HEIGHT else dfs.MIN_BLOCK_HEIGHT
 	return mc_width, mc_height
 
@@ -891,7 +941,7 @@ def get_workbench_dependencies(fname) :
 be_lib_block_t = namedtuple("be_lib_item",  ("library", "file_path", "src_type", "name", "block_name"))
 
 
-be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "items"))
+be_library_t = namedtuple("be_library", ("name", "path", "allowed_targets", "include_files", "source_files", "items"))
 
 
 def split_full_type_name(full_type) :
@@ -991,7 +1041,8 @@ def load_standalone_workbench_lib(path, lib_base_name, library=None, w_data=None
 		name=lib.lib_name,
 		path=lib.path,
 		allowed_targets=None,#TODO
-		include_files=(path,),
+		include_files=None,
+		source_files=(path,),
 		items=lib_items)
 
 
@@ -1025,6 +1076,7 @@ def load_library(lib, library=None) :
 	"""
 	lib_items = []
 	include_files = []
+	source_files = []
 	for file_info in sorted(lib.files) :
 
 		blocks = []
@@ -1033,6 +1085,9 @@ def load_library(lib, library=None) :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)
 				blocks = load_c_library(lib.lib_name, file_info.path)
+			else :
+				source_files.append(file_info.path)#XXX is this filter sufficient
+#				print here(), file_info.path
 		elif file_info.file_type == "w" :
 			blocks = load_workbench_library(lib.lib_name, file_info.path, library=library)
 		else :
@@ -1047,6 +1102,7 @@ def load_library(lib, library=None) :
 		path=lib.path,
 		allowed_targets=None,#TODO
 		include_files=tuple(include_files),#f.path for f in lib.files),
+		source_files=tuple(source_files),
 		items=lib_items)
 
 
@@ -1114,8 +1170,9 @@ def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 
 
 #TODO refac needed
-def compare_proto_to_type(prototype_instance, prototype_type) :
-	return prototype_instance.__class__ == prototype_type
+def compare_proto_to_type(prototype_instance, *prototype_types) :
+#	print here(), prototype_instance, prototype_instance.__class__, prototype_types, prototype_instance.__class__ in prototype_types
+	return prototype_instance.__class__ in prototype_types
 
 
 #TODO refac needed
@@ -1176,7 +1233,7 @@ def builtin_blocks() :
 		ConstProto(),
 		DelayProto(),
 
-#		IDelayProto(),
+		InitDelayProto(),
 
 		ProbeProto(),
 		TapProto(),
@@ -1212,9 +1269,10 @@ def builtin_blocks() :
 		BinaryOp("mul", "Arithmetic", commutative=True),
 		BinaryOp("div", "Arithmetic", commutative=False),
 		BinaryOp("mod", "Arithmetic", commutative=False),
-		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
-			In(-2, "d", dfs.W, .66),
-			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+#		SBP("divmod", "Arithmetic", [ In(-1, "n", dfs.W, .33),
+#			In(-2, "d", dfs.W, .66),
+#			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
+		UnaryOp("abs", "Arithmetic"),
 		BinaryOp("lt", "Arithmetic", commutative=False),
 		BinaryOp("gt", "Arithmetic", commutative=False),
 		BinaryOp("eq", "Arithmetic", commutative=False),
