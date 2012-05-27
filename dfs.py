@@ -133,14 +133,31 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+
 class BlockModelData(object) :
 
 
+	prototype = property(lambda self: self.__prototype)
+
+
+	def __lt__(self, other):
+		return id(other) < id(self)
+
+
+	terms = property(lambda self: self.__terms)#XXX return copy instead of my instance?
+
+
 	def __init__(self, prototype, model) :
-		pass
+		self.__prototype = prototype
+		self.__terms = prototype.terms
 
 
 class BlockModel(BlockModelData) :
+
+
+	def to_string(self) :
+		return "%s(%s)" % (self.prototype.type_name, str(self.value))
+
 
 	def get_term_side(self, t) :
 		flipv, fliph, rot = self.orientation
@@ -252,14 +269,6 @@ class BlockModel(BlockModelData) :
 		return pos
 
 
-	def __lt__(self, other):
-		return id(other) < id(self)
-
-
-	def to_string(self) :
-		return "%s(%s)" % (self.prototype.type_name, str(self.value))
-
-
 	class edit(object) :
 	
 		def __init__(self, prop_name=None) :
@@ -354,10 +363,10 @@ class BlockModel(BlockModelData) :
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 		}
-#		if (core.compare_proto_to_type(self.__prototype, core.MacroProto) or
-#				core.compare_proto_to_type(self.__prototype, core.FunctionProto)) :
-		if not core.is_builtin_block(self.__prototype)  :
-			meta["cached_prototype"] = self.__prototype.get_block_proto_data()
+#		if (core.compare_proto_to_type(self.prototype, core.MacroProto) or
+#				core.compare_proto_to_type(self.prototype, core.FunctionProto)) :
+		if not core.is_builtin_block(self.prototype)  :
+			meta["cached_prototype"] = self.prototype.get_block_proto_data()
 #			print here()
 #		print here(), meta
 		return meta
@@ -384,9 +393,6 @@ class BlockModel(BlockModelData) :
 
 	def get_term_multiplicity(self, term) :
 		return self.__term_meta[term.name]["multiplicity"] if term.variadic else None
-
-
-	terms = property(lambda self: self.__terms)#XXX return copy instead of my instance?
 
 
 	def __get_orientation(self) :
@@ -490,9 +496,6 @@ class BlockModel(BlockModelData) :
 
 
 	center = property(__get_center, __set_center)
-
-
-	prototype = property(lambda self: self.__prototype)
 
 
 #XXX XXX XXX
@@ -614,19 +617,17 @@ class BlockModel(BlockModelData) :
 		self.__left = left
 		self.__top = top
 		self.__width, self.__height = prototype.default_size
-		self.__terms = prototype.terms
 		self.__model = model
 		self.__can_move = True
 		self.__value = tuple(dv for name, dv in prototype.values) if prototype.values else None
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in prototype.terms if t.variadic }
 
 
-		self.__prototype = prototype
 		self.__init_label_fmt_table()
 
 
 	def __repr__(self) :
-		return "%s(%s)" % (self.__prototype.type_name, str(self.value))
+		return "%s(%s)" % (self.prototype.type_name, str(self.value))
 #		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
 
 # ------------------------------------------------------------------------------------------------------------
