@@ -1176,6 +1176,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.end_paste_block()
 
 	def popup(self, e) :
+		self.cancel_action_pending()
 		self.canv.focus_set()
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
 
