@@ -1220,7 +1220,7 @@ def clone_sheet(sheet, lib) :
 	f = StringIO()
 	serializer.pickle_dfs_model(sheet, f)
 	f.seek(0)
-	cloned = serializer.unpickle_dfs_model(f, lib=lib)
+	cloned = serializer.unpickle_dfs_model(f, lib=lib, use_cached_proto=False)
 	return cloned
 
 
