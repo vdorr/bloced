@@ -566,7 +566,8 @@ def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 #TODO	__check_directions(conns)
 def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=0) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
-	blocks, conns1, delays = __expand_delays(model.blocks, conns0, delay_numbering_start)
+	model_blocks = tuple(b for b in model.blocks if not core.compare_proto_to_type(b.prototype, core.TextAreaProto))
+	blocks, conns1, delays = __expand_delays(model_blocks, conns0, delay_numbering_start)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(

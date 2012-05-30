@@ -375,14 +375,12 @@ class Block(Canvas, BlockBase) :
 
 
 	def autosize_to_text(self) :
-		print here(), self.model.width, self.model.height
 		lines = self.model.value[0].split(os.linesep)
 		margin = self.editor.font.measure("x")
 		w = max(self.editor.font.measure(l) for l in lines) + margin
 		h = (self.editor.font.metrics("linespace") * len(lines)) + margin
 		self.model.width = w
 		self.model.height = h
-		print here(), lines, w, h, self.model.width, self.model.height
 
 
 	#TODO class EditableBlock(Block) :
