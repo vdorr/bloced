@@ -318,13 +318,6 @@ class TapEndProto(BlockPrototype):
 			values=[("Name", None)])
 
 
-class NoteProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "Note", [ ],
-			default_size=(96,28), category="Special",
-			values=[("Text", "")])
-
-
 class SignalProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
@@ -455,6 +448,12 @@ class TypecastProto(BlockPrototype) :
 			category=category,
 			pure=True)
 
+
+class TextAreaProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "TextArea", [],
+			default_size=(96,28), category="Special",
+			values=[("Text", "")])
 
 
 # ----------------------------------------------------------------------------
@@ -1247,6 +1246,7 @@ def builtin_blocks() :
 		PipeProto(),
 		PipeEndProto(),
 		MuxProto(),
+		TextAreaProto(),
 
 		BinaryOp("xor", "Logic", commutative=True),
 		BinaryOp("or", "Logic", commutative=True),

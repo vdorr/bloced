@@ -573,6 +573,7 @@ class BlockModel(BlockModelData) :
 			core.get_proto_name(core.JointProto()) : "",
 			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
 			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
+			core.get_proto_name(core.TextAreaProto()) : "{0}",
 #			"ConstInputProto":"ConstInput({0})",
 		}
 

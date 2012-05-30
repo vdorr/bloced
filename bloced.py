@@ -195,98 +195,70 @@ class CustomDialog(Toplevel):
 	taken from http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
 	"""
 
-	def __init__(self, parent, title = None):
-
+	def __init__(self, parent, title = None) :
 		Toplevel.__init__(self, parent)
 		self.transient(parent)
-
 		if title:
 			self.title(title)
-
 		self.parent = parent
-
 		self.result = None
-
 		body = Frame(self)
 		self.initial_focus = self.body(body)
 		body.pack(padx=5, pady=5)
-
 		self.buttonbox()
-
-		self.grab_set()
-
+#		self.grab_set()
 		if not self.initial_focus:
 			self.initial_focus = self
-
 		self.protocol("WM_DELETE_WINDOW", self.cancel)
-
-		self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
-								  parent.winfo_rooty()+50))
-
+		self.geometry("+%d+%d" % (parent.winfo_rootx()+50, parent.winfo_rooty()+50))
 		self.initial_focus.focus_set()
-
 		self.wait_window(self)
 
-	#
-	# construction hooks
 
-	def body(self, master):
+	def body(self, master) :
 		# create dialog body.  return widget that should have
 		# initial focus.  this method should be overridden
-
 		pass
 
-	def buttonbox(self):
+
+	def buttonbox(self) :
 		# add standard button box. override if you don't want the
 		# standard buttons
-
 		box = Frame(self)
-
 		w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
 		w.pack(side=LEFT, padx=5, pady=5)
 		w = Button(box, text="Cancel", width=10, command=self.cancel)
 		w.pack(side=LEFT, padx=5, pady=5)
-
 		self.bind("<Return>", self.ok)
 		self.bind("<Escape>", self.cancel)
-
 		box.pack()
 
-	#
-	# standard button semantics
 
-	def ok(self, event=None):
-
+	def ok(self, event=None) :
 		if event and event.state & BIT_CONTROL :
 			return
-
 		if not self.validate() :
 			self.initial_focus.focus_set() # put focus back
 			return
-
 		self.withdraw()
 		self.update_idletasks()
-
 		self.apply()
-
 		self.cancel()
 
-	def cancel(self, event=None):
 
+	def cancel(self, event=None) :
 		# put focus back to the parent window
 		self.parent.focus_set()
 		self.destroy()
 
-	#
-	# command hooks
 
-	def validate(self):
-
+	def validate(self) :
 		return 1 # override
 
-	def apply(self):
 
+	def apply(self) :
 		pass # override
+
 
 class TextEditorDialog(CustomDialog) :
 
@@ -401,12 +373,31 @@ class Block(Canvas, BlockBase) :
 #	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
 #		core.InputProto, core.OutputProto)
 
+
+	def autosize_to_text(self) :
+		print here(), self.model.width, self.model.height
+		lines = self.model.value[0].split(os.linesep)
+		margin = self.editor.font.measure("x")
+		w = max(self.editor.font.measure(l) for l in lines) + margin
+		h = (self.editor.font.metrics("linespace") * len(lines)) + margin
+		self.model.width = w
+		self.model.height = h
+		print here(), lines, w, h, self.model.width, self.model.height
+
+
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here()#, self.model.prototype, self.model.prototype.values
 		self.__dbl_click = True
-		if self.model.prototype.values :
+		if core.compare_proto_to_type(self.model.prototype, core.TextAreaProto) :
+			d = TextEditorDialog(self, self.model.value[0])
+			if d.value :
+				self.editor.model.begin_edit()
+				self.model.value = d.value.strip()
+				self.autosize_to_text()
+				self.editor.model.end_edit()
+		elif self.model.prototype.values :
 			items = [ (name, val) for (name, _), val
 				in zip(self.model.prototype.values, self.model.value)]
 			d = InputDialog(self, items=items)
@@ -820,10 +811,15 @@ class BlockEditor(Frame, GraphModelListener) :
 	def block_added(self, model) :
 	#TODO unify
 #		b = self.m_view_types[model.prototype](self, model)
-		if isinstance(model.prototype, core.JointProto) :
+		if core.compare_proto_to_type(model.prototype, core.JointProto) :
 			b = Joint(self, model)
 		else :
 			b = Block(self, model)
+			if core.compare_proto_to_type(model.prototype, core.TextAreaProto) :
+				self.model.begin_edit()
+				b.autosize_to_text()
+				self.model.end_edit()
+				b.reshape()
 		self.block_index[model] = b
 		self.window_index[b.window] = b
 
