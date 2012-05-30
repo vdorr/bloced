@@ -189,6 +189,133 @@ class InputDialog(Dialog) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+class CustomDialog(Toplevel):
+
+	"""
+	taken from http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
+	"""
+
+	def __init__(self, parent, title = None):
+
+		Toplevel.__init__(self, parent)
+		self.transient(parent)
+
+		if title:
+			self.title(title)
+
+		self.parent = parent
+
+		self.result = None
+
+		body = Frame(self)
+		self.initial_focus = self.body(body)
+		body.pack(padx=5, pady=5)
+
+		self.buttonbox()
+
+		self.grab_set()
+
+		if not self.initial_focus:
+			self.initial_focus = self
+
+		self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+		self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
+								  parent.winfo_rooty()+50))
+
+		self.initial_focus.focus_set()
+
+		self.wait_window(self)
+
+	#
+	# construction hooks
+
+	def body(self, master):
+		# create dialog body.  return widget that should have
+		# initial focus.  this method should be overridden
+
+		pass
+
+	def buttonbox(self):
+		# add standard button box. override if you don't want the
+		# standard buttons
+
+		box = Frame(self)
+
+		w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
+		w.pack(side=LEFT, padx=5, pady=5)
+		w = Button(box, text="Cancel", width=10, command=self.cancel)
+		w.pack(side=LEFT, padx=5, pady=5)
+
+		self.bind("<Return>", self.ok)
+		self.bind("<Escape>", self.cancel)
+
+		box.pack()
+
+	#
+	# standard button semantics
+
+	def ok(self, event=None):
+
+		if event and event.state & BIT_CONTROL :
+			return
+
+		if not self.validate() :
+			self.initial_focus.focus_set() # put focus back
+			return
+
+		self.withdraw()
+		self.update_idletasks()
+
+		self.apply()
+
+		self.cancel()
+
+	def cancel(self, event=None):
+
+		# put focus back to the parent window
+		self.parent.focus_set()
+		self.destroy()
+
+	#
+	# command hooks
+
+	def validate(self):
+
+		return 1 # override
+
+	def apply(self):
+
+		pass # override
+
+class TextEditorDialog(CustomDialog) :
+
+
+	def __init__(self, parent, initial) :
+		self.value = initial
+		CustomDialog.__init__(self, parent)
+
+
+	def body(self, master) :
+		txt = Text(master, wrap="none")
+		self.txt = txt
+		txt.insert("1.0", self.value)
+		self.txt.grid(column=1, row=1, sticky=(W, E, N, S))
+		yscroll = Scrollbar(master, orient=VERTICAL, command=self.txt.yview)
+		yscroll.grid(column=2, row=1, sticky=(N,S))
+		self.txt.configure(yscrollcommand=yscroll.set)
+		xscroll = Scrollbar(master, orient=HORIZONTAL, command=self.txt.xview)
+		xscroll.grid(column=1, row=2, sticky=(W,E))
+		self.txt.configure(xscrollcommand=xscroll.set)
+		return txt
+
+
+	def apply(self):
+		self.value = self.txt.get("1.0", "end")
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 class BlockBase(object) :
 
 	def get_wires(self, sel_blocks=None) :
@@ -1933,6 +2060,7 @@ class BlockEditorWindow(object) :
 			self.add_top_menu("_Debu&g", [
 				CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
 				CmdMnu("Implement", None, self.implement),
+				CmdMnu("test_text_editor", None, self.test_text_editor),
 				CmdMnu("mkmac", None, self.mkmac),
 				CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
 				CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())),
@@ -1941,6 +2069,12 @@ class BlockEditorWindow(object) :
 #				command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
 		self.rescan_ports()
+
+
+	def test_text_editor(self) :
+		d = TextEditorDialog(self.root, "hello")
+		if d.value :
+			print(d.value)
 
 
 	def edit_custom_target(self) :
