@@ -8,8 +8,9 @@ from utils import here
 
 def decode(buf) :
 	assert(len(buf) >= 10)
-	assert(not (len(buf) % 2))
-	frame = "".join(chr((int(h, 16) << 4) + int(l, 16)) for h, l in zip(buf[0::2], buf[1::2]))
+	assert(buf[-1] == "\r")
+	assert(not ((len(buf)-1) % 2))
+	frame = "".join(chr((int(h, 16) << 4) + int(l, 16)) for h, l in zip(buf[0:-2:2], buf[1:-2:2]))
 	if sum(ord(c) for c in frame) % 2 :
 		print here(), "invalid lrc"
 		return None
@@ -25,31 +26,30 @@ def decode(buf) :
 		return None
 
 
-def main() :
+def main(port, baudrate, parity) :
 	ser = serial.Serial()
-	ser.port = "/dev/ttyACM0"
-	ser.baudrate = 9600
-	ser.parity = "N"
+	ser.port = port
+	ser.baudrate = baudrate
+	ser.parity = parity
 	ser.open()
-	allowed_chars = set("0123456789ABCDEF")
+
 	frame = []
 	while True :
 		c = ser.read()#TODO use timeout to handle frame spacing
-		if c == ":" :
+		if "0" <= c <= "9" or "A" <= c <= "F" or c == "\r" :
+			frame.append(c)
+		elif c == ":" :
 			frame = []
-		elif c == "\r" :
-			pass
 		elif c == "\n" :
 			decode(frame)
 			frame = []
-		elif c in allowed_chars :
-			frame.append(c)
 		else :
 			frame = []
 			print here(), "invalid char ", ord(c), "dec received"
 
 
 if __name__ == "__main__" :
-	main()
+	port, baudrate, parity = "/dev/ttyACM0", 9600, "N"
+	main(port, baudrate, parity)
 
 
