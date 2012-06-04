@@ -10,7 +10,7 @@ def decode(buf) :
 	assert(len(buf) >= 10)
 	assert(buf[-1] == "\r")
 	assert(not ((len(buf)-1) % 2))
-	frame = "".join(chr((int(h, 16) << 4) + int(l, 16)) for h, l in zip(buf[0:-2:2], buf[1:-2:2]))
+	frame = "".join(chr((int(h, 16) << 4) + int(l, 16)) for h, l in zip(buf[0:-1:2], buf[1:-1:2]))
 	if sum(ord(c) for c in frame) % 2 :
 		print here(), "invalid lrc"
 		return None
