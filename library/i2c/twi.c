@@ -17,13 +17,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <math.h>
+/*#include <math.h>*/
 #include <stdlib.h>
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <compat/twi.h>
-#include "Arduino.h" // for digitalWrite
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -33,7 +32,7 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
-#include "pins_arduino.h"
+/*#include "pins_arduino.h"*/
 #include "twi.h"
 
 static volatile uint8_t twi_state;
@@ -61,14 +60,10 @@ static volatile uint8_t twi_error;
  * Input    none
  * Output   none
  */
-void twi_init(void)
+int twi_init()
 {
   // initialize state
   twi_state = TWI_READY;
-  
-  // activate internal pullups for twi.
-  digitalWrite(SDA, 1);
-  digitalWrite(SCL, 1);
 
   // initialize twi prescaler and bit rate
   cbi(TWSR, TWPS0);
@@ -82,6 +77,8 @@ void twi_init(void)
 
   // enable twi module, acks, and twi interrupt
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
+
+  return 0;
 }
 
 /* 
@@ -90,10 +87,11 @@ void twi_init(void)
  * Input    none
  * Output   none
  */
-void twi_setAddress(uint8_t address)
+int twi_setAddress(uint8_t address)
 {
   // set twi slave address (skip over TWGCE bit)
   TWAR = address << 1;
+  return 0;
 }
 
 /* 
@@ -105,18 +103,18 @@ void twi_setAddress(uint8_t address)
  *          length: number of bytes to read into array
  * Output   number of bytes read
  */
-uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length)
+int twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t* length_out)
 {
   uint8_t i;
 
   // ensure data will fit into buffer
   if(TWI_BUFFER_LENGTH < length){
-    return 0;
+    return -1;//XXX error
   }
 
   // wait until twi is ready, become master receiver
-  while(TWI_READY != twi_state){
-    continue;
+  if(TWI_READY != twi_state){
+    return 0;//XXX busy
   }
   twi_state = TWI_MRX;
   // reset error state (0xFF.. no error occured)
@@ -139,19 +137,20 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length)
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
 
   // wait for read operation to complete
-  while(TWI_MRX == twi_state){
-    continue;
+  if(TWI_MRX == twi_state){
+    return 0;//XXX busy
   }
 
-  if (twi_masterBufferIndex < length)
+  if (twi_masterBufferIndex < length){
     length = twi_masterBufferIndex;
+  }
 
   // copy twi buffer to data
   for(i = 0; i < length; ++i){
     data[i] = twi_masterBuffer[i];
   }
 	
-  return length;
+  *length_out = length;
 }
 
 /* 
@@ -168,18 +167,19 @@ uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length)
  *          3 .. data send, NACK received
  *          4 .. other twi error (lost bus arbitration, bus error, ..)
  */
-uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait)
+int twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t* rc)
 {
   uint8_t i;
 
   // ensure data will fit into buffer
   if(TWI_BUFFER_LENGTH < length){
-    return 1;
+    *rc = 1;
+    return -1;//XXX error
   }
 
   // wait until twi is ready, become master transmitter
-  while(TWI_READY != twi_state){
-    continue;
+  if(TWI_READY != twi_state){
+    return 0;//XXX busy
   }
   twi_state = TWI_MTX;
   // reset error state (0xFF.. no error occured)
@@ -202,18 +202,23 @@ uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
 
   // wait for write operation to complete
-  while(wait && (TWI_MTX == twi_state)){
-    continue;
+  if(wait && (TWI_MTX == twi_state)){
+    return 0;//XXX busy
   }
   
-  if (twi_error == 0xFF)
-    return 0;	// success
-  else if (twi_error == TW_MT_SLA_NACK)
-    return 2;	// error: address send, nack received
-  else if (twi_error == TW_MT_DATA_NACK)
-    return 3;	// error: data send, nack received
-  else
-    return 4;	// other twi error
+  if (twi_error == 0xFF){
+    *rc = 0;	// success
+  }
+  else if (twi_error == TW_MT_SLA_NACK){
+    *rc = 2;	// error: address send, nack received
+  }
+  else if (twi_error == TW_MT_DATA_NACK){
+    *rc = 3;	// error: data send, nack received
+  }
+  else{
+    *rc = 4;	// other twi error
+  }
+  return 1;//XXX ok
 }
 
 /* 
@@ -293,19 +298,21 @@ void twi_reply(uint8_t ack)
  * Input    none
  * Output   none
  */
-void twi_stop(void)
+int twi_stop(void)
 {
   // send stop condition
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTO);
 
   // wait for stop condition to be exectued on bus
   // TWINT is not set after a stop condition!
-  while(TWCR & _BV(TWSTO)){
-    continue;
+  if(TWCR & _BV(TWSTO)){
+    return 0;//XXX busy
   }
 
   // update twi state
   twi_state = TWI_READY;
+
+  return 1;//XXX done
 }
 
 /* 
@@ -323,7 +330,7 @@ void twi_releaseBus(void)
   twi_state = TWI_READY;
 }
 
-SIGNAL(TWI_vect)
+ISR(TWI_vect)
 {
   switch(TW_STATUS){
     // All Master
