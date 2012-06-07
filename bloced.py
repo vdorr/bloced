@@ -2133,7 +2133,7 @@ class BlockEditorWindow(object) :
 			except :
 				print(here(), "error while writing '" + config_file + "'")
 
-		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
+#		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
 
 		self.__sheets = {}#XXX see __change_callback
 
@@ -2186,8 +2186,75 @@ class BlockEditorWindow(object) :
 		self.tabs.enable_traversal()
 #		f1 = ttk.Frame(self.tabs)
 
+
+
+		self.term_frame = Frame(self.root,
+			height=128
+#,bg="red", borderwidth=10, relief=SUNKEN
+)
+		self.term_frame.grid(column=0, row=1, sticky=(N, W, E, S))
+
+#		self.term_dummy_frame = Frame(self.term_frame)
+
+		self.term = Frame(self.term_frame, bg="blue", height=128, width=128)
+#		self.term = Text(self.term_frame, wrap="none", height=5)#, width=128)
+#		self.term.insert("1.0", "hello")
+
+
+
+		self.term_txt = Text(self.term, wrap="none", height=5)#, width=128)
+		self.term_txt.insert("1.0", "hello")
+		self.term.grid_propagate(False)
+		self.term_txt.pack(fill=BOTH, expand=1, side=TOP)
+
+
+
+#		self.term.grid_propagate(False)
+
+#		self.term.pack(fill=BOTH, expand=1, side=TOP)
+#		self.term_dummy_frame.grid(column=0, row=0, sticky=(W, E, N, S))
+
+#		self.term.columnconfigure(0, weight=1)
+#		self.term.rowconfigure(0, weight=1)
+		self.term.grid(column=0, row=0, sticky=W+E+N+S)
+
+
+		self.term_frame.columnconfigure(0, weight=1)
+		self.term_frame.rowconfigure(0, weight=1)
+
+#		self.term.columnconfigure(0, weight=1)
+#		self.term_yscroll = Scrollbar(self.term_frame, orient=VERTICAL, command=self.term.yview)
+#		self.term_yscroll.grid(column=1, row=0, sticky=(N,S))
+#		self.term.configure(yscrollcommand=self.term_yscroll.set)
+#		self.term_xscroll = Scrollbar(self.term_frame, orient=HORIZONTAL, command=self.term.xview)
+#		self.term_xscroll.grid(column=0, row=1, sticky=(W,E))
+#		self.term.configure(xscrollcommand=self.term_xscroll.set)
+
+		self.term.columnconfigure(0, weight=1)
+		self.term_yscroll = Scrollbar(self.term_frame, orient=VERTICAL
+			,command=self.term_txt.yview
+		)
+		self.term_xscroll = Scrollbar(self.term_frame, orient=HORIZONTAL
+		,command=self.term_txt.xview
+		)
+
+#		self.term_yscroll.pack(fill=Y, expand=0, side=RIGHT)
+		self.term_yscroll.grid(column=1, row=0, sticky=(N,S))
+
+#		self.term.configure(yscrollcommand=self.term_yscroll.set)
+#		self.term_xscroll.pack(fill=X, expand=0, side=BOTTOM)
+		self.term_xscroll.grid(column=0, row=1, sticky=(W,E))
+#		self.term.configure(xscrollcommand=self.term_xscroll.set)
+
+
+
+		self.term_txt.configure(yscrollcommand=self.term_yscroll.set)
+		self.term_txt.configure(xscrollcommand=self.term_xscroll.set)
+
+
+
 		self.statusbar = Frame(self.root, height=32)
-		self.statusbar.grid(column=0, row=1, sticky=(N, W, E, S))
+		self.statusbar.grid(column=0, row=2, sticky=(N, W, E, S))
 		self.statusbar.columnconfigure(0, weight=1)
 		self.statusbar.columnconfigure(1, weight=1)
 
@@ -2200,6 +2267,8 @@ class BlockEditorWindow(object) :
 #		self.cons = Text(mainframe,height=10,background='white')
 #		self.cons.grid(column=0, row=3, sticky=(W, E, S))
 #		self.cons.rowconfigure(2, weight=0)
+
+		print here(), self.root.grid_size(), self.term_frame.grid_size()
 
 		self.setup_menus()
 
