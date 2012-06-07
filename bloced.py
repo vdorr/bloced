@@ -1317,21 +1317,24 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
 
-		self.grid(column=0, row=0, sticky=(N, W, E, S))
+#		self.grid(column=0, row=0, sticky=(N, W, E, S))
+
+		self.canv_frame = Frame(self)
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
-		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion,
+		self.canv = Canvas(self.canv_frame, scrollregion=self.canvas_scrollregion,
 			bg="white", highlightthickness=0)
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
-		self.canv.columnconfigure(0, weight=1)
-		self.canv.rowconfigure(0, weight=1)
+		self.canv_frame.grid(column=0, row=0, sticky=(W, E, N, S))
+		self.canv_frame.columnconfigure(0, weight=1)
+		self.canv_frame.rowconfigure(0, weight=1)
 		self.canv.focus_set()
 
-		yscroll = Scrollbar(self, orient=VERTICAL, command=self.canv.yview)
+		yscroll = Scrollbar(self.canv_frame, orient=VERTICAL, command=self.canv.yview)
 		yscroll.grid(column=1, row=0, sticky=(N,S))
 		self.canv.configure(yscrollcommand=yscroll.set)
 
-		xscroll = Scrollbar(self, orient=HORIZONTAL, command=self.canv.xview)
+		xscroll = Scrollbar(self.canv_frame, orient=HORIZONTAL, command=self.canv.xview)
 		xscroll.grid(column=0, row=1, sticky=(W,E))
 		self.canv.configure(xscrollcommand=xscroll.set)
 
