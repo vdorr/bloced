@@ -1319,13 +1319,43 @@ class BlockEditor(Frame, GraphModelListener) :
 
 #		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
-		self.canv_frame = Frame(self)
-
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
+
+		if 0 :
+			self.attr_frame = Frame(self, height=32, border=5)
+			self.attr_frame.grid(column=0, row=0, sticky=(W, E, N))
+			self.attr_frame.pack(fill=X, expand=False)
+
+			self.sheet_type_lbl = Label(self.attr_frame, text="Sheet Type ");
+			self.sheet_type_lbl.grid(column=0, row=0)
+
+			self.sheet_type_box_value = StringVar()
+			self.sheet_type_box = ttk.Combobox(self.attr_frame,
+				textvariable=self.sheet_type_box_value, 
+	                        state="readonly")
+			self.sheet_type_box["values"] = ("Task", "Macro")
+			self.sheet_type_box.current(0)
+			self.sheet_type_box.grid(column=1, row=0)
+
+			self.period_lbl = Label(self.attr_frame, text="Period ");
+			self.period_lbl.grid(column=2, row=0)
+
+			self.period_box_value = StringVar()
+			self.period_box = ttk.Combobox(self.attr_frame,
+				textvariable=self.period_box_value, 
+	                        state="readonly")
+			self.period_box["values"] = ("Idle task", "10ms", "20ms", "50ms", "100ms",
+				"200ms", "500ms", "1s", "2s", "5s", "10s")
+			self.period_box.current(0)
+			self.period_box.grid(column=3, row=0)
+
+		self.canv_frame = Frame(self)
+#		self.canv_frame.grid(column=0, row=1, sticky=(W, E, N, S))
+		self.canv_frame.pack(fill=BOTH, expand=True)
+
 		self.canv = Canvas(self.canv_frame, scrollregion=self.canvas_scrollregion,
 			bg="white", highlightthickness=0)
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
-		self.canv_frame.grid(column=0, row=0, sticky=(W, E, N, S))
 		self.canv_frame.columnconfigure(0, weight=1)
 		self.canv_frame.rowconfigure(0, weight=1)
 		self.canv.focus_set()
