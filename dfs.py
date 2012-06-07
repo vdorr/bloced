@@ -1120,7 +1120,11 @@ class Workbench(WorkbenchData) :
 			board_type = self.get_board()
 			sheets = self.sheets
 			meta = self.get_meta()
-			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+#XXX XXX XXX clone data before passing to job queue!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			self.__jobs.put(("build", (board_type, sheets, meta)))
+
+#			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+
 		except Exception as e :
 			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
@@ -1138,8 +1142,6 @@ class Workbench(WorkbenchData) :
 
 
 	def build_job(self, board_type, sheets, meta) :
-
-#		print here(), "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
 
@@ -1214,7 +1216,6 @@ class Workbench(WorkbenchData) :
 #			dry_run=False,
 			blob_stream=blob_stream,
 			term=term_stream)
-#		print here(), "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 
 		msg_info = {}
 #		if term_stream != sys.stdout :
@@ -1289,6 +1290,8 @@ class Workbench(WorkbenchData) :
 			for job_type, job_args in jobs :
 				if job_type == "build" :
 					print(here())
+					board_type, sheets, meta = job_args
+					self.build_job(board_type, sheets, meta)#TODO try..except
 				if job_type == "upload" :
 					print(here())
 					self.upload_job(*job_args)
