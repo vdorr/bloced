@@ -79,7 +79,7 @@ class Configuration(object):
 	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
 	APP_INFO = os.linesep.join((APP_NAME, "graphical programming toy"))
 	HELP_URL = "http://www.tinfoilhat.cz"
-	POLL_WORKERS_PERIOD = 1000
+	POLL_WORKERS_PERIOD = 200
 	SHEET_NAME_SEED = "Sheet{0}"
 
 cfg = Configuration()
@@ -1693,6 +1693,7 @@ class BlockEditorWindow(object) :
 
 
 	def __tick(self) :
+#		print here()
 		self.work.fire_callbacks()
 #		messages = self.work.read_messages()
 #		if messages :
@@ -1700,7 +1701,7 @@ class BlockEditorWindow(object) :
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
-	def __workbench_status_changed(self, job, is_ok, reason) :
+	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None) :
 		print("workbench changed", job, is_ok, reason)
 		if job == "build" :
 			if reason == "build_started" :
@@ -1708,6 +1709,13 @@ class BlockEditorWindow(object) :
 			else :
 				msg = "build ok" if is_ok else "build failed"
 			self.status_label_right.configure(text=msg)
+
+		if not term_stream is None :
+#			self.term_txt.insert("1.0", "hello")
+#			self.term_txt.insert("1.0", term_stream.getvalue())
+			self.term_txt.insert(END, term_stream)
+			self.term_txt.yview(END)
+
 #		self.status_label_left.configure(text=columns[-1])
 
 
@@ -2227,7 +2235,7 @@ class BlockEditorWindow(object) :
 		self.term = Frame(self.term_frame)
 
 		self.term_txt = Text(self.term, wrap="none", height=5)
-		self.term_txt.insert("1.0", "hello")
+#		self.term_txt.insert("1.0", "hello")
 		self.term_txt.pack(fill=BOTH, expand=1, side=TOP)
 
 		self.term.grid(column=0, row=0, sticky=(W, E, N, S))

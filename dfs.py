@@ -1126,7 +1126,20 @@ class Workbench(WorkbenchData) :
 			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
 
 
+	class TermStream(object) :
+
+		def write(self, s) :
+			msg_info = {}
+			msg_info["term_stream"] = s
+			self.__messages.put(("status", (("build", None, "compilation_progress"), msg_info)))
+
+		def __init__(self, __messages) :
+			self.__messages = __messages
+
+
 	def build_job(self, board_type, sheets, meta) :
+
+#		print here(), "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
 
@@ -1174,6 +1187,11 @@ class Workbench(WorkbenchData) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
+		term_stream = StringIO()
+#		term_stream = sys.stdout
+		term_stream = Workbench.TermStream(self.__messages)
+
+
 		rc, = build.build_source(board_type, source,
 			aux_src_dirs=(
 				(os.path.join(target_files_dir, "cores", "arduino"), False),
@@ -1194,16 +1212,23 @@ class Workbench(WorkbenchData) :
 			verbose=False,
 			skip_programming=True,#False,
 #			dry_run=False,
-			blob_stream=blob_stream)
+			blob_stream=blob_stream,
+			term=term_stream)
+#		print here(), "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+
+		msg_info = {}
+#		if term_stream != sys.stdout :
+#			msg_info["term_stream"] = term_stream
+
 		if rc :
 			self.__blob = blob_stream.getvalue()
 			self.__blob_time = time.time()
 		else :
-			self.__messages.put(("status", (("build", False, "compilation_failed"), {})))
+			self.__messages.put(("status", (("build", False, "compilation_failed"), msg_info)))
 			return None
 #			return (False, "build_failed")
 
-		self.__messages.put(("status", (("build", True, ""), {})))
+		self.__messages.put(("status", (("build", True, ""), msg_info)))
 #		return (True, "ok")
 #		return (True, (blob, ))
 

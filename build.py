@@ -43,7 +43,7 @@ def __run_external(args, workdir=None, redir=False, tools_dir="") :
 	try :
 		p = subprocess.Popen(arguments,
 			stdout=redir_method,
-			stderr=redir_method,
+			stderr=subprocess.STDOUT,#redir_method
 			cwd=os.getcwd() if workdir is None else workdir )
 	except Exception as e:
 		print(e) #XXX
@@ -151,8 +151,8 @@ def get_board_types(all_in_one_arduino_dir=None) :
 	return __parse_boards(boards_txt)
 
 
-def __print_streams(*v) :
-	print("".join([ str(f) for f in v if f ]))
+def __print_streams(*v, **t) :
+	t["term"].write("".join([ str(f) for f in v if f ]) + os.linesep)
 #	print("".join([ f.decode("utf8", "replace") for f in v if f ]))
 
 
@@ -174,14 +174,15 @@ def build_source(board, source,
 		verbose=False,
 		skip_programming=False,
 		dry_run=False,
-		blob_stream=None) :
+		blob_stream=None,
+		term=sys.stdout) :
 	"""
 	blob_stream
 		writable file-like object, of not None, hex file will be written to this file
 	"""
 
 	workdir = tempfile.mkdtemp()
-	print("working directory '%s'" % workdir)
+	term.write("working directory '{0}'{1}".format(workdir, os.linesep))
 
 	source_f = open(os.path.join(workdir, "source.c"), "w")
 #	a_out_f = open(os.path.join(workdir, "a.out"), "w")
@@ -209,7 +210,8 @@ def build_source(board, source,
 		optimization=optimization,
 		verbose=verbose,
 		skip_programming=skip_programming,
-		dry_run=dry_run),
+		dry_run=dry_run,
+		term=term),
 #		a_out=a_out_f.name,
 #		a_hex=a_hex_f.name)
 
@@ -276,7 +278,8 @@ def build(board, workdir,
 		skip_programming=False,
 		dry_run=False,
 		a_out="a.out",
-		a_hex="a.hex"
+		a_hex="a.hex",
+		term=sys.stdout
 #		**args #rest of enviroment dict
 		) :
 	"""
@@ -313,7 +316,7 @@ def build(board, workdir,
 		else :
 			board_info.update(boards_txt_data)
 	if not board_info :
-		print("got no board informations, quitting")
+		term.write("got no board informations, quitting" + os.linesep)
 		return (200,)
 
 	src_dirs = (src_dir_t(workdir, True), ) + aux_src_dirs
@@ -324,7 +327,8 @@ def build(board, workdir,
 		ignores = __read_ignore(os.path.join(workdir, ignore_file))
 		if ignores is None :
 			ignores = []
-			print("error reading ignore file '%s'" % ignore_file)
+			term.write("error reading ignore file" + os.linesep)
+
 	ignores += list(ignore_lines)
 #	pprint(ignores)
 	ign_res = [ r for r in [ __ignore_to_re(ln) for ln in ignores ] if r ]
@@ -340,22 +344,23 @@ def build(board, workdir,
 			src_total += srccnt
 			idir_total += idircnt
 		except StopIteration :
-			print("can not access '%s'" % directory)
+			term.write("can not access '{0}'{1}".format(ignore_file, os.linesep))
 		else :
 			sources += src
 			idirs += loc_idirs
 	if verbose :
-		print("source files:")
-		pprint(sources)
+		term.write("source files:")
+		term.write(os.linesep)
+		pprint(source, sterm)
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
 	flash_size = int(board_info[board]["upload.maximum_size"])
 	prog_mcu = mcu.capitalize()
 
-	print("%s (%s @ %iMHz), %i(%i) source files, %i(%i) include directories" %
-		(board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
-		len(sources), src_total, len(idirs), idir_total))
+	term.write("{0} ({1} @ {2}MHz), {3}({4}) source files, {5}({6}) include directories{7}".format(
+		board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
+		len(sources), src_total, len(idirs), idir_total, os.linesep))
 
 	redir_streams = True
 
@@ -372,7 +377,8 @@ def build(board, workdir,
 		tools_dir=tools_dir,
 		defines=defs,
 		i_dirs=board_idirs+tuple(idirs),
-		l_libs = tuple())#[ "/usr/lib/avr/lib/libc.a" ]
+		l_libs = tuple(),#[ "/usr/lib/avr/lib/libc.a" ]
+		term=term)
 	if rc[0] :
 		return rc
 
@@ -387,12 +393,12 @@ def build(board, workdir,
 		sizes = dict(zip(head.split(), val.split()))
 		total_flash = int(sizes["text"])
 		total_sram = int(sizes["data"])+int(sizes["bss"])
-		print("memory usage: flash %iB (%.1f%%), ram %iB" %
-			(total_flash, total_flash*100.0/flash_size, total_sram))
+		term.write("memory usage: flash {0}B ({1:.1f}%), ram {2}B{3}".format
+			(total_flash, total_flash*100.0/flash_size, total_sram, os.linesep))
 		if total_flash > flash_size :
-			print("input file is bigger than target flash!")
+			term.write("input file is bigger than target flash!" + os.linesep)
 	else :
-		print("failed to execute avr-size")
+		term.write("failed to execute avr-size" + os.linesep)
 		return (20, )
 
 	success, _, __ = run(["avr-objcopy",
@@ -401,9 +407,9 @@ def build(board, workdir,
 		"-j", ".data", 
 		"-O", "ihex", a_out, a_hex])
 	if success :
-		print("hex file created")
+		term.write("hex file created" + os.linesep)
 	else :
-		print("failed to execute avr-objcopy")
+		term.write("failed to execute avr-objcopy" + os.linesep)
 		return (30, )
 
 	rc = (0, )
@@ -411,7 +417,8 @@ def build(board, workdir,
 	if not skip_programming :
 		rc = program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 			verbose=verbose,
-			dry_run=dry_run)
+			dry_run=dry_run,
+			term=term)
 
 	return rc
 
@@ -421,7 +428,8 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 		defines=None,
 		i_dirs=tuple(),
 		l_libs=tuple(),
-		l_dirs=tuple()) :
+		l_dirs=tuple(),
+		term=sys.stdout) :
 	"""
 	compile batch of c and/or c++ sources
 	"""
@@ -437,24 +445,24 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 	single_batch = all(e == extensions[0] for e in extensions)
 
 	if single_batch :
-		print("gcc compiling in single batch")
+		term.write("gcc compiling in single batch" + os.linesep)
 		workdir = os.getcwd()
 		run = partial(__run_external, workdir=workdir, redir=redir_streams, tools_dir=tools_dir)
-		gcc_compile_sources(run, sources, common_args, out=a_out)
+		gcc_compile_sources(run, sources, common_args, out=a_out, term=term)
 	else :
 		objects = []
 		args = ("-g", "-c", "-w") + common_args
 		rc = None
 		workdir = tempfile.mkdtemp()
 		run = partial(__run_external, workdir=workdir, redir=redir_streams, tools_dir=tools_dir)
-		print("gcc_compile working directory '{0}'".format(workdir))
+		term.write("gcc_compile working directory '{0}'{1}".format(workdir, os.linesep))
 		try :
 			for source, i in zip(sources, count()) :
 				out = os.path.join(workdir, str(i) + os.path.extsep + "o")
 				rc = gcc_compile_sources(run, (source,), args + ("-ffunction-sections",
 					"-fdata-sections"), out=out)
 				if rc[0] == 0 :
-					print("compiled:" + source + " into " + out)
+					term.write("compiled:{0} into {1}{2}".format(source, out, os.linesep))
 					objects.append(os.path.split(out)[-1])
 				else :
 					break
@@ -476,11 +484,11 @@ def gcc_compile(redir_streams, sources, a_out, mcu, optimization,
 
 		if success :
 			stdoutdata, stderrdata = streams
-			__print_streams("linked", " ", stdoutdata, stderrdata)
+			__print_streams("linked", " ", stdoutdata, stderrdata, term=term)
 		else :
 			stdoutdata, stderrdata = streams
 			__print_streams("failed to link with avr-gcc", " ",
-				stdoutdata, stderrdata)
+				stdoutdata, stderrdata, term=term)
 			return (10, )
 	return (0, )
 
@@ -490,7 +498,7 @@ def __extract_extensions(l, lower=True) :
 		(s.split(os.path.extsep)[-1] for s in l) ]
 
 
-def gcc_compile_sources(run, sources, common_args, out=None) :
+def gcc_compile_sources(run, sources, common_args, out=None, term=sys.stdout) :
 	"""
 	compile one or multiple source files of the same type (c or c++) with gcc/g++
 	"""
@@ -518,19 +526,20 @@ def gcc_compile_sources(run, sources, common_args, out=None) :
 
 	if success :
 		stdoutdata, stderrdata = streams
-		__print_streams("compiled", " ", stdoutdata, stderrdata)
+		__print_streams("compiled", " ", stdoutdata, stderrdata, term=term)
 		return (0, )
 	else :
 		stdoutdata, stderrdata = streams
 		__print_streams("failed to execute avr-gcc", " ",
-			stdoutdata, stderrdata)
+			stdoutdata, stderrdata, term=term)
 		return (10, "gcc_failed")
 
 
 def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 		a_hex_blob=None,
 		verbose=False,
-		dry_run=False) :
+		dry_run=False,
+		term=sys.stdout) :
 	drivers = {
 		"avrdude" : program_avrdude,
 		"dfu-programmer" : program_dfu_programmer,
