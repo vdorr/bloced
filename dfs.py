@@ -1002,7 +1002,7 @@ def catch_all(f) :
 		try :
 			ret = f(*a, **b)
 		except Exception as e :
-			print(e)
+			print(here(10), e)
 			os._exit(1)
 		else :
 			return ret
@@ -1194,28 +1194,32 @@ class Workbench(WorkbenchData) :
 		term_stream = Workbench.TermStream(self.__messages)
 
 
-		rc, = build.build_source(board_type, source,
-			aux_src_dirs=(
-				(os.path.join(target_files_dir, "cores", "arduino"), False),
-				(os.path.join(target_files_dir, "variants", variant), False),
-#				(os.path.join(install_path, "library", "arduino"), False),
-			) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
-			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
-			boards_txt=boards_txt,
-			libc_dir=libc_dir,
-#			board_db={},
-			ignore_file=None,#"amkignore",
-#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
-			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
-#			prog_port=None,
-#			prog_driver="avrdude", # or "dfu-programmer"
-#			prog_adapter="arduino", #None for dfu-programmer
-			optimization="-Os",
-			verbose=False,
-			skip_programming=True,#False,
-#			dry_run=False,
-			blob_stream=blob_stream,
-			term=term_stream)
+		try :
+			rc, = build.build_source(board_type, source,
+				aux_src_dirs=(
+					(os.path.join(target_files_dir, "cores", "arduino"), False),
+					(os.path.join(target_files_dir, "variants", variant), False),
+	#				(os.path.join(install_path, "library", "arduino"), False),
+				) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
+				aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
+				boards_txt=boards_txt,
+				libc_dir=libc_dir,
+	#			board_db={},
+				ignore_file=None,#"amkignore",
+	#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
+				ignore_lines=( "*" + os.path.sep + "main.cpp", ),
+	#			prog_port=None,
+	#			prog_driver="avrdude", # or "dfu-programmer"
+	#			prog_adapter="arduino", #None for dfu-programmer
+				optimization="-Os",
+				verbose=False,
+				skip_programming=True,#False,
+	#			dry_run=False,
+				blob_stream=blob_stream,
+				term=term_stream)
+		except Exception as e :
+			self.__messages.put(("status", (("build", False, "compilation_failed"), {"term_stream":str(e)})))
+			return None
 
 		msg_info = {}
 #		if term_stream != sys.stdout :
