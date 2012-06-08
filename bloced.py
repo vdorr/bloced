@@ -2227,6 +2227,14 @@ class BlockEditorWindow(object) :
 		self.tabs.enable_traversal()
 #		f1 = ttk.Frame(self.tabs)
 
+		if 0 :
+			self.tree = ttk.Treeview(self.root)
+			self.tree.grid(column=1, row=0, rowspan=2, sticky=(N, W, E, S))
+			self.tree.insert('', 'end', 'widgets', text='Widget Tour')
+			self.tree.insert('', 0, 'gallery', text='Applications')
+			node_id = self.tree.insert('', 'end', text='Tutorial')
+			self.tree.insert('widgets', 'end', text='Canvas')
+			self.tree.insert(node_id, 'end', text='Tree')
 
 
 		self.term_frame = Frame(self.root)
@@ -2253,7 +2261,7 @@ class BlockEditorWindow(object) :
 
 
 		self.statusbar = Frame(self.root, height=32)
-		self.statusbar.grid(column=0, row=2, sticky=(N, W, E, S))
+		self.statusbar.grid(column=0, row=2, columnspan=2, sticky=(N, W, E, S))
 		self.statusbar.columnconfigure(0, weight=1)
 		self.statusbar.columnconfigure(1, weight=1)
 
