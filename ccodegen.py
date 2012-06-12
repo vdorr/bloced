@@ -374,6 +374,45 @@ def churn_task_code(task_name, cg_out) :
 
 	return decl + ";", output
 
+#void loop()
+#{
+#	vm_dword_t next_scheduled_run = 0;
+#	vm_dword_t next_t10_run, next_t50_run, ...;
+#	vm_dword_t now;
+
+#	for (;;) {
+
+#		do {
+#			idle_tsk_0();
+#			idle_tsk_1();
+#			...
+#			now = time_ms();
+#		} while ( now < next_scheduled_run );
+
+#		next_scheduled_run = INT_MAX;
+
+#		if ( now >= next_t10_run ) {
+#			next_t10_run = now + 10;
+#			if ( next_t10_run < next_scheduled_run ) {
+#				next_scheduled_run = next_t10_run;
+#			}
+#			t10_tsk_0();
+#			t10_tsk_1();
+#			...
+#		}
+
+#		if ( now >= next_t50_run ) {
+#			next_t50_run = now + 50;
+#			if ( next_t50_run < next_scheduled_run ) {
+#				next_scheduled_run = next_t50_run;
+#			}
+#			t50_tsk_0();
+#			t50_tsk_1();
+#			...
+#		}
+#		...
+#	}
+#}
 
 def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	"""
