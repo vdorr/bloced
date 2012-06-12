@@ -372,7 +372,9 @@ def churn_task_code(task_name, cg_out) :
 		loop_code + linesep +
 		"}")
 
-	return decl + ";", output
+	lifted_vars = None
+
+	return decl + ";", output, lifted_vars
 
 #void loop()
 #{
@@ -426,7 +428,7 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	functions = []
 #	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
 	for name, cg_out in tsk_cg_out :
-		decl, func = churn_task_code(name, cg_out)
+		decl, func, lifted_vars = churn_task_code(name, cg_out)
 		decls.append(decl)
 		decls.append(linesep)
 		functions.append(func)
