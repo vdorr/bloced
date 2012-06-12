@@ -1301,6 +1301,43 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canv.focus_set()
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
 
+
+	def meta_changed(self, key, key_present, old_value, new_value) :
+		print here(), key, new_value
+		if key == "task_period" :
+			if new_value is None :
+				index = 0
+			else :
+				index = self.period_box_values.values().index(new_value)
+			self.period_box.current(index)
+		if key == "sheet_type" :
+			if new_value is None :
+				index = 0
+			else :
+				index = self.sheet_type_box_values.values().index(new_value)
+			self.sheet_type_box.current(index)
+		else :
+			pass
+
+
+	def period_box_changed(self, *a, **b) :
+		index = self.period_box.current()
+		value = self.period_box_values[index]
+#		print here(), a, b, index, value
+		self.model.begin_edit()
+		self.model.set_meta("task_period", value)
+		self.model.end_edit()
+
+
+	def sheet_type_box_changed(self, *a, **b) :
+		index = self.sheet_type_box.current()
+		value = self.sheet_type_box_values[index]
+#		print here(), a, b, index, value
+		self.model.begin_edit()
+		self.model.set_meta("sheet_type", value)
+		self.model.end_edit()
+
+
 	def __init__(self, ui, parent, workbench_getter) :
 
 		self.ui = ui
@@ -1321,11 +1358,11 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
 
-		if 0 :
+		if 1 :
 			self.attr_frame = Frame(self, height=32, border=5)
 			self.attr_frame.grid(column=0, row=0, sticky=(W, E, N))
 			self.attr_frame.pack(fill=X, expand=False)
-
+		if 0 :
 			self.sheet_type_lbl = Label(self.attr_frame, text="Sheet Type ");
 			self.sheet_type_lbl.grid(column=0, row=0)
 
@@ -1333,10 +1370,12 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.sheet_type_box = ttk.Combobox(self.attr_frame,
 				textvariable=self.sheet_type_box_value, 
 	                        state="readonly")
-			self.sheet_type_box["values"] = ("Task", "Macro")
+			self.sheet_type_box_values = OrderedDict((i, v) for v, i in zip(("Task", "Macro"), count()))
+			self.sheet_type_box["values"] = self.sheet_type_box_values.values()
+			self.sheet_type_box.bind("<<ComboboxSelected>>", self.sheet_type_box_changed)
 			self.sheet_type_box.current(0)
 			self.sheet_type_box.grid(column=1, row=0)
-
+		if 1 :
 			self.period_lbl = Label(self.attr_frame, text="Period ");
 			self.period_lbl.grid(column=2, row=0)
 
@@ -1344,9 +1383,12 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.period_box = ttk.Combobox(self.attr_frame,
 				textvariable=self.period_box_value, 
 	                        state="readonly")
-			self.period_box["values"] = ("Idle task", "10ms", "20ms", "50ms", "100ms",
-				"200ms", "500ms", "1s", "2s", "5s", "10s")
+			self.period_box_values = OrderedDict((i, v) for v, i in zip(("Idle task",
+				"10ms", "20ms", "50ms", "100ms",
+				"200ms", "500ms", "1s", "2s", "5s", "10s"), count()))
+			self.period_box["values"] = self.period_box_values.values()
 			self.period_box.current(0)
+			self.period_box.bind("<<ComboboxSelected>>", self.period_box_changed)
 			self.period_box.grid(column=3, row=0)
 
 		self.canv_frame = Frame(self)

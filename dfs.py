@@ -640,33 +640,38 @@ class GraphModelListener(object) :
 	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
 	def connection_removed(self, sb, st, tb, tt) : pass
 	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def meta_changed(self, key, key_present, old_value, new_value) : pass
 
 # ------------------------------------------------------------------------------------------------------------
 
 class GraphModel(object) :
 
-	def get_meta(self) :
-		return {} # TODO implement it and make it property
 
-#	def set_meta(self) :
-#		self.__assert_editing()
-#		pass # TODO implement it and make it property
-
-#	meta = property(lambda self: {})
+	def remove_listener(self, listener) :
+		self.__listeners.remove(listener)
 
 
 	def add_listener(self, listener) :
 		self.__listeners.append(listener)
 
 
-	def remove_listener(self, listener) :
-		self.__listeners.remove(listener)
+	def get_meta(self) :
+		return self.__meta
 
-	# ---------------------------------------------------------------------------------
+
+	def set_meta(self, key, value, remove_key=False) :
+		key_present, old_value = False, None
+		if key in self.__meta :
+			key_present, old_value = True, self.__meta[key]
+		self.__meta[key] = value
+		self.__history_frame_append("sheet_meta_changed", (key, old_value, key_present))
+		self.__on_meta_changed(key, key_present, old_value, value)
+
 
 #	def set_block_meta(self, block, meta) :
 #		for k, v in meta.iteritems() :
 #			self.__getattribute__("_BlockModel__set_"+k)(v)
+
 
 	def add_block(self, block) :
 		self.blocks.append(block)
@@ -837,6 +842,10 @@ class GraphModel(object) :
 			listener.connection_changed(sb, st, tb, tt)
 #			print(here(), (sb, st, tb, tt))
 
+	def __on_meta_changed(self, key, key_present, old_value, new_value) :
+		for listener in self.__listeners :
+			listener.meta_changed(key, key_present, old_value, new_value)
+
 	# ---------------------------------------------------------------------------------
 
 	def undo(self) :
@@ -872,6 +881,7 @@ class GraphModel(object) :
 		"block_removed" : lambda self, data: self.add_block(data[0]),
 		"block_added" : lambda self, data: self.remove_block(data[0]),
 		"block_meta" : lambda self, data: data[0].set_meta(data[1]),
+		"sheet_meta_changed" : lambda self, data: self.set_meta(data[0], data[1], remove_key=not data[2]),
 	}
 
 
@@ -883,6 +893,7 @@ class GraphModel(object) :
 
 	#XXX do i really want to have logic of history logging in _this_ class?!
 	def __history_frame_append(self, action, data) :
+		assert(action in GraphModel.inverse_actions)
 		if not self.__enable_logging :
 			return None
 		if not self.__redoing :
@@ -936,6 +947,9 @@ class GraphModel(object) :
 		for src, targets in self.__connections.items() :
 			for dst in targets :
 			 	self.__on_connection_added(*(src + dst), deserializing=deserializing)
+		for k, v in self.__meta.items() :
+			self.__on_meta_changed(k, True, None, v)
+
 
 	blocks = property(lambda self: self.__blocks)
 
@@ -961,6 +975,7 @@ class GraphModel(object) :
 		self.__connections = {}
 		self.__listeners = []
 		self.__connections_meta = {}
+		self.__meta = {}
 
 # ------------------------------------------------------------------------------------------------------------
 

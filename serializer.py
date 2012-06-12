@@ -173,6 +173,9 @@ def load_to_dfs_model(m, types, struct, meta, fact,
 
 			conn_list.append((sb, st, tb, tt2))
 
+	for k, v in graph_meta.items() :
+		m.set_meta(k, v)
+
 	return blocks.values(), conn_list
 
 
