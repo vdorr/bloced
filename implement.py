@@ -1061,21 +1061,17 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-#def process_sheet_list(sheets, global_meta, codegen, known_types, lib) :
+def process_sheet(dag, meta, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement) :
 
-#	l = [ make_dag(s, None, known_types, do_join_taps=False)
-#		for name, s in sorted(sheets.items(), key=lambda x: x[0])
-#		if not name in special ]
-#	graph, delays = dag_merge(l)
-#	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
-#	delays.update(new_delays)
-#	join_taps(graph)
-#	types = infer_types(graph, delays, known_types=known_types)
-#	extract_pipes(graph, known_types, g_protos, pipe_replacement)
-#	tsk_name = "loop"
+	graph, delays = dag
 
+	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
+	delays.update(new_delays)
+	join_taps(graph)
+	types = infer_types(graph, delays, known_types=known_types)
+	extract_pipes(graph, known_types, g_protos, pipe_replacement)
 
-#	return tsk_name, g, delays, tsk_setup_meta, types
+	return graph, delays, meta, types
 
 
 #TODO break down to smaller functions if possible
@@ -1113,13 +1109,16 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 #			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
-			g, d = dag_merge(l)
-			new_d, = expand_macroes(g, lib, known_types, local_block_sheets, block_cache=block_cache)
-			d.update(new_d)
-			join_taps(g)
-			types = infer_types(g, d, known_types=known_types)
-			extract_pipes(g, known_types, g_protos, pipe_replacement)
-			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+			g_data = process_sheet(dag_merge(l), tsk_setup_meta, known_types, lib,
+				local_block_sheets, block_cache, g_protos, pipe_replacement)
+#			g, d = dag_merge(l)
+#			new_d, = expand_macroes(g, lib, known_types, local_block_sheets, block_cache=block_cache)
+#			d.update(new_d)
+#			join_taps(g)
+#			types = infer_types(g, d, known_types=known_types)
+#			extract_pipes(g, known_types, g_protos, pipe_replacement)
+#			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+			graph_data.append((tsk_name, ) + g_data)
 		elif core.is_macro_name(name) :
 #			print here(), name
 			pass
@@ -1133,13 +1132,15 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
-	delays.update(new_delays)
-	join_taps(graph)
-	types = infer_types(graph, delays, known_types=known_types)
-	extract_pipes(graph, known_types, g_protos, pipe_replacement)
-	tsk_name = "loop"
-	graph_data.append((tsk_name, graph, delays, {}, types))
+	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
+	graph_data.append(("loop", ) + g_data)
+#	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
+#	delays.update(new_delays)
+#	join_taps(graph)
+#	types = infer_types(graph, delays, known_types=known_types)
+#	extract_pipes(graph, known_types, g_protos, pipe_replacement)
+#	tsk_name = "loop"
+#	graph_data.append((tsk_name, graph, delays, {}, types))
 
 	loop_call = create_function_call(tsk_name)
 	init_call = create_function_call("init")
