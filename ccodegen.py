@@ -467,6 +467,7 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	f.write(linesep.join(g_vars_code))
 	f.write(linesep.join(variables))
 	f.write(linesep.join(functions))
+	f.write(linesep)
 
 
 
