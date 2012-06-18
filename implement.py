@@ -1155,9 +1155,10 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
 			tsk_name = name.strip("@")
-			l = [ make_dag(s, None, known_types, do_join_taps=False)
-				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
-			g_data = process_sheet(dag_merge(l), tsk_setup_meta, known_types, lib,
+			(_, s), = tuple(sheet_list)
+			print here(), s
+			dag = make_dag(s, None, known_types, do_join_taps=False)
+			g_data = process_sheet(dag, tsk_setup_meta, known_types, lib,
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, ) + g_data)
 		elif core.is_macro_name(name) :
@@ -1172,7 +1173,6 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	l = [ make_dag(s, None, known_types, do_join_taps=False)
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
-	graph, delays = dag_merge(l)
 	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
 	graph_data.append(("loop", ) + g_data)
 
