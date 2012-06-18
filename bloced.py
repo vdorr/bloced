@@ -79,7 +79,7 @@ class Configuration(object):
 	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
 	APP_INFO = os.linesep.join((APP_NAME, "graphical programming toy"))
 	HELP_URL = "http://www.tinfoilhat.cz"
-	POLL_WORKERS_PERIOD = 1000
+	POLL_WORKERS_PERIOD = 200
 	SHEET_NAME_SEED = "Sheet{0}"
 
 cfg = Configuration()
@@ -189,6 +189,105 @@ class InputDialog(Dialog) :
 
 # ------------------------------------------------------------------------------------------------------------
 
+class CustomDialog(Toplevel):
+
+	"""
+	taken from http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
+	"""
+
+	def __init__(self, parent, title = None) :
+		Toplevel.__init__(self, parent)
+		self.transient(parent)
+		if title:
+			self.title(title)
+		self.parent = parent
+		self.result = None
+		body = Frame(self)
+		self.initial_focus = self.body(body)
+		body.pack(padx=5, pady=5)
+		self.buttonbox()
+#		self.grab_set()
+		if not self.initial_focus:
+			self.initial_focus = self
+		self.protocol("WM_DELETE_WINDOW", self.cancel)
+		self.geometry("+%d+%d" % (parent.winfo_rootx()+50, parent.winfo_rooty()+50))
+		self.initial_focus.focus_set()
+		self.wait_window(self)
+
+
+	def body(self, master) :
+		# create dialog body.  return widget that should have
+		# initial focus.  this method should be overridden
+		pass
+
+
+	def buttonbox(self) :
+		# add standard button box. override if you don't want the
+		# standard buttons
+		box = Frame(self)
+		w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
+		w.pack(side=LEFT, padx=5, pady=5)
+		w = Button(box, text="Cancel", width=10, command=self.cancel)
+		w.pack(side=LEFT, padx=5, pady=5)
+		self.bind("<Return>", self.ok)
+		self.bind("<Escape>", self.cancel)
+		box.pack()
+
+
+	def ok(self, event=None) :
+		if event and event.state & BIT_CONTROL :
+			return
+		if not self.validate() :
+			self.initial_focus.focus_set() # put focus back
+			return
+		self.withdraw()
+		self.update_idletasks()
+		self.apply()
+		self.cancel()
+
+
+	def cancel(self, event=None) :
+		# put focus back to the parent window
+		self.parent.focus_set()
+		self.destroy()
+
+
+	def validate(self) :
+		return 1 # override
+
+
+	def apply(self) :
+		pass # override
+
+
+class TextEditorDialog(CustomDialog) :
+
+
+	def __init__(self, parent, initial) :
+		self.value = initial
+		CustomDialog.__init__(self, parent)
+
+
+	def body(self, master) :
+		txt = Text(master, wrap="none")
+		self.txt = txt
+		txt.insert("1.0", self.value)
+		self.txt.grid(column=1, row=1, sticky=(W, E, N, S))
+		yscroll = Scrollbar(master, orient=VERTICAL, command=self.txt.yview)
+		yscroll.grid(column=2, row=1, sticky=(N,S))
+		self.txt.configure(yscrollcommand=yscroll.set)
+		xscroll = Scrollbar(master, orient=HORIZONTAL, command=self.txt.xview)
+		xscroll.grid(column=1, row=2, sticky=(W,E))
+		self.txt.configure(xscrollcommand=xscroll.set)
+		return txt
+
+
+	def apply(self):
+		self.value = self.txt.get("1.0", "end")
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 class BlockBase(object) :
 
 	def get_wires(self, sel_blocks=None) :
@@ -274,12 +373,29 @@ class Block(Canvas, BlockBase) :
 #	editables = (core.ConstProto, core.DelayProto, core.TapProto, core.TapEndProto,
 #		core.InputProto, core.OutputProto)
 
+
+	def autosize_to_text(self) :
+		lines = self.model.value[0].split(os.linesep)
+		margin = self.editor.font.measure("x")
+		w = max(self.editor.font.measure(l) for l in lines) + margin
+		h = (self.editor.font.metrics("linespace") * len(lines)) + margin
+		self.model.width = w
+		self.model.height = h
+
+
 	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here()#, self.model.prototype, self.model.prototype.values
 		self.__dbl_click = True
-		if self.model.prototype.values :
+		if core.compare_proto_to_type(self.model.prototype, core.TextAreaProto) :
+			d = TextEditorDialog(self, self.model.value[0])
+			if d.value :
+				self.editor.model.begin_edit()
+				self.model.value = d.value.strip()
+				self.autosize_to_text()
+				self.editor.model.end_edit()
+		elif self.model.prototype.values :
 			items = [ (name, val) for (name, _), val
 				in zip(self.model.prototype.values, self.model.value)]
 			d = InputDialog(self, items=items)
@@ -693,10 +809,15 @@ class BlockEditor(Frame, GraphModelListener) :
 	def block_added(self, model) :
 	#TODO unify
 #		b = self.m_view_types[model.prototype](self, model)
-		if isinstance(model.prototype, core.JointProto) :
+		if core.compare_proto_to_type(model.prototype, core.JointProto) :
 			b = Joint(self, model)
 		else :
 			b = Block(self, model)
+			if core.compare_proto_to_type(model.prototype, core.TextAreaProto) :
+				self.model.begin_edit()
+				b.autosize_to_text()
+				self.model.end_edit()
+				b.reshape()
 		self.block_index[model] = b
 		self.window_index[b.window] = b
 
@@ -1176,8 +1297,46 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.end_paste_block()
 
 	def popup(self, e) :
+		self.cancel_action_pending()
 		self.canv.focus_set()
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
+
+
+	def meta_changed(self, key, key_present, old_value, new_value) :
+		print here(), key, new_value
+		if key == "task_period" :
+			if new_value is None :
+				index = 0
+			else :
+				index = self.period_box_values.values().index(new_value)
+			self.period_box.current(index)
+		if key == "sheet_type" :
+			if new_value is None :
+				index = 0
+			else :
+				index = self.sheet_type_box_values.values().index(new_value)
+			self.sheet_type_box.current(index)
+		else :
+			pass
+
+
+	def period_box_changed(self, *a, **b) :
+		index = self.period_box.current()
+		value = self.period_box_values[index]
+#		print here(), a, b, index, value
+		self.model.begin_edit()
+		self.model.set_meta("task_period", value)
+		self.model.end_edit()
+
+
+	def sheet_type_box_changed(self, *a, **b) :
+		index = self.sheet_type_box.current()
+		value = self.sheet_type_box_values[index]
+#		print here(), a, b, index, value
+		self.model.begin_edit()
+		self.model.set_meta("sheet_type", value)
+		self.model.end_edit()
+
 
 	def __init__(self, ui, parent, workbench_getter) :
 
@@ -1195,21 +1354,59 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
 
-		self.grid(column=0, row=0, sticky=(N, W, E, S))
+#		self.grid(column=0, row=0, sticky=(N, W, E, S))
 
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
-		self.canv = Canvas(self, scrollregion=self.canvas_scrollregion,
+
+		if 1 :
+			self.attr_frame = Frame(self, height=32, border=5)
+			self.attr_frame.grid(column=0, row=0, sticky=(W, E, N))
+			self.attr_frame.pack(fill=X, expand=False)
+		if 0 :
+			self.sheet_type_lbl = Label(self.attr_frame, text="Sheet Type ");
+			self.sheet_type_lbl.grid(column=0, row=0)
+
+			self.sheet_type_box_value = StringVar()
+			self.sheet_type_box = ttk.Combobox(self.attr_frame,
+				textvariable=self.sheet_type_box_value, 
+	                        state="readonly")
+			self.sheet_type_box_values = OrderedDict((i, v) for v, i in zip(("Task", "Macro"), count()))
+			self.sheet_type_box["values"] = self.sheet_type_box_values.values()
+			self.sheet_type_box.bind("<<ComboboxSelected>>", self.sheet_type_box_changed)
+			self.sheet_type_box.current(0)
+			self.sheet_type_box.grid(column=1, row=0)
+		if 1 :
+			self.period_lbl = Label(self.attr_frame, text="Period ");
+			self.period_lbl.grid(column=2, row=0)
+
+			self.period_box_value = StringVar()
+			self.period_box = ttk.Combobox(self.attr_frame,
+				textvariable=self.period_box_value, 
+	                        state="readonly")
+			self.period_box_values = OrderedDict((i, v) for v, i in zip(("Idle task",
+				"10ms", "20ms", "50ms", "100ms",
+				"200ms", "500ms", "1s", "2s", "5s", "10s"), count()))
+			self.period_box["values"] = self.period_box_values.values()
+			self.period_box.current(0)
+			self.period_box.bind("<<ComboboxSelected>>", self.period_box_changed)
+			self.period_box.grid(column=3, row=0)
+
+		self.canv_frame = Frame(self)
+#		self.canv_frame.grid(column=0, row=1, sticky=(W, E, N, S))
+		self.canv_frame.pack(fill=BOTH, expand=True)
+
+		self.canv = Canvas(self.canv_frame, scrollregion=self.canvas_scrollregion,
 			bg="white", highlightthickness=0)
 		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
-		self.canv.columnconfigure(0, weight=1)
-		self.canv.rowconfigure(0, weight=1)
+		self.canv_frame.columnconfigure(0, weight=1)
+		self.canv_frame.rowconfigure(0, weight=1)
 		self.canv.focus_set()
 
-		yscroll = Scrollbar(self, orient=VERTICAL, command=self.canv.yview)
+		yscroll = Scrollbar(self.canv_frame, orient=VERTICAL, command=self.canv.yview)
 		yscroll.grid(column=1, row=0, sticky=(N,S))
 		self.canv.configure(yscrollcommand=yscroll.set)
 
-		xscroll = Scrollbar(self, orient=HORIZONTAL, command=self.canv.xview)
+		xscroll = Scrollbar(self.canv_frame, orient=HORIZONTAL, command=self.canv.xview)
 		xscroll.grid(column=0, row=1, sticky=(W,E))
 		self.canv.configure(xscrollcommand=xscroll.set)
 
@@ -1538,6 +1735,7 @@ class BlockEditorWindow(object) :
 
 
 	def __tick(self) :
+#		print here()
 		self.work.fire_callbacks()
 #		messages = self.work.read_messages()
 #		if messages :
@@ -1545,7 +1743,7 @@ class BlockEditorWindow(object) :
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
-	def __workbench_status_changed(self, job, is_ok, reason) :
+	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None) :
 		print("workbench changed", job, is_ok, reason)
 		if job == "build" :
 			if reason == "build_started" :
@@ -1553,6 +1751,13 @@ class BlockEditorWindow(object) :
 			else :
 				msg = "build ok" if is_ok else "build failed"
 			self.status_label_right.configure(text=msg)
+
+		if not term_stream is None :
+#			self.term_txt.insert("1.0", "hello")
+#			self.term_txt.insert("1.0", term_stream.getvalue())
+			self.term_txt.insert(END, term_stream)
+			self.term_txt.yview(END)
+
 #		self.status_label_left.configure(text=columns[-1])
 
 
@@ -1932,6 +2137,7 @@ class BlockEditorWindow(object) :
 			self.add_top_menu("_Debu&g", [
 				CmdMnu("delete menu", None, lambda *a: self.__model_menu.delete(3)),
 				CmdMnu("Implement", None, self.implement),
+				CmdMnu("test_text_editor", None, self.test_text_editor),
 				CmdMnu("mkmac", None, self.mkmac),
 				CmdMnu("geo", None, lambda *a: self.root.geometry("800x600+2+0")),
 				CmdMnu("connections", None, lambda *a: pprint(self.bloced.get_model().get_connections())),
@@ -1940,6 +2146,12 @@ class BlockEditorWindow(object) :
 #				command=lambda: self.bloced.canv.scale(ALL, 0, 0, 2, 2))
 
 		self.rescan_ports()
+
+
+	def test_text_editor(self) :
+		d = TextEditorDialog(self.root, "hello")
+		if d.value :
+			print(d.value)
 
 
 	def edit_custom_target(self) :
@@ -2004,7 +2216,7 @@ class BlockEditorWindow(object) :
 			except :
 				print(here(), "error while writing '" + config_file + "'")
 
-		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
+#		print here(), self.config.get("Path", "all_in_one_arduino_dir", None)
 
 		self.__sheets = {}#XXX see __change_callback
 
@@ -2057,8 +2269,41 @@ class BlockEditorWindow(object) :
 		self.tabs.enable_traversal()
 #		f1 = ttk.Frame(self.tabs)
 
+		if 0 :
+			self.tree = ttk.Treeview(self.root)
+			self.tree.grid(column=1, row=0, rowspan=2, sticky=(N, W, E, S))
+			self.tree.insert('', 'end', 'widgets', text='Widget Tour')
+			self.tree.insert('', 0, 'gallery', text='Applications')
+			node_id = self.tree.insert('', 'end', text='Tutorial')
+			self.tree.insert('widgets', 'end', text='Canvas')
+			self.tree.insert(node_id, 'end', text='Tree')
+
+
+		self.term_frame = Frame(self.root)
+		self.term_frame.grid(column=0, row=1, sticky=(N, W, E, S))
+
+		self.term = Frame(self.term_frame)
+
+		self.term_txt = Text(self.term, wrap="none", height=5)
+#		self.term_txt.insert("1.0", "hello")
+		self.term_txt.pack(fill=BOTH, expand=1, side=TOP)
+
+		self.term.grid(column=0, row=0, sticky=(W, E, N, S))
+
+		self.term_frame.columnconfigure(0, weight=1)
+		self.term_frame.rowconfigure(0, weight=1)
+
+		self.term_yscroll = Scrollbar(self.term_frame, orient=VERTICAL, command=self.term_txt.yview)
+		self.term_xscroll = Scrollbar(self.term_frame, orient=HORIZONTAL, command=self.term_txt.xview)
+		self.term_yscroll.grid(column=1, row=0, sticky=(N,S))
+		self.term_xscroll.grid(column=0, row=1, sticky=(W,E))
+		self.term_txt.configure(yscrollcommand=self.term_yscroll.set)
+		self.term_txt.configure(xscrollcommand=self.term_xscroll.set)
+
+
+
 		self.statusbar = Frame(self.root, height=32)
-		self.statusbar.grid(column=0, row=1, sticky=(N, W, E, S))
+		self.statusbar.grid(column=0, row=2, columnspan=2, sticky=(N, W, E, S))
 		self.statusbar.columnconfigure(0, weight=1)
 		self.statusbar.columnconfigure(1, weight=1)
 
@@ -2067,10 +2312,6 @@ class BlockEditorWindow(object) :
 
 		self.status_label_right = Label(self.statusbar, text="right", relief=SUNKEN)
 		self.status_label_right.grid(column=1, row=0, sticky=(N, E, S))
-
-#		self.cons = Text(mainframe,height=10,background='white')
-#		self.cons.grid(column=0, row=3, sticky=(W, E, S))
-#		self.cons.rowconfigure(2, weight=0)
 
 		self.setup_menus()
 

@@ -24,7 +24,7 @@ def pickle_dfs_model(m, f) :
 		raise
 
 
-def unpickle_dfs_model(f, lib=None) :
+def unpickle_dfs_model(f, lib=None, use_cached_proto=True) :
 	"""
 	read pickled serialized GraphModel from file-like object f,
 	if non None recover using block factory lib and return as new instance
@@ -32,7 +32,7 @@ def unpickle_dfs_model(f, lib=None) :
 	try :
 		types, struct, meta = pickle.load(f)
 #		pprint((types, struct, meta))
-		return restore_dfs_model(types, struct, meta, lib)
+		return restore_dfs_model(types, struct, meta, lib, use_cached_proto=use_cached_proto)
 	except pickle.PickleError :
 		print("PickleError")
 		raise
@@ -172,6 +172,9 @@ def load_to_dfs_model(m, types, struct, meta, fact,
 			m.add_connection(sb, st, tb, tt2, meta=meta, deserializing=deserializing)
 
 			conn_list.append((sb, st, tb, tt2))
+
+	for k, v in graph_meta.items() :
+		m.set_meta(k, v)
 
 	return blocks.values(), conn_list
 

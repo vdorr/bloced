@@ -573,6 +573,7 @@ class BlockModel(BlockModelData) :
 			core.get_proto_name(core.JointProto()) : "",
 			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
 			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
+			core.get_proto_name(core.TextAreaProto()) : "{0}",
 #			"ConstInputProto":"ConstInput({0})",
 		}
 
@@ -639,33 +640,38 @@ class GraphModelListener(object) :
 	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
 	def connection_removed(self, sb, st, tb, tt) : pass
 	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def meta_changed(self, key, key_present, old_value, new_value) : pass
 
 # ------------------------------------------------------------------------------------------------------------
 
 class GraphModel(object) :
 
-	def get_meta(self) :
-		return {} # TODO implement it and make it property
 
-#	def set_meta(self) :
-#		self.__assert_editing()
-#		pass # TODO implement it and make it property
-
-#	meta = property(lambda self: {})
+	def remove_listener(self, listener) :
+		self.__listeners.remove(listener)
 
 
 	def add_listener(self, listener) :
 		self.__listeners.append(listener)
 
 
-	def remove_listener(self, listener) :
-		self.__listeners.remove(listener)
+	def get_meta(self) :
+		return self.__meta
 
-	# ---------------------------------------------------------------------------------
+
+	def set_meta(self, key, value, remove_key=False) :
+		key_present, old_value = False, None
+		if key in self.__meta :
+			key_present, old_value = True, self.__meta[key]
+		self.__meta[key] = value
+		self.__history_frame_append("sheet_meta_changed", (key, old_value, key_present))
+		self.__on_meta_changed(key, key_present, old_value, value)
+
 
 #	def set_block_meta(self, block, meta) :
 #		for k, v in meta.iteritems() :
 #			self.__getattribute__("_BlockModel__set_"+k)(v)
+
 
 	def add_block(self, block) :
 		self.blocks.append(block)
@@ -836,6 +842,10 @@ class GraphModel(object) :
 			listener.connection_changed(sb, st, tb, tt)
 #			print(here(), (sb, st, tb, tt))
 
+	def __on_meta_changed(self, key, key_present, old_value, new_value) :
+		for listener in self.__listeners :
+			listener.meta_changed(key, key_present, old_value, new_value)
+
 	# ---------------------------------------------------------------------------------
 
 	def undo(self) :
@@ -871,6 +881,7 @@ class GraphModel(object) :
 		"block_removed" : lambda self, data: self.add_block(data[0]),
 		"block_added" : lambda self, data: self.remove_block(data[0]),
 		"block_meta" : lambda self, data: data[0].set_meta(data[1]),
+		"sheet_meta_changed" : lambda self, data: self.set_meta(data[0], data[1], remove_key=not data[2]),
 	}
 
 
@@ -882,6 +893,7 @@ class GraphModel(object) :
 
 	#XXX do i really want to have logic of history logging in _this_ class?!
 	def __history_frame_append(self, action, data) :
+		assert(action in GraphModel.inverse_actions)
 		if not self.__enable_logging :
 			return None
 		if not self.__redoing :
@@ -935,6 +947,9 @@ class GraphModel(object) :
 		for src, targets in self.__connections.items() :
 			for dst in targets :
 			 	self.__on_connection_added(*(src + dst), deserializing=deserializing)
+		for k, v in self.__meta.items() :
+			self.__on_meta_changed(k, True, None, v)
+
 
 	blocks = property(lambda self: self.__blocks)
 
@@ -960,6 +975,7 @@ class GraphModel(object) :
 		self.__connections = {}
 		self.__listeners = []
 		self.__connections_meta = {}
+		self.__meta = {}
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1001,7 +1017,7 @@ def catch_all(f) :
 		try :
 			ret = f(*a, **b)
 		except Exception as e :
-			print(e)
+			print(here(10), e)
 			os._exit(1)
 		else :
 			return ret
@@ -1119,10 +1135,25 @@ class Workbench(WorkbenchData) :
 			board_type = self.get_board()
 			sheets = self.sheets
 			meta = self.get_meta()
-			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+#XXX XXX XXX clone data before passing to job queue!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			self.__jobs.put(("build", (board_type, sheets, meta)))
+
+#			self.build_job(board_type, sheets, meta)#TODO refac build invocation
+
 		except Exception as e :
 			print here(), traceback.format_exc()
 			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
+
+
+	class TermStream(object) :
+
+		def write(self, s) :
+			msg_info = {}
+			msg_info["term_stream"] = s
+			self.__messages.put(("status", (("build", None, "compilation_progress"), msg_info)))
+
+		def __init__(self, __messages) :
+			self.__messages = __messages
 
 
 	def build_job(self, board_type, sheets, meta) :
@@ -1173,36 +1204,51 @@ class Workbench(WorkbenchData) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
-		rc, = build.build_source(board_type, source,
-			aux_src_dirs=(
-				(os.path.join(target_files_dir, "cores", "arduino"), False),
-				(os.path.join(target_files_dir, "variants", variant), False),
-#				(os.path.join(install_path, "library", "arduino"), False),
-			) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
-			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
-			boards_txt=boards_txt,
-			libc_dir=libc_dir,
-#			board_db={},
-			ignore_file=None,#"amkignore",
-#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
-			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
-#			prog_port=None,
-#			prog_driver="avrdude", # or "dfu-programmer"
-#			prog_adapter="arduino", #None for dfu-programmer
-			optimization="-Os",
-			verbose=False,
-			skip_programming=True,#False,
-#			dry_run=False,
-			blob_stream=blob_stream)
+		term_stream = StringIO()
+#		term_stream = sys.stdout
+		term_stream = Workbench.TermStream(self.__messages)
+
+
+		try :
+			rc, = build.build_source(board_type, source,
+				aux_src_dirs=(
+					(os.path.join(target_files_dir, "cores", "arduino"), False),
+					(os.path.join(target_files_dir, "variants", variant), False),
+	#				(os.path.join(install_path, "library", "arduino"), False),
+				) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
+				aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
+				boards_txt=boards_txt,
+				libc_dir=libc_dir,
+	#			board_db={},
+				ignore_file=None,#"amkignore",
+	#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
+				ignore_lines=( "*" + os.path.sep + "main.cpp", ),
+	#			prog_port=None,
+	#			prog_driver="avrdude", # or "dfu-programmer"
+	#			prog_adapter="arduino", #None for dfu-programmer
+				optimization="-Os",
+				verbose=False,
+				skip_programming=True,#False,
+	#			dry_run=False,
+				blob_stream=blob_stream,
+				term=term_stream)
+		except Exception as e :
+			self.__messages.put(("status", (("build", False, "compilation_failed"), {"term_stream":str(e)})))
+			return None
+
+		msg_info = {}
+#		if term_stream != sys.stdout :
+#			msg_info["term_stream"] = term_stream
+
 		if rc :
 			self.__blob = blob_stream.getvalue()
 			self.__blob_time = time.time()
 		else :
-			self.__messages.put(("status", (("build", False, "compilation_failed"), {})))
+			self.__messages.put(("status", (("build", False, "compilation_failed"), msg_info)))
 			return None
 #			return (False, "build_failed")
 
-		self.__messages.put(("status", (("build", True, ""), {})))
+		self.__messages.put(("status", (("build", True, ""), msg_info)))
 #		return (True, "ok")
 #		return (True, (blob, ))
 
@@ -1263,6 +1309,8 @@ class Workbench(WorkbenchData) :
 			for job_type, job_args in jobs :
 				if job_type == "build" :
 					print(here())
+					board_type, sheets, meta = job_args
+					self.build_job(board_type, sheets, meta)#TODO try..except
 				if job_type == "upload" :
 					print(here())
 					self.upload_job(*job_args)

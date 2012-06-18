@@ -1,4 +1,4 @@
-ccodegen variadic blocks
+DONE - ccodegen variadic blocks
 wrapping of c modules for incforth machine
 ccodegen distinguish macroes and functions (embed vs call)
 ... the same for fcodegen
@@ -15,7 +15,7 @@ TESTS!!!!!!!!
 argparse for build.py
 direct AVR machine code generation (for use without gcc)
 optional runtime logging package
-build.py c++ sources handling
+DONE - build.py c++ sources handling
 serial port blocks
 portable measurement and control package (analog filter, debouncer, pid)
 timers and counters package
@@ -27,7 +27,6 @@ arduino (stk500) simulator
 runtime editable consts
 measure speed in tests
 nondestructive graph editing (like return (pop_this, update_that))
-reconsider separate delay dictionary
 remove dependency of implement.py on dfs.py
 workbench @unsynced thread access check decorator
 sane graph rewriting function
@@ -60,3 +59,4 @@ use fixed output type for comparison and logic blocks
 loop detection
 type truncation detection (especially with Delay)
 examples_tests.py
+remember last directory in open dialog and so on

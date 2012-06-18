@@ -324,7 +324,31 @@ def churn_task_code(task_name, cg_out) :
 
 	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types = cg_out
 
-	state_var_prefix = task_name + "_"
+#	meta["endless_loop_wrap"] = False
+#	meta["function_attributes"] = "inline"
+##	meta["function_prefix"] = "static"
+#	meta["state_vars_scope"] = "module"#"local"
+#	meta["state_vars_storage"] = "heap"
+
+	endless_loop_wrap = "endless_loop_wrap" in meta and not meta["endless_loop_wrap"]
+	function_attributes = meta["function_attributes"] if "function_attributes" in meta else ""#"inline" and such
+	function_prefix = meta["function_prefix"] if "function_prefix" in meta else ""#"static" and such
+	state_vars_scope = meta["state_vars_scope"] if "state_vars_scope" in meta else "local"#"local", "module"
+	state_vars_storage = meta["state_vars_storage"] if "state_vars_storage" in meta else "stack"#"stack", "heap"
+
+	lift_state_vars = state_vars_scope != "local"
+
+	if state_vars_storage == "heap" :
+		if state_vars_scope == "local" :
+			st_v_scope = "static "
+		else :
+			st_v_scope = ""
+	elif state_vars_storage == "stack" :
+		st_v_scope = ""
+	else :
+		raise Exception("can't guess state vars storage")
+
+	state_var_prefix = task_name + "_" #TODO state_var_prefix might be empty if state_vars_scope is local
 	state_vars = []
 #	print(dir(expd_dels.keys()[0]))
 	for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr) :
@@ -332,13 +356,13 @@ def churn_task_code(task_name, cg_out) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
 		if d.value[0] is None : #initializable delay
-			state_vars.append("\t{0} {1}del{2}_init = 0;{3}".format(
-				core.VM_TYPE_WORD, state_var_prefix, del_out.nr, linesep))#TODO use vm_bool_t
+			state_vars.append("\t{4}{0} {1}del{2}_init = 0;{3}".format(
+				core.VM_TYPE_WORD, state_var_prefix, del_out.nr, linesep, st_v_scope))#TODO use vm_bool_t
 			del_init = 0
 		else :
 			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
-		state_vars.append("\t{0} {1}del{2} = {3};{4}".format(
-			del_type, state_var_prefix, del_out.nr, del_init, linesep))
+		state_vars.append("\t{5}{0} {1}del{2} = {3};{4}".format(
+			del_type, state_var_prefix, del_out.nr, del_init, linesep, st_v_scope))
 
 	temp_vars = []
 	for slot_type in sorted(tmp.keys()) :
@@ -353,27 +377,64 @@ def churn_task_code(task_name, cg_out) :
 
 	dummy_vars = [ "\t{0} {0}_dummy;{1}".format(tp, linesep) for tp in dummies ]
 
-	if "function_wrap" in meta and not meta["function_wrap"] :
-		pass #TODO
-	else :
-		pass #TODO
-
-	if "endless_loop_wrap" in meta and not meta["endless_loop_wrap"] :
+	if endless_loop_wrap :
 		loop_code = "\t" + (linesep + "\t").join(code)
 	else :
 		loop_code = linesep.join(("\tfor(;;)", "\t{", "\t\t" + (linesep + "\t\t").join(code), "\t}"))
 
-	decl = "void " + task_name + "()"
+	decl = ((function_prefix + " ") if function_prefix else "") + " ".join(("void", task_name, "()"))
 
-	output = (decl + linesep + "{" + linesep +
+	output = (((function_attributes + " ") if function_attributes else "") + decl + linesep + "{" + linesep +
 		# locals and delays
-		"".join(temp_vars + state_vars + dummy_vars) +
+		("" if lift_state_vars else "".join(state_vars)) +
+		"".join(temp_vars + dummy_vars) +
 		# main loop
 		loop_code + linesep +
 		"}")
 
-	return decl + ";", output
+	lifted_vars = tuple(state_vars) if lift_state_vars else tuple()
 
+	return decl + ";", output, lifted_vars
+
+#void loop()
+#{
+#	vm_dword_t next_scheduled_run = 0;
+#	vm_dword_t next_t10_run, next_t50_run, ...;
+#	vm_dword_t now;
+
+#	for (;;) {
+
+#		do {
+#			idle_tsk_0();
+#			idle_tsk_1();
+#			...
+#			now = time_ms();
+#		} while ( now < next_scheduled_run );
+
+#		next_scheduled_run = INT_MAX;
+
+#		if ( now >= next_t10_run ) {
+#			next_t10_run = now + 10;
+#			if ( next_t10_run < next_scheduled_run ) {
+#				next_scheduled_run = next_t10_run;
+#			}
+#			t10_tsk_0();
+#			t10_tsk_1();
+#			...
+#		}
+
+#		if ( now >= next_t50_run ) {
+#			next_t50_run = now + 50;
+#			if ( next_t50_run < next_scheduled_run ) {
+#				next_scheduled_run = next_t50_run;
+#			}
+#			t50_tsk_0();
+#			t50_tsk_1();
+#			...
+#		}
+#		...
+#	}
+#}
 
 def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 	"""
@@ -385,9 +446,11 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 
 	decls = []
 	functions = []
+	variables = []
 #	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
 	for name, cg_out in tsk_cg_out :
-		decl, func = churn_task_code(name, cg_out)
+		decl, func, lifted_vars = churn_task_code(name, cg_out)
+		variables.extend(lifted_vars)
 		decls.append(decl)
 		decls.append(linesep)
 		functions.append(func)
@@ -402,7 +465,7 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
 #	pprint(g_vars_code)
 #	print here(), g_vars_code
 	f.write(linesep.join(g_vars_code))
-
+	f.write(linesep.join(variables))
 	f.write(linesep.join(functions))
 
 

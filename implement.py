@@ -566,7 +566,8 @@ def infer_types(g, expd_dels, known_types, allready_inferred=None) :
 #TODO	__check_directions(conns)
 def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=0) :
 	conns0 = { k : v for k, v in model.connections.items() if v }
-	blocks, conns1, delays = __expand_delays(model.blocks, conns0, delay_numbering_start)
+	model_blocks = tuple(b for b in model.blocks if not core.compare_proto_to_type(b.prototype, core.TextAreaProto))
+	blocks, conns1, delays = __expand_delays(model_blocks, conns0, delay_numbering_start)
 
 	conns_rev = reverse_dict_of_lists(conns1, lambda values: list(set(values)))
 	graph = { b : adjs_t(
@@ -1060,24 +1061,69 @@ def implement_dfs(model, meta, codegen, known_types, out_fobj) :
 	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
-#def process_sheet_list(sheets, global_meta, codegen, known_types, lib) :
+def process_sheet(dag, meta, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement) :
 
-#	l = [ make_dag(s, None, known_types, do_join_taps=False)
-#		for name, s in sorted(sheets.items(), key=lambda x: x[0])
-#		if not name in special ]
-#	graph, delays = dag_merge(l)
-#	new_delays, = expand_macroes(graph, lib, known_types, block_cache=block_cache)
-#	delays.update(new_delays)
-#	join_taps(graph)
-#	types = infer_types(graph, delays, known_types=known_types)
-#	extract_pipes(graph, known_types, g_protos, pipe_replacement)
-#	tsk_name = "loop"
+	graph, delays = dag
 
+	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
+	delays.update(new_delays)
+	join_taps(graph)
+	types = infer_types(graph, delays, known_types=known_types)
+	extract_pipes(graph, known_types, g_protos, pipe_replacement)
 
-#	return tsk_name, g, delays, tsk_setup_meta, types
+	return graph, delays, meta, types
 
 
-#TODO break down to smaller functions if possible
+def pipe_replacement_to_glob_vars(items) :
+	"""
+	generate list of global variable tuples from pipe_replacement dictionary
+	"""
+	glob_vars = [ (pipe_name, pipe_type, pipe_default)
+		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in items.items() ]
+	return glob_vars
+
+
+def include_list(library, libraries_used) :
+	"""
+	generate list of includes from library object and set of libs used
+	"""
+	include_files = []
+	for l in library.libs :
+		if l.name in libraries_used :
+			include_files.extend(l.include_files)#TODO maybe use only file name
+	return include_files
+
+
+def check_delay_numbering(graph_data) :
+	"""
+	basic check of delay numbering, like errors when instantiating macroes
+	"""
+	for _, _, dels, _, _ in graph_data :
+		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
+		yield all(nr_eq for _, nr_eq in del_check)
+		yield len(del_check)==len({nr for nr, _ in del_check})
+
+
+def simple_entry_point_stub(tsk_name, call_setup) :
+	"""
+	create graph stub for simple entry point function
+	"""
+	loop_call = create_function_call(tsk_name)
+	init_call = create_function_call("init")
+	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
+	first_call = loop_call
+	if call_setup :
+		setup_call = create_function_call("setup")
+		main_tsk_g[setup_call] = adjs_t([], [])
+		chain_blocks(main_tsk_g, setup_call, loop_call)
+		first_call = setup_call
+	chain_blocks(main_tsk_g, init_call, first_call)
+
+	main_tsk_meta = { "endless_loop_wrap" : False}
+
+	return tsk_name, main_tsk_g, {}, main_tsk_meta, {}
+
+
 def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
@@ -1095,7 +1141,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	graph_data = []
 	block_cache = block_cache_init()
 
-	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
+	tsk_setup_meta = { "endless_loop_wrap" : False }#TODO, "function_wrap" : False, "is_entry_point" : False }
 
 	local_block_sheets = {}
 	for name, sheet_list_iter in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
@@ -1109,16 +1155,11 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
 			tsk_name = name.strip("@")
-#			g, d = make_dag(s, None, known_types, do_join_taps=True)
 			l = [ make_dag(s, None, known_types, do_join_taps=False)
 				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
-			g, d = dag_merge(l)
-			new_d, = expand_macroes(g, lib, known_types, local_block_sheets, block_cache=block_cache)
-			d.update(new_d)
-			join_taps(g)
-			types = infer_types(g, d, known_types=known_types)
-			extract_pipes(g, known_types, g_protos, pipe_replacement)
-			graph_data.append((tsk_name, g, d, tsk_setup_meta, types))
+			g_data = process_sheet(dag_merge(l), tsk_setup_meta, known_types, lib,
+				local_block_sheets, block_cache, g_protos, pipe_replacement)
+			graph_data.append((tsk_name, ) + g_data)
 		elif core.is_macro_name(name) :
 #			print here(), name
 			pass
@@ -1132,33 +1173,12 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		for name, s in sorted(sheets.items(), key=lambda x: x[0])
 		if not name in special ]
 	graph, delays = dag_merge(l)
-	new_delays, = expand_macroes(graph, lib, known_types, local_block_sheets, block_cache=block_cache)
-	delays.update(new_delays)
-	join_taps(graph)
-	types = infer_types(graph, delays, known_types=known_types)
-	extract_pipes(graph, known_types, g_protos, pipe_replacement)
-	tsk_name = "loop"
-	graph_data.append((tsk_name, graph, delays, {}, types))
+	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
+	graph_data.append(("loop", ) + g_data)
 
-	loop_call = create_function_call(tsk_name)
-	init_call = create_function_call("init")
-	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
-	first_call = loop_call
-	if "@setup" in special :
-		setup_call = create_function_call("setup")
-		main_tsk_g[setup_call] = adjs_t([], [])
-		chain_blocks(main_tsk_g, setup_call, loop_call)
-		first_call = setup_call
-	chain_blocks(main_tsk_g, init_call, first_call)
+	graph_data.append(simple_entry_point_stub("main", "@setup" in special))
 
-	for _, _, dels, _, _ in graph_data :
-		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
-		assert(all(nr_eq for _, nr_eq in del_check))
-		assert(len(del_check)==len({nr for nr, _ in del_check}))
-
-	tsk_name = "main"
-	main_tsk_meta = { "endless_loop_wrap" : False}
-	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
+	assert(all(check_delay_numbering(graph_data)))
 
 	tsk_cg_out = []
 	libs_used = set()
@@ -1168,18 +1188,14 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		tsk_cg_out.append(codegen.codegen(g, d, meta,
 			types, known_types, pipe_vars, libs_used, task_name=tsk_name))
 
-	include_files = []
-	for l in lib.libs :
-		if l.name in libs_used :
-			include_files.extend(l.include_files)#TODO maybe use only file name
+	include_files = include_list(lib, libs_used)
 
-	glob_vars = [ (pipe_name, pipe_type, pipe_default)
-		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
+	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
+
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 	#TODO say something about what you've done
 	return libs_used,
-
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1222,7 +1238,6 @@ def main() :
 	sheets = w.sheets
 	global_meta = w.get_meta()
 
-
 	if action == "c" :
 		import ccodegen as cg
 	elif action == "f" :
@@ -1230,19 +1245,7 @@ def main() :
 	else :
 		exit(666)
 
-	class DummyFile(object):
-		def write(self, s) :
-			self.buffer += s
-		def __init__(self) :
-			self.buffer = ""
-
-	out_fobj = DummyFile()
-	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, out_fobj)
-	print(out_fobj.buffer)
-	exit(0)
-#	elif action == "mkmac" :
-##		try_mkmac(model)
-#		exit(667)
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, sys.stdout)
 
 # ------------------------------------------------------------------------------------------------------------
 

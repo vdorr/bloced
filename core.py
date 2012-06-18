@@ -318,13 +318,6 @@ class TapEndProto(BlockPrototype):
 			values=[("Name", None)])
 
 
-class NoteProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "Note", [ ],
-			default_size=(96,28), category="Special",
-			values=[("Text", "")])
-
-
 class SignalProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
@@ -455,6 +448,12 @@ class TypecastProto(BlockPrototype) :
 			category=category,
 			pure=True)
 
+
+class TextAreaProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "TextArea", [],
+			default_size=(96,28), category="Special",
+			values=[("Text", "")])
 
 
 # ----------------------------------------------------------------------------
@@ -1220,7 +1219,7 @@ def clone_sheet(sheet, lib) :
 	f = StringIO()
 	serializer.pickle_dfs_model(sheet, f)
 	f.seek(0)
-	cloned = serializer.unpickle_dfs_model(f, lib=lib)
+	cloned = serializer.unpickle_dfs_model(f, lib=lib, use_cached_proto=False)
 	return cloned
 
 
@@ -1247,6 +1246,7 @@ def builtin_blocks() :
 		PipeProto(),
 		PipeEndProto(),
 		MuxProto(),
+		TextAreaProto(),
 
 		BinaryOp("xor", "Logic", commutative=True),
 		BinaryOp("or", "Logic", commutative=True),
