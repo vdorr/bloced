@@ -1247,19 +1247,7 @@ def main() :
 	else :
 		exit(666)
 
-	class DummyFile(object):
-		def write(self, s) :
-			self.buffer += s
-		def __init__(self) :
-			self.buffer = ""
-
-	out_fobj = DummyFile()
-	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, out_fobj)
-	print(out_fobj.buffer)
-	exit(0)
-#	elif action == "mkmac" :
-##		try_mkmac(model)
-#		exit(667)
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, sys.stdout)
 
 # ------------------------------------------------------------------------------------------------------------
 
