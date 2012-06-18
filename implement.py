@@ -1074,6 +1074,56 @@ def process_sheet(dag, meta, known_types, lib, local_block_sheets, block_cache, 
 	return graph, delays, meta, types
 
 
+def pipe_replacement_to_glob_vars(items) :
+	"""
+	generate list of global variable tuples from pipe_replacement dictionary
+	"""
+	glob_vars = [ (pipe_name, pipe_type, pipe_default)
+		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in items.items() ]
+	return glob_vars
+
+
+def include_list(library, libraries_used) :
+	"""
+	generate list of includes from library object and set of libs used
+	"""
+	include_files = []
+	for l in library.libs :
+		if l.name in libraries_used :
+			include_files.extend(l.include_files)#TODO maybe use only file name
+	return include_files
+
+
+def check_delay_numbering(graph_data) :
+	"""
+	basic check of delay numbering, like errors when instantiating macroes
+	"""
+	for _, _, dels, _, _ in graph_data :
+		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
+		yield all(nr_eq for _, nr_eq in del_check)
+		yield len(del_check)==len({nr for nr, _ in del_check})
+
+
+def simple_entry_point_stub(tsk_name, call_setup) :
+	"""
+	create graph stub for simple entry point function
+	"""
+	loop_call = create_function_call(tsk_name)
+	init_call = create_function_call("init")
+	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
+	first_call = loop_call
+	if call_setup :
+		setup_call = create_function_call("setup")
+		main_tsk_g[setup_call] = adjs_t([], [])
+		chain_blocks(main_tsk_g, setup_call, loop_call)
+		first_call = setup_call
+	chain_blocks(main_tsk_g, init_call, first_call)
+
+	main_tsk_meta = { "endless_loop_wrap" : False}
+
+	return tsk_name, main_tsk_g, {}, main_tsk_meta, {}
+
+
 #TODO break down to smaller functions if possible
 def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
@@ -1092,7 +1142,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	graph_data = []
 	block_cache = block_cache_init()
 
-	tsk_setup_meta = { "endless_loop_wrap" : False}#TODO, "function_wrap" : False, "is_entry_point" : False }
+	tsk_setup_meta = { "endless_loop_wrap" : False }#TODO, "function_wrap" : False, "is_entry_point" : False }
 
 	local_block_sheets = {}
 	for name, sheet_list_iter in groupby(sorted(special.items(), key=lambda x: x[0]), key=lambda x: x[0]) :
@@ -1142,25 +1192,24 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 #	tsk_name = "loop"
 #	graph_data.append((tsk_name, graph, delays, {}, types))
 
-	loop_call = create_function_call(tsk_name)
-	init_call = create_function_call("init")
-	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
-	first_call = loop_call
-	if "@setup" in special :
-		setup_call = create_function_call("setup")
-		main_tsk_g[setup_call] = adjs_t([], [])
-		chain_blocks(main_tsk_g, setup_call, loop_call)
-		first_call = setup_call
-	chain_blocks(main_tsk_g, init_call, first_call)
+#	loop_call = create_function_call(tsk_name)
+#	init_call = create_function_call("init")
+#	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
+#	first_call = loop_call
+#	if "@setup" in special :
+#		setup_call = create_function_call("setup")
+#		main_tsk_g[setup_call] = adjs_t([], [])
+#		chain_blocks(main_tsk_g, setup_call, loop_call)
+#		first_call = setup_call
+#	chain_blocks(main_tsk_g, init_call, first_call)
 
-	for _, _, dels, _, _ in graph_data :
-		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
-		assert(all(nr_eq for _, nr_eq in del_check))
-		assert(len(del_check)==len({nr for nr, _ in del_check}))
+#	tsk_name = "main"
+#	main_tsk_meta = { "endless_loop_wrap" : False}
+#	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
 
-	tsk_name = "main"
-	main_tsk_meta = { "endless_loop_wrap" : False}
-	graph_data.append((tsk_name, main_tsk_g, {}, main_tsk_meta, {}))
+	graph_data.append(simple_entry_point_stub(tsk_name, "@setup" in special))
+
+	assert(all(check_delay_numbering(graph_data)))
 
 	tsk_cg_out = []
 	libs_used = set()
@@ -1170,13 +1219,10 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		tsk_cg_out.append(codegen.codegen(g, d, meta,
 			types, known_types, pipe_vars, libs_used, task_name=tsk_name))
 
-	include_files = []
-	for l in lib.libs :
-		if l.name in libs_used :
-			include_files.extend(l.include_files)#TODO maybe use only file name
+	include_files = include_list(lib, libs_used)
 
-	glob_vars = [ (pipe_name, pipe_type, pipe_default)
-		for pipe_name, (pipe_type, pipe_default, gw_proto, gr_proto) in pipe_replacement.items() ]
+	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
+
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
 
 	#TODO say something about what you've done
