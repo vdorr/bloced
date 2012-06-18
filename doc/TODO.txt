@@ -59,3 +59,4 @@ use fixed output type for comparison and logic blocks
 loop detection
 type truncation detection (especially with Delay)
 examples_tests.py
+remember last directory in open dialog and so on
