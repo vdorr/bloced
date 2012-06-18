@@ -1124,7 +1124,6 @@ def simple_entry_point_stub(tsk_name, call_setup) :
 	return tsk_name, main_tsk_g, {}, main_tsk_meta, {}
 
 
-#TODO break down to smaller functions if possible
 def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
@@ -1177,7 +1176,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
 	graph_data.append(("loop", ) + g_data)
 
-	graph_data.append(simple_entry_point_stub(tsk_name, "@setup" in special))
+	graph_data.append(simple_entry_point_stub("main", "@setup" in special))
 
 	assert(all(check_delay_numbering(graph_data)))
 
@@ -1238,7 +1237,6 @@ def main() :
 #		exit(666)
 	sheets = w.sheets
 	global_meta = w.get_meta()
-
 
 	if action == "c" :
 		import ccodegen as cg
