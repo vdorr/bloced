@@ -1104,11 +1104,11 @@ def check_delay_numbering(graph_data) :
 		yield len(del_check)==len({nr for nr, _ in del_check})
 
 
-def simple_entry_point_stub(tsk_name, call_setup) :
+def simple_entry_point_stub(user_function, call_setup) :
 	"""
 	create graph stub for simple entry point function
 	"""
-	loop_call = create_function_call(tsk_name)
+	loop_call = create_function_call(user_function)
 	init_call = create_function_call("init")
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
 	first_call = loop_call
@@ -1121,13 +1121,22 @@ def simple_entry_point_stub(tsk_name, call_setup) :
 
 	main_tsk_meta = { "endless_loop_wrap" : False}
 
-	return tsk_name, main_tsk_g, {}, main_tsk_meta, {}
+	return "main", main_tsk_g, {}, main_tsk_meta, {}
 
 
-def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
+def parse_task_period(s) :
+	"""
+	parse task period string and return period in ms or "idle"
+	"""
+	return None
+
+
+def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
+
+	global_meta = dict(w_meta)
 
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
@@ -1156,7 +1165,6 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		if name == "@setup" :
 			tsk_name = name.strip("@")
 			(_, s), = tuple(sheet_list)
-			print here(), s
 			dag = make_dag(s, None, known_types, do_join_taps=False)
 			g_data = process_sheet(dag, tsk_setup_meta, known_types, lib,
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
@@ -1170,13 +1178,41 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		else :
 			raise Exception("impossible exception")
 
-	l = [ make_dag(s, None, known_types, do_join_taps=False)
-		for name, s in sorted(sheets.items(), key=lambda x: x[0])
-		if not name in special ]
-	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
-	graph_data.append(("loop", ) + g_data)
+	if 0 :
+		l = [ make_dag(s, None, known_types, do_join_taps=False)
+			for name, s in sorted(sheets.items(), key=lambda x: x[0])
+			if not name in special ]
+		g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
+		graph_data.append(("loop", ) + g_data)
+	else :
+		tsk_groups = {}
+		global_meta["periodic_sched"] = True
+		for tsk_name, s in sorted(sheets.items(), key=lambda x: x[0]) :
+			if tsk_name in special :
+				continue
+	#		l = [ make_dag(s, None, known_types, do_join_taps=False)
+	#			for name, s in sorted(sheets.items(), key=lambda x: x[0])
+	#			if not name in special ]
+			dag = make_dag(s, None, known_types, do_join_taps=False)
+			meta = dict(s.get_meta())
+			if "task_period" in meta :
+				tsk_period = parse_task_period(meta["task_period"])
+			else :
+				tsk_period = "idle"
+			if not tsk_period in tsk_groups :
+				tsk_groups[tsk_period] = []
+			tsk_groups[tsk_period].append(tsk_name)
+			meta["endless_loop_wrap"] = False
+			meta["function_attributes"] = "inline"
+			meta["state_vars_scope"] = "local"#"module"
+			meta["state_vars_storage"] = "heap"
+			g_data = process_sheet(dag, meta, known_types, lib,
+				local_block_sheets, block_cache, g_protos, pipe_replacement)
+			graph_data.append((tsk_name, ) + g_data)
 
-	graph_data.append(simple_entry_point_stub("main", "@setup" in special))
+	print here(), tsk_groups
+
+	graph_data.append(simple_entry_point_stub("loop", "@setup" in special))
 
 	assert(all(check_delay_numbering(graph_data)))
 
@@ -1192,7 +1228,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 
 	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
 
-	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
+	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, tsk_groups, out_fobj)
 
 	#TODO say something about what you've done
 	return libs_used,

@@ -436,13 +436,31 @@ def churn_task_code(task_name, cg_out) :
 #	}
 #}
 
-def churn_code(meta, global_vars, tsk_cg_out, include_files, f) :
+
+def churn_periodic_sched(tsk_groups, f, time_function="time_ms", timer_data_type=core.VM_TYPE_WORD) :
+
+	groups = dict(tsk_groups)
+
+	if "idle" in groups :
+		idle_group = groups.pop("idle")
+	else :
+		idle_group = []
+
+	timer_vars = []
+
+	for period, tsk_name in sorted(groups.items(), key=lambda item: item[0]) :
+		pass
+
+
+def churn_code(meta, global_vars, tsk_cg_out, include_files, tsk_groups, f) :
 	"""
 	tasks_cg_out = [ (task_name, cg_out), ... ]
 	f - writeble filelike object
 	"""
 
 	f.write("".join('#include "{0}"{1}'.format(incl, linesep) for incl in include_files))
+
+	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
 
 	decls = []
 	functions = []

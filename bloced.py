@@ -1325,7 +1325,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		value = self.period_box_values[index]
 #		print here(), a, b, index, value
 		self.model.begin_edit()
-		self.model.set_meta("task_period", value)
+		self.model.set_meta("task_period", value)#TODO named const
 		self.model.end_edit()
 
 
@@ -1334,7 +1334,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		value = self.sheet_type_box_values[index]
 #		print here(), a, b, index, value
 		self.model.begin_edit()
-		self.model.set_meta("sheet_type", value)
+		self.model.set_meta("sheet_type", value)#TODO named const
 		self.model.end_edit()
 
 
