@@ -437,7 +437,7 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
-def churn_periodic_sched(tsk_groups, f, time_function="time_ms", tmr_data_type=core.VM_TYPE_WORD) :
+def churn_periodic_sched(tsk_groups, time_function, f, tmr_data_type=core.VM_TYPE_WORD) :
 
 	groups = dict(tsk_groups)
 
@@ -447,18 +447,27 @@ def churn_periodic_sched(tsk_groups, f, time_function="time_ms", tmr_data_type=c
 		idle_group = []
 
 	timer_vars = [ "{0} next_{1}_run;{2}".format(tmr_data_type, period, linesep)
-		for p in sorted(groups.keys()) ]
+		for period in sorted(groups.keys()) ]
+
+	print here(),tsk_groups
 
 	code = timer_vars#[]
 	groups = groupby(sorted(groups.items(), key=lambda i: i[0]), key=lambda i: i[0])
 	for period, tasks in groups :
+		tmr_var_name = "next_{0}_run".format(period)
+		print here(), tmr_var_name
+		code.append("\t\tif ( now >= {0} ) {{{1}".format(tmr_var_name, linesep))
+		code.append("\t\t\t{0} = now + {1}{2}".format(tmr_var_name, period, linesep))
+		code.append("\t\tif ( {0} < next_scheduled_run ) {{{1}".format(tmr_var_name, linesep))
+		code.append("\t\t\t\tnext_scheduled_run = {0};{1}\t\t\t}}{1}".format(tmr_var_name, linesep))
 		for _, tsk_name in tasks :
-			code.append("{0}();{1}".format(tsk_name, linesep))
+			code.append("\t\t\t{0}();{1}".format(tsk_name, linesep))
+		code.append("\t\t}" + linesep)
 
 #code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
 #churn_task_code(task_name, cg_out)
 
-#	f.writelines(timer_vars)
+	f.writelines(code)
 
 
 def churn_code(meta, global_vars, tsk_cg_out, include_files, tsk_groups, f) :
@@ -470,6 +479,9 @@ def churn_code(meta, global_vars, tsk_cg_out, include_files, tsk_groups, f) :
 	f.write("".join('#include "{0}"{1}'.format(incl, linesep) for incl in include_files))
 
 	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
+
+	if periodic_sched :
+		churn_periodic_sched(tsk_groups, "time_ms", f, tmr_data_type=core.VM_TYPE_WORD)
 
 	decls = []
 	functions = []
