@@ -1178,7 +1178,9 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 		else :
 			raise Exception("impossible exception")
 
-	if 0 :
+	periodic_sched = True
+
+	if not periodic_sched :
 		l = [ make_dag(s, None, known_types, do_join_taps=False)
 			for name, s in sorted(sheets.items(), key=lambda x: x[0])
 			if not name in special ]
@@ -1187,12 +1189,10 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 	else :
 		tsk_groups = {}
 		global_meta["periodic_sched"] = True
-		for tsk_name, s in sorted(sheets.items(), key=lambda x: x[0]) :
-			if tsk_name in special :
-				continue
-	#		l = [ make_dag(s, None, known_types, do_join_taps=False)
-	#			for name, s in sorted(sheets.items(), key=lambda x: x[0])
-	#			if not name in special ]
+		tsk_sheets = ((tsk_name, s)
+			for tsk_name, s in sorted(sheets.items(), key=lambda x: x[0])
+			if not tsk_name in special)
+		for tsk_name, s in tsk_sheets :
 			dag = make_dag(s, None, known_types, do_join_taps=False)
 			meta = dict(s.get_meta())
 			if "task_period" in meta :
