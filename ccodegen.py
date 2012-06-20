@@ -437,7 +437,7 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
-def churn_periodic_sched(tsk_groups, f, time_function="time_ms", timer_data_type=core.VM_TYPE_WORD) :
+def churn_periodic_sched(tsk_groups, f, time_function="time_ms", tmr_data_type=core.VM_TYPE_WORD) :
 
 	groups = dict(tsk_groups)
 
@@ -446,10 +446,19 @@ def churn_periodic_sched(tsk_groups, f, time_function="time_ms", timer_data_type
 	else :
 		idle_group = []
 
-	timer_vars = []
+	timer_vars = [ "{0} next_{1}_run;{2}".format(tmr_data_type, period, linesep)
+		for p in sorted(groups.keys()) ]
 
-	for period, tsk_name in sorted(groups.items(), key=lambda item: item[0]) :
-		pass
+	code = timer_vars#[]
+	groups = groupby(sorted(groups.items(), key=lambda i: i[0]), key=lambda i: i[0])
+	for period, tasks in groups :
+		for _, tsk_name in tasks :
+			code.append("{0}();{1}".format(tsk_name, linesep))
+
+#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
+#churn_task_code(task_name, cg_out)
+
+#	f.writelines(timer_vars)
 
 
 def churn_code(meta, global_vars, tsk_cg_out, include_files, tsk_groups, f) :
