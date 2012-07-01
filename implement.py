@@ -1128,7 +1128,14 @@ def parse_task_period(s) :
 	"""
 	parse task period string and return period in ms or "idle"
 	"""
-	return None
+	p = s.strip().lower()
+#	print here(), s
+	if p.endswith("ms") :
+		return int(p[0:-2])
+	elif p == "idle" :
+		return "idle"
+	else :
+		return None
 
 
 def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) :
@@ -1193,6 +1200,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 			for tsk_name, s in sorted(sheets.items(), key=lambda x: x[0])
 			if not tsk_name in special)
 		for tsk_name, s in tsk_sheets :
+#XXX mangle/pre/postfix tsk_name
 			dag = make_dag(s, None, known_types, do_join_taps=False)
 			meta = dict(s.get_meta())
 			if "task_period" in meta :
@@ -1210,7 +1218,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, ) + g_data)
 
-	print here(), tsk_groups
+#	print here(), tsk_groups
 
 	graph_data.append(simple_entry_point_stub("loop", "@setup" in special))
 

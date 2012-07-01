@@ -9,6 +9,7 @@ from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
 	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used, get_terms_flattened
 from utils import here
 
+
 # ------------------------------------------------------------------------------------------------------------
 
 #TODO argument number checking
@@ -316,13 +317,15 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)
 
-	return task_name, (code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types)
+	vars_other = tuple()
+
+	return task_name, (code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types, vars_other)
 
 
 def churn_task_code(task_name, cg_out) :
 #TODO list known meta values
 
-	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types = cg_out
+	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types, vars_other = cg_out
 
 #	meta["endless_loop_wrap"] = False
 #	meta["function_attributes"] = "inline"
@@ -350,9 +353,7 @@ def churn_task_code(task_name, cg_out) :
 
 	state_var_prefix = task_name + "_" #TODO state_var_prefix might be empty if state_vars_scope is local
 	state_vars = []
-#	print(dir(expd_dels.keys()[0]))
 	for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr) :
-#	for d, i in zip(sorted(expd_dels.keys(), lambda x,y: y.nr-x.nr), count()) :
 		del_out = expd_dels[d][1]
 		del_type = types[del_out, del_out.terms[0], 0]
 		if d.value[0] is None : #initializable delay
@@ -437,57 +438,85 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
-def churn_periodic_sched(tsk_groups, time_function, f, tmr_data_type=core.VM_TYPE_WORD) :
+def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_type=core.VM_TYPE_WORD) :
 
 	groups = dict(tsk_groups)
+	print here(), global_meta
 
 	if "idle" in groups :
 		idle_group = groups.pop("idle")
 	else :
 		idle_group = []
 
-	timer_vars = [ "{0} next_{1}_run;{2}".format(tmr_data_type, period, linesep)
+	timer_vars = [ "{0} next_{1}_run = 0;".format(tmr_data_type, period)
 		for period in sorted(groups.keys()) ]
 
-	print here(),tsk_groups
-
+#	print here(),tsk_groups
 	code = timer_vars#[]
-	groups = groupby(sorted(groups.items(), key=lambda i: i[0]), key=lambda i: i[0])
-	for period, tasks in groups :
+
+	code.append("{} now;".format(tmr_data_type))
+	code.append("{} next_scheduled_run = 0;".format(tmr_data_type))
+
+	code.append("do {")
+	for tsk_name in sorted(idle_group) :
+		code.append("\t{0}();{1}".format(tsk_name, ""))
+	code.append("\tnow = {}();".format(time_function))
+	code.append("} while ( now < next_scheduled_run );")
+
+	tmr_max = 2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
+	code.append("next_scheduled_run = {};".format(tmr_max))
+
+#	groups = groupby(sorted(groups.items(), key=lambda i: i[0]), key=lambda i: i[0])
+	for period, tasks in sorted(groups.items(), key=lambda i: i[0]) :
 		tmr_var_name = "next_{0}_run".format(period)
-		print here(), tmr_var_name
-		code.append("\t\tif ( now >= {0} ) {{{1}".format(tmr_var_name, linesep))
-		code.append("\t\t\t{0} = now + {1}{2}".format(tmr_var_name, period, linesep))
-		code.append("\t\tif ( {0} < next_scheduled_run ) {{{1}".format(tmr_var_name, linesep))
-		code.append("\t\t\t\tnext_scheduled_run = {0};{1}\t\t\t}}{1}".format(tmr_var_name, linesep))
-		for _, tsk_name in tasks :
-			code.append("\t\t\t{0}();{1}".format(tsk_name, linesep))
-		code.append("\t\t}" + linesep)
+#		print here(), tmr_var_name
+		code.append("if ( now >= {0} ) {{{1}".format(tmr_var_name, ""))
+		code.append("\t{0} = now + {1};".format(tmr_var_name, period))
+		code.append("\tif ( {0} < next_scheduled_run ) {{{1}".format(tmr_var_name, ""))
+		code.append("\t\tnext_scheduled_run = {0};".format(tmr_var_name))
+		code.append("\t}")
+		for tsk_name in sorted(tasks) :
+			code.append("\t{0}();{1}".format(tsk_name, ""))
+		code.append("}" + "")
 
 #code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
 #churn_task_code(task_name, cg_out)
 
-	f.writelines(code)
+#	f.writelines(code)
+
+	meta = dict(global_meta)
+	meta["endless_loop_wrap"] = True
+
+	vars_other = tuple()
+
+	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other
+#code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types
 
 
-def churn_code(meta, global_vars, tsk_cg_out, include_files, tsk_groups, f) :
+def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
 	"""
 	tasks_cg_out = [ (task_name, cg_out), ... ]
 	f - writeble filelike object
 	"""
+
+	tsk_cg_out = list(cg_out_list)
 
 	f.write("".join('#include "{0}"{1}'.format(incl, linesep) for incl in include_files))
 
 	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
 
 	if periodic_sched :
-		churn_periodic_sched(tsk_groups, "time_ms", f, tmr_data_type=core.VM_TYPE_WORD)
+		ps_cg_out = churn_periodic_sched(tsk_groups, "time_ms", meta, f,
+			tmr_data_type=core.VM_TYPE_WORD)
+		tsk_cg_out.append(("loop", ps_cg_out))
+#		print here(), churn_task_code("loop", ps_cg_out)
 
 	decls = []
 	functions = []
 	variables = []
 #	for name, cg_out in sorted(tsk_cg_out.items(), key=lambda x: x[0]) :
 	for name, cg_out in tsk_cg_out :
+#		print here(), name
 		decl, func, lifted_vars = churn_task_code(name, cg_out)
 		variables.extend(lifted_vars)
 		decls.append(decl)
