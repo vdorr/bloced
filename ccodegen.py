@@ -450,7 +450,7 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 
 	tmr_max = max(groups.keys())#2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
 
-	timer_vars = [ "static {0} next_{1}_run = 0;".format(tmr_data_type, period)
+	timer_vars = [ "static {} next_{}_run = 0;".format(tmr_data_type, period)
 		for period in sorted(groups.keys()) ]
 
 	code = timer_vars
@@ -467,14 +467,14 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 	code.append("next_scheduled_run = now + {};".format(tmr_max))
 
 	for period, tasks in sorted(groups.items(), key=lambda i: i[0]) :
-		tmr_var_name = "next_{0}_run".format(period)
-		code.append("if ( (now - {0}) >= 0 ) {{".format(tmr_var_name, period))
-		code.append("\t{0} = now + {1};".format(tmr_var_name, period))
-		code.append("\tif ( {0} <= next_scheduled_run ) {{{1}".format(tmr_var_name, ""))
-		code.append("\t\tnext_scheduled_run = {0};".format(tmr_var_name))
+		tmr_var_name = "next_{}_run".format(period)
+		code.append("if ( (now - {}) >= 0 ) {{".format(tmr_var_name))
+		code.append("\t{} = now + {};".format(tmr_var_name, period))
+		code.append("\tif ( {} <= next_scheduled_run ) {{".format(tmr_var_name))
+		code.append("\t\tnext_scheduled_run = {};".format(tmr_var_name))
 		code.append("\t}")
 		for tsk_name in sorted(tasks) :
-			code.append("\t{0}();{1}".format(tsk_name, ""))
+			code.append("\t{}();".format(tsk_name))
 		code.append("}" + "")
 
 	meta = dict(global_meta)
