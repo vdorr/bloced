@@ -441,7 +441,6 @@ def churn_task_code(task_name, cg_out) :
 def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_type=core.VM_TYPE_WORD) :
 
 	groups = dict(tsk_groups)
-	print here(), groups
 
 	if "idle" in groups :
 		idle_group = groups.pop("idle")
