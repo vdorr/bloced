@@ -453,30 +453,22 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 	timer_vars = [ "static {0} next_{1}_run = 0;".format(tmr_data_type, period)
 		for period in sorted(groups.keys()) ]
 
-#	print here(),tsk_groups
-	code = timer_vars#[]
+	code = timer_vars
 
 	code.append("{} now;".format(tmr_data_type))
 	code.append("static {} next_scheduled_run = 0;".format(tmr_data_type))
 
 	code.append("do {")
 	for tsk_name in sorted(idle_group) :
-		code.append("\t{0}();{1}".format(tsk_name, ""))
+		code.append("\t{}();".format(tsk_name))
 	code.append("\tnow = {}();".format(time_function))
 	code.append("} while ( (now - next_scheduled_run) < 0 );")
-#	code.append("} while ( (now - next_scheduled_run) < 0 );")
-#	code.append("now = {}();".format(time_function))
 
 	code.append("next_scheduled_run = now + {};".format(tmr_max))
 
-#	groups = groupby(sorted(groups.items(), key=lambda i: i[0]), key=lambda i: i[0])
 	for period, tasks in sorted(groups.items(), key=lambda i: i[0]) :
 		tmr_var_name = "next_{0}_run".format(period)
-#		print here(), tmr_var_name
-
 		code.append("if ( (now - {0}) >= 0 ) {{".format(tmr_var_name, period))
-#		code.append("if ( now >= {0} ) {{{1}".format(tmr_var_name, ""))
-
 		code.append("\t{0} = now + {1};".format(tmr_var_name, period))
 		code.append("\tif ( {0} <= next_scheduled_run ) {{{1}".format(tmr_var_name, ""))
 		code.append("\t\tnext_scheduled_run = {0};".format(tmr_var_name))
@@ -485,18 +477,12 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 			code.append("\t{0}();{1}".format(tsk_name, ""))
 		code.append("}" + "")
 
-#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
-#churn_task_code(task_name, cg_out)
-
-#	f.writelines(code)
-
 	meta = dict(global_meta)
 	meta["endless_loop_wrap"] = True
 
 	vars_other = tuple() #XXX XXX XXX
 
-	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other
-#code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types
+	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
 
 
 def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
