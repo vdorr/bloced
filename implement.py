@@ -1132,6 +1132,8 @@ def parse_task_period(s) :
 #	print here(), s
 	if p.endswith("ms") :
 		return int(p[0:-2])
+	elif p.endswith("s") :
+		return 1000 * int(p[0:-1])
 	elif p == "idle" :
 		return "idle"
 	else :
