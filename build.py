@@ -355,7 +355,7 @@ def build(board, workdir,
 	if verbose :
 		term.write("source files:")
 		term.write(os.linesep)
-		pprint(source, sterm)
+#		pprint(source, sterm)
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
@@ -667,6 +667,10 @@ def main() :
 	work_dir = os.getcwd()
 	source_dirs = tuple()#in dfs derived from libs
 
+	do_programming = "p" in args.action[0]
+
+#	print here(), args.action, "p" in args.action
+
 #	with open(args.out, "w") as blob_stream :
 	if 1 :
 		rc = build(args.brd, work_dir,
@@ -683,12 +687,12 @@ def main() :
 			ignore_file=args.ignore,
 #			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
 			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
-#			prog_port=None,
-#			prog_driver="avrdude", # or "dfu-programmer"
-#			prog_adapter="arduino", #None for dfu-programmer
+			prog_port=args.port,
+			prog_driver="avrdude", # or "dfu-programmer"
+			prog_adapter="arduino", #None for dfu-programmer
 			optimization="-Os",
-			verbose=False,
-			skip_programming=True,#False,
+			verbose=True,
+			skip_programming=not do_programming,#False,
 #			dry_run=False,
 #			blob_stream=blob_stream,
 			term=sys.stdout)
