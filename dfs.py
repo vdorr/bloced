@@ -1204,7 +1204,7 @@ class Workbench(WorkbenchData) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
-		term_stream = StringIO()
+#		term_stream = StringIO()
 #		term_stream = sys.stdout
 		term_stream = Workbench.TermStream(self.__messages)
 
