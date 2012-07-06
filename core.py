@@ -30,12 +30,13 @@ VM_TYPE_WORD = "vm_word_t"
 VM_TYPE_DWORD = "vm_dword_t"
 VM_TYPE_FLOAT = "vm_float_t"
 #VM_TYPE_DOUBLE = "vm_double_t" : type_t(4, 8, 4),
-#VM_TYPE_BOOL = "vm_bool_t" : type_t(None, None, 0),
+VM_TYPE_BOOL = "vm_bool_t"
 #VM_TYPE_STRING = "vm_string_t" : None,
 
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
+	VM_TYPE_BOOL : type_t(None, None, 0),
 	VM_TYPE_CHAR : type_t(1, 1, 0), #TODO
 	VM_TYPE_WORD : type_t(1, 2, 1),
 	VM_TYPE_DWORD : type_t(2, 4, 2),
@@ -483,8 +484,11 @@ def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) 
 #	name,
 	if direction is None :
 		direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
-	
-	(type_name, ) = [ tp for tp in sig if tp in known_types ]
+
+	type_names_found = [ tp for tp in sig if tp in known_types ]
+	if len(type_names_found) != 1 :
+		raise Exception("unknown or ambiguous type name '{}'".format(sig))
+	(type_name, ) = type_names_found
 	return term_type_t(name, direction, variadic, commutative, type_name)
 
 
