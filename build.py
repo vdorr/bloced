@@ -366,7 +366,7 @@ def build(board, workdir,
 		board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total, os.linesep))
 
-	redir_streams = True
+	redir_streams = False
 
 #	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 #		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
