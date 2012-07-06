@@ -9,3 +9,4 @@ usersettings.pickle
 .coverage
 htmlcov
 pylint.txt
+i2c_mod
