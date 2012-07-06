@@ -1929,6 +1929,11 @@ class BlockEditorWindow(object) :
 		return result
 
 
+	def __list_libraries(self) :
+		print here(), tuple(self.work.blockfactory.get_lib_files())
+		return []
+	
+
 	def __select_board(self, board) :
 #		xxx = self.__menu_items[self.__board_menu.items[0]]
 		var = self.__menu_vars[self.__menu_items[self.__board_menu.items[0]][0]]
@@ -2036,6 +2041,7 @@ class BlockEditorWindow(object) :
 		self.__recent_menu = self.__list_recent_files(self.__settings.recent_files)
 
 		examples = self.__list_examples()
+		libraries = self.__list_libraries()
 
 		self.add_top_menu("&File", [
 			CmdMnu("&New", "Ctrl+N", self.new_file),
@@ -2045,6 +2051,8 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			CascadeMnu("Examples",
 				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in examples ]),
+#			CascadeMnu("Libraries",
+#				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in libraries ]),
 			SepMnu(),
 			self.__recent_menu,
 #			SepMnu(),
