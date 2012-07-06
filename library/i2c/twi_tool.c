@@ -23,9 +23,12 @@ Kidnapped 2012 by vdorr
 */
 
 
+// avr-gcc -std=c99 -mmcu=atmega328p -DF_CPU=16000000L twi.c twi_tool.c
 
-
+#include <stdlib.h>
 #include <inttypes.h>
+#include <string.h>
+#include "twi.h"
 
 #define BUFFER_LENGTH 32
 
@@ -47,17 +50,13 @@ Kidnapped 2012 by vdorr
 
 //public:
 
-    void begin();
     void begin(uint8_t);
 
     void beginTransmission(uint8_t);
 
-    uint8_t endTransmission(void);
     uint8_t endTransmission(uint8_t);
-    uint8_t requestFrom(uint8_t, uint8_t);
     uint8_t requestFrom(uint8_t, uint8_t, uint8_t);
 
-size_t write(uint8_t);
 size_t write(const uint8_t *, size_t);
 int available(void);
 int read(void);
@@ -75,33 +74,31 @@ void flush(void);
 
 
 
+// Initialize Class Variables //////////////////////////////////////////////////
+void i2c_subsystem_init()
+{
+memset(rxBuffer, BUFFER_LENGTH, 0);
+rxBufferIndex = 0;
+rxBufferLength = 0;
 
+txAddress = 0;
+memset(txBuffer, BUFFER_LENGTH, 0);
+txBufferIndex = 0;
+txBufferLength = 0;
 
-extern "C" {
-  #include <stdlib.h>
-  #include <string.h>
-  #include <inttypes.h>
-  #include "twi.h"
+transmitting = 0;
 }
 
-// Initialize Class Variables //////////////////////////////////////////////////
 
-uint8_t rxBuffer[BUFFER_LENGTH];
-uint8_t rxBufferIndex = 0;
-uint8_t rxBufferLength = 0;
+/*void (*user_onRequest)(void);*/
+/*void (*user_onReceive)(int);*/
 
-uint8_t txAddress = 0;
-uint8_t txBuffer[BUFFER_LENGTH];
-uint8_t txBufferIndex = 0;
-uint8_t txBufferLength = 0;
-
-uint8_t transmitting = 0;
-void (*user_onRequest)(void);
-void (*user_onReceive)(int);
-
-
-void begin(void)
+void begin(uint8_t address)
 {
+  twi_setAddress(address);
+  twi_attachSlaveTxEvent(onRequestService);
+  twi_attachSlaveRxEvent(onReceiveService);
+
   rxBufferIndex = 0;
   rxBufferLength = 0;
 
@@ -109,14 +106,7 @@ void begin(void)
   txBufferLength = 0;
 
   twi_init();
-}
 
-void begin(uint8_t address)
-{
-  twi_setAddress(address);
-  twi_attachSlaveTxEvent(onRequestService);
-  twi_attachSlaveRxEvent(onReceiveService);
-  begin();
 }
 
 uint8_t requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop)//sendStop default to True
@@ -126,7 +116,7 @@ uint8_t requestFrom(uint8_t address, uint8_t quantity, uint8_t sendStop)//sendSt
     quantity = BUFFER_LENGTH;
   }
   // perform blocking read into buffer
-  uint8_t read = twi_readFrom(address, rxBuffer, quantity, sendStop);
+  uint8_t read = twi_readFrom(address, rxBuffer, quantity);
   // set rx buffer iterator vars
   rxBufferIndex = 0;
   rxBufferLength = read;
