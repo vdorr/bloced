@@ -10,3 +10,4 @@ usersettings.pickle
 htmlcov
 pylint.txt
 i2c_mod
+config.cfg
