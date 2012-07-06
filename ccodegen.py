@@ -177,6 +177,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 #	print here(), n, tmp, subtrees
 #	print here(), n, outputs
 
+	expr_slot_type = None
+
 	for out_term, out_t_nr, succs in outputs :
 #		if out_term.virtual :
 #			continue
@@ -282,7 +284,10 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 #			print here(), n, out_term, term_type, "slot=", slot
 #			pprint(tmp)
 
-			code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
+			if expr_slot_type is None :
+				code.append("(void){};".format(expr))
+			else :
+				code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
 			code.append(expr + ";")
 
@@ -447,7 +452,7 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 	else :
 		idle_group = []
 
-	tmr_max = max(groups.keys())#2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
+	tmr_max = max(groups.keys()) if len(groups) else 0#2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
 
 	timer_vars = [ "static {} next_{}_run = 0;".format(tmr_data_type, period)
 		for period in sorted(groups.keys()) ]
