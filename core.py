@@ -1367,6 +1367,11 @@ class BasicBlocksFactory(object) :
 	block_list = property(lambda self: self.__blocks)
 
 
+	def get_lib_files(self) :
+		return (l for llst in self.libs for l in llst.source_files)
+#		return (l for l in self.libs)
+
+
 	def __init__(self, load_basic_blocks=True) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
@@ -1412,6 +1417,7 @@ class SuperLibrary(object) :
 
 
 	libs = property(lambda self: self.get_libs())
+
 
 	def __init__(self, librarians) :
 		"""
