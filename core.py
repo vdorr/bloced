@@ -428,6 +428,30 @@ class BinaryOp(BlockPrototype) :
 			pure=True)
 
 
+class BinaryBooleanOp(BlockPrototype) :
+	def __init__(self, type_name, category, exe_name=None, commutative=False) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .33, type_name=VM_TYPE_BOOL),
+				In(0, "b", dfs.W, .66, type_name=VM_TYPE_BOOL),
+				Out(0, "y", dfs.E, .5, type_name=VM_TYPE_BOOL) ],
+			exe_name=type_name if not exe_name else exe_name,
+			category=category,
+			commutative=commutative,
+			pure=True)
+
+
+class UnaryBooleanOp(BlockPrototype) :
+	def __init__(self, type_name, category, exe_name=None) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .5, type_name=VM_TYPE_BOOL),
+				Out(0, "y", dfs.E, .5, type_name=VM_TYPE_BOOL) ],
+			exe_name=type_name if not exe_name else exe_name,
+			category=category,
+			pure=True)
+
+
 class CFunctionProto(BlockPrototype):
 	pass
 
@@ -1252,12 +1276,12 @@ def builtin_blocks() :
 		MuxProto(),
 		TextAreaProto(),
 
-		BinaryOp("xor", "Logic", commutative=True),
-		BinaryOp("or", "Logic", commutative=True),
-		BinaryOp("nor", "Logic", commutative=True),
-		BinaryOp("and", "Logic", commutative=True),
-		BinaryOp("nand", "Logic", commutative=True),
-		UnaryOp("not", "Logic"),
+		BinaryBooleanOp("xor", "Logic", commutative=True),
+		BinaryBooleanOp("or", "Logic", commutative=True),
+		BinaryBooleanOp("nor", "Logic", commutative=True),
+		BinaryBooleanOp("and", "Logic", commutative=True),
+		BinaryBooleanOp("nand", "Logic", commutative=True),
+		UnaryBooleanOp("not", "Logic"),
 
 		BinaryOp("bwxor", "Bitwise Logic", commutative=True),
 		BinaryOp("bwor", "Bitwise Logic", commutative=True),
