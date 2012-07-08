@@ -98,8 +98,8 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 			arg_list.append(arg_code)
 		else :
 			((t, _), a), = arg_group_it
-			print here(), term_pairs, outputs_cnt
-			assert((outputs_cnt==1 and not t.variadic) if a is None else True);
+#			print here(), term_pairs, outputs_cnt
+			assert((outputs_cnt==1 and not t.variadic) if a is None else True)
 			if not a is None :
 				arg_list.append(a)
 
@@ -112,6 +112,9 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 
 
 def __implement(g, n, tmp_args, args, outs, code) :
+	"""
+	return code to perform block n
+	"""
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
@@ -286,12 +289,11 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 
 # ------------------------------------------------------------------------------------------------------------
 
-#def codegen_alt(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
-#	tsk_name, cg_out = codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name=task_name)
-#	return churn_task_code(tsk_name, cg_out)
-
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
+	"""
+	generate code and variables for single task
+	"""
 
 	tmp = temp_init(known_types)
 	subtrees = {}
@@ -319,7 +321,7 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 
 def churn_task_code(task_name, cg_out) :
 	"""
-	generate code, declarations and variables for single task
+	from output of function churn code, declarations and variables for single task
 	"""
 #TODO list known meta values
 
@@ -436,7 +438,7 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
-def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_type=core.VM_TYPE_WORD) :
+def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type=core.VM_TYPE_WORD) :
 	"""
 	generate code for simple cooperative periodic task switching
 	"""
@@ -448,7 +450,8 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 	else :
 		idle_group = []
 
-	tmr_max = max(groups.keys()) if len(groups) else 0#2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
+	tmr_max = max(groups.keys()) if len(groups) else 0
+	#2 ** ((8 * core.KNOWN_TYPES[tmr_data_type].size_in_bytes) - 1)
 
 	timer_vars = [ "static {} next_{}_run = 0;".format(tmr_data_type, period)
 		for period in sorted(groups.keys()) ]
@@ -482,7 +485,8 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 
 	vars_other = tuple() #XXX XXX XXX
 
-	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
+	#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
+	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other
 
 
 def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
@@ -499,7 +503,7 @@ def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
 	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
 
 	if periodic_sched :
-		ps_cg_out = churn_periodic_sched(tsk_groups, "millis", meta, f,
+		ps_cg_out = __churn_periodic_sched(tsk_groups, "millis", meta,
 			tmr_data_type=core.VM_TYPE_WORD)
 		tsk_cg_out.append(("loop", ps_cg_out))
 #		print here(), churn_task_code("loop", ps_cg_out)
