@@ -115,36 +115,39 @@ def __implement(g, n, tmp_args, args, outs, code) :
 	"""
 	return code to perform block n
 	"""
+	stmt = None
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
-		return __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for _, a in args))
+		stmt = __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for _, a in args))
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
-		return func_name + "(" + ", ".join(tuple(a for _, a in (args + outs))) + ")"
+		stmt = func_name + "(" + ", ".join(tuple(a for _, a in (args + outs))) + ")"
 	elif core.compare_proto_to_type(n.prototype, core.GlobalReadProto) :
 		assert(len(args)==0)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
-		return pipe_name
+		stmt = pipe_name
 	elif core.compare_proto_to_type(n.prototype, core.GlobalWriteProto) :
 		assert(len(args)==1)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
-		return "{0} = {1}".format(pipe_name, args[0][1])
+		stmt = "{0} = {1}".format(pipe_name, args[0][1])
 	elif core.compare_proto_to_type(n.prototype, core.MuxProto) :
 		assert(len(args)==3)
-		return "({0} ? {2} : {1})".format(*tuple(a for _, a in args))#XXX cast sometimes needed!!!
+		stmt = "({0} ? {2} : {1})".format(*tuple(a for _, a in args))#XXX cast sometimes needed!!!
 	elif core.compare_proto_to_type(n.prototype, core.TypecastProto) :
 		assert(len(args)==1)
 		out = tuple(t for t in n.terms if t.direction==core.OUTPUT_TERM)
 		assert(len(out)==1)
-		return "({0})({1})".format(out[0].type_name, args[0][1])
+		stmt = "({0})({1})".format(out[0].type_name, args[0][1])
 	else :
-		return __make_call(n, args, outs, tmp_args, code)
+		stmt = __make_call(n, args, outs, tmp_args, code)
 #		assert(n.prototype.exe_name != None)
 #		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
+	assert(not stmt is None)
+	return stmt
 
 
 def __get_initdel_value(code, n, state_var_prefix, del_type, tmp_slot, expr) :
@@ -351,7 +354,7 @@ def churn_task_code(task_name, cg_out) :
 	else :
 		raise Exception("can't guess state vars storage")
 
-	state_var_prefix = task_name + "_" #TODO state_var_prefix might be empty if state_vars_scope is local
+	state_var_prefix = task_name + "_"
 	state_vars = []
 	for d in sorted(expd_dels.keys(), key=lambda x: expd_dels[x][0].nr) :
 		del_out = expd_dels[d][1]
