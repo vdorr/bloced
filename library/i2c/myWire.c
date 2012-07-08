@@ -23,24 +23,27 @@
 */
 
 #include <stdlib.h>
-#include <string.h>
+/*#include <string.h>*/
 #include <inttypes.h>
 #include "twi_async.h"
 
-#include "myWire.h"
+/*#include "myWire.h"*/
 
-uint8_t Wire_rxBuffer[BUFFER_LENGTH];
-uint8_t Wire_rxBufferIndex = 0;
-uint8_t Wire_rxBufferLength = 0;
+/*#include "../../../target/arduino/include/vm.h"*/
+#include "export.h"
 
-uint8_t Wire_txAddress = 0;
-uint8_t Wire_txBuffer[BUFFER_LENGTH];
-uint8_t Wire_txBufferIndex = 0;
-uint8_t Wire_txBufferLength = 0;
+/*uint8_t Wire_rxBuffer[BUFFER_LENGTH];*/
+/*uint8_t Wire_rxBufferIndex = 0;*/
+/*uint8_t Wire_rxBufferLength = 0;*/
 
-uint8_t Wire_transmitting = 0;//XXX this is probably pointless in master-only implementation
-void (*Wire_user_onRequest)(void);
-void (*Wire_user_onReceive)(int);
+/*uint8_t Wire_txAddress = 0;*/
+/*uint8_t Wire_txBuffer[BUFFER_LENGTH];*/
+/*uint8_t Wire_txBufferIndex = 0;*/
+/*uint8_t Wire_txBufferLength = 0;*/
+
+/*uint8_t Wire_transmitting = 0;//XXX this is probably pointless in master-only implementation*/
+/*void (*Wire_user_onRequest)(void);*/
+/*void (*Wire_user_onReceive)(int);*/
 
 
 /*void i2c_init(vm_word_t ch, vm_word_t addr, vm_word_t speed, vm_word_t* st);*/
@@ -101,9 +104,33 @@ void i2c_snd(vm_bool_t en, vm_word_t addr,
 	*err = 0;
 }
 
-void i2c_rcv(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,
-	vm_word_t bytes_out_count, vm_char_t* bytes)
+void i2c_rcv(vm_bool_t en, vm_word_t addr,
+	vm_char_t sti,
+	vm_bool_t* eno,
+	vm_word_t* err,
+	vm_char_t* sto,
+	vm_word_t bytes_out_count,
+	vm_char_t* bytes)
 {
+	uint8_t ret;
+	if (en || sti)
+	{
+		*sto = sti;
+		if (twi_readFrom_async(sto, addr, bytes, bytes_out_count, 1, &ret))
+		{
+//TODO timeout
+			*eno = 0;
+			*err = 0;
+		}
+		else
+		{
+			*eno = 1;
+			*err = ret;
+			return;
+		}
+	}
+	*eno = 0;
+	*err = 0;
 }
 
 // -----------------------------------------------------------------------------------------------------------

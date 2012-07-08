@@ -25,30 +25,30 @@
 #ifndef TwoWire_h
 #define TwoWire_h
 
-#include <inttypes.h>
-#include <stdlib.h>
+//#include <inttypes.h>
+//#include <stdlib.h>
 
-#include "../../../target/arduino/include/vm.h"
+//#include "../../../target/arduino/include/vm.h"
 
-#define BUFFER_LENGTH 32
+//#define BUFFER_LENGTH 32
 
-static void Wire_onRequestService(void);
-static void Wire_onReceiveService(uint8_t*, int);
+//static void Wire_onRequestService(void);
+//static void Wire_onReceiveService(uint8_t*, int);
 
-void Wire_begin(uint8_t);
-void Wire_beginTransmission(uint8_t);
-uint8_t Wire_endTransmission(uint8_t);
-uint8_t Wire_requestFrom(uint8_t, uint8_t, uint8_t);
+//void Wire_begin(uint8_t);
+//void Wire_beginTransmission(uint8_t);
+//uint8_t Wire_endTransmission(uint8_t);
+//uint8_t Wire_requestFrom(uint8_t, uint8_t, uint8_t);
 
-size_t Wire_write_char(uint8_t);
-size_t Wire_write(const uint8_t *, size_t);
+//size_t Wire_write_char(uint8_t);
+//size_t Wire_write(const uint8_t *, size_t);
 
-int Wire_available(void);
-int Wire_read(void);
-int Wire_peek(void);
-void Wire_flush(void);
-void Wire_onReceive( void (*)(int) );
-void Wire_onRequest( void (*)(void) );
+//int Wire_available(void);
+//int Wire_read(void);
+//int Wire_peek(void);
+//void Wire_flush(void);
+//void Wire_onReceive( void (*)(int) );
+//void Wire_onRequest( void (*)(void) );
 
 #endif
 
