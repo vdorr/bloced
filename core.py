@@ -1274,6 +1274,14 @@ def clone_sheet(sheet, lib) :
 	return cloned
 
 
+def compare_prototypes(a, b) :
+	"""
+	check if prototypes equal
+	"""
+#TODO
+	pass
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 def builtin_blocks() :
@@ -1293,7 +1301,7 @@ def builtin_blocks() :
 		SysRqProto(),
 		InputProto(),
 		OutputProto(),
-		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
+		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name=TYPE_INFERRED) ], pure=True),
 		PipeProto(),
 		PipeEndProto(),
 		MuxProto(),
