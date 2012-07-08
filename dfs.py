@@ -1158,6 +1158,13 @@ class Workbench(WorkbenchData) :
 
 	def build_job(self, board_type, sheets, meta) :
 
+		if board_type is None :
+			self.__messages.put(("status", (("build", False, "board_type_not_set"), {})))
+			return None
+
+		board_info = build.get_board_types()[board_type]
+		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
+
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
 
 		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
@@ -1191,9 +1198,6 @@ class Workbench(WorkbenchData) :
 		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
 		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
 			all_in_one_arduino_dir=all_in_one_arduino_dir)
-
-		board_info = build.get_board_types()[board_type]
-		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
 		source_dirs = set()
 		for l in library.libs :
