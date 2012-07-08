@@ -77,7 +77,8 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 	term_pairs = get_terms_flattened(n, fill_for_unconnected_var_terms=True)
 	args_grouped = __arg_grouper(term_pairs, arguments)
 
-	outputs_cnt = sum((1 for t, _ in term_pairs if t.direction == core.OUTPUT_TERM))
+	outputs_cnt = sum((1 for _ in get_terms_flattened(n, direction=core.OUTPUT_TERM,
+		fill_for_unconnected_var_terms=True)))
 
 	for (_, variadic), arg_group_it in args_grouped :
 		if variadic :
@@ -97,6 +98,7 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 			arg_list.append(arg_code)
 		else :
 			((t, _), a), = arg_group_it
+			print here(), term_pairs, outputs_cnt
 			assert((outputs_cnt==1 and not t.variadic) if a is None else True);
 			if not a is None :
 				arg_list.append(a)
