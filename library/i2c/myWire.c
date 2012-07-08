@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include "utility/twi_async.h"
+#include "twi_async.h"
 
 #include "myWire.h"
 
@@ -43,13 +43,13 @@ void (*Wire_user_onRequest)(void);
 void (*Wire_user_onReceive)(int);
 
 
-void i2c_init(vm_word_t ch, vm_word_t addr, vm_word_t speed, vm_word_t* st);
+/*void i2c_init(vm_word_t ch, vm_word_t addr, vm_word_t speed, vm_word_t* st);*/
 
-void i2c_snd(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,
-	vm_word_t bytes_in_count, vm_char_t* bytes);
+/*void i2c_snd(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,*/
+/*	vm_word_t bytes_in_count, vm_char_t* bytes);*/
 
-void i2c_rcv(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,
-	vm_word_t bytes_out_count, vm_char_t* bytes);
+/*void i2c_rcv(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,*/
+/*	vm_word_t bytes_out_count, vm_char_t* bytes);*/
 
 // -----------------------------------------------------------------------------------------------------------
 
@@ -60,25 +60,31 @@ void i2c_init(vm_word_t ch, vm_word_t addr, vm_word_t speed, vm_word_t* err)
 
 	twi_setAddress(addr);
 
-	Wire_rxBufferIndex = 0;
-	Wire_rxBufferLength = 0;
+/*	Wire_rxBufferIndex = 0;*/
+/*	Wire_rxBufferLength = 0;*/
 
-	Wire_txBufferIndex = 0;
-	Wire_txBufferLength = 0;
+/*	Wire_txBufferIndex = 0;*/
+/*	Wire_txBufferLength = 0;*/
 
 	twi_init();
 
 	*err = 0;
 }
-	static uint8_t i2c_int_state = 0;
+/*	static uint8_t i2c_int_state = 0;*/
 
-void i2c_snd(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,
-	vm_word_t bytes_in_count, vm_char_t* bytes)
+void i2c_snd(vm_bool_t en, vm_word_t addr,
+	vm_char_t sti,
+	vm_bool_t* eno,
+	vm_word_t* err,
+	vm_char_t* sto,
+	vm_word_t bytes_in_count,
+	vm_char_t* bytes)
 {
 	uint8_t ret;
-	if (en || i2c_int_state)
+	if (en || sti)
 	{
-		if (twi_writeTo_async(&i2c_int_state, addr, bytes, bytes_in_count, 1, 1, &ret))
+		*sto = sti;
+		if (twi_writeTo_async(sto, addr, bytes, bytes_in_count, 1, 1, &ret))
 		{
 //TODO timeout
 			*eno = 0;
@@ -118,6 +124,7 @@ void i2c_rcv(vm_bool_t en, vm_word_t addr, vm_bool_t* eno, vm_word_t* err,
 /*	return rc;*/
 /*}*/
 
+#if 0
 void Wire_begin(uint8_t address)
 {
   twi_setAddress(address);
@@ -342,5 +349,5 @@ void Wire_onRequest( void (*function)(void) )
   Wire_user_onRequest = function;
 }
 
-
+#endif
 
