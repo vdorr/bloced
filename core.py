@@ -497,12 +497,12 @@ term_type_t = namedtuple("term", (
 #	"arg_index",
 	"name",
 #	"side", "pos",
-	"direction", "variadic", "commutative", "type_name"))
+	"direction", "variadic", "commutative", "type_name", "index"))
 
 
-def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) :
+def vmex_arg(a, known_types, index, variadic=False, commutative=False, direction=None) :
 	sig, name = a
-#	print here(), name, a
+#	print here(), a
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
@@ -513,7 +513,7 @@ def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) 
 	if len(type_names_found) != 1 :
 		raise Exception("unknown or ambiguous type name '{}'".format(sig))
 	(type_name, ) = type_names_found
-	return term_type_t(name, direction, variadic, commutative, type_name)
+	return term_type_t(name, direction, variadic, commutative, type_name, index)
 
 
 VMEX_SIG = "_VM_EXPORT_"
@@ -548,17 +548,18 @@ def __group_vmex_args(args_list) :
 #_VM_VA_CNT_ _VM_INPUT_
 #_VM_VA_LST_
 def parse_vmex_export(export, known_types) :
+#	print here(), export
 	ret_type, name, args_list = export
 	assert(VMEX_SIG in ret_type)
 #	print here(), name
 	args_info = []
 
-	for arg_group in __group_vmex_args(args_list) :
+	for arg_group, i in zip(__group_vmex_args(args_list), count()) :
 #		print here(), len(arg_group)
 
 		arg_group_len = len(arg_group)
 		if arg_group_len == 1 :
-			a = vmex_arg(arg_group[0], known_types)
+			a = vmex_arg(arg_group[0], known_types, i)
 			args_info.append(a)
 		elif arg_group_len == 2 :
 			(cnt_sig, cnt_name), (lst_sig, lst_name) = arg_group
@@ -570,7 +571,7 @@ def parse_vmex_export(export, known_types) :
 					direction = OUTPUT_TERM
 				else :
 					raise Exception(here() + " variadic term declaration lacks direction")
-				a = vmex_arg((lst_sig, lst_name), known_types,
+				a = vmex_arg((lst_sig, lst_name), known_types, i, 
 					variadic=True,
 					direction=direction)
 				args_info.append(a)
@@ -596,7 +597,9 @@ def parse_vmex_export(export, known_types) :
 	terms_out = [ a for a in args_info if a.direction == OUTPUT_TERM ]
 
 	if not terms_out and not "void" in ret_type :
-		terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+		terms_out = [ vmex_arg((ret_type, "out"), known_types, len(terms_in)) ]
+
+#	print here(), [ai.name for ai in terms_in], [ai.name for ai in terms_out]
 
 	return name, (terms_in, terms_out)
 
@@ -646,17 +649,19 @@ def __cmod_create_proto(lib_name, export) :
 	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
 
 	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
-	inputs = [ In(-i, name, dfs.W, pos,
-			type_name=type_name, variadic=variadic, commutative=commutative)
-		for (name, direction, variadic, commutative, type_name), pos, i
+	inputs = [ (arg_index, In(-i, name, dfs.W, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative))
+		for (name, direction, variadic, commutative, type_name, arg_index), pos, i
 			in zip(terms_in, in_terms_pos, count()) ]
-	outputs = [ Out(-i, name, dfs.E, pos,
-			type_name=type_name, variadic=variadic, commutative=commutative)
-		for (name, direction, variadic, commutative, type_name), pos, i
+	outputs = [ (arg_index, Out(-i, name, dfs.E, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative))
+		for (name, direction, variadic, commutative, type_name, arg_index), pos, i
 			in zip(terms_out, out_terms_pos, count()) ]
 
+#	print here(), [ t for _, t in sorted(inputs + outputs, key=lambda itm: itm[0]) ]
+
 	proto = CFunctionProto(block_name,
-			inputs + outputs,
+			[ t for _, t in sorted(inputs + outputs, key=lambda itm: itm[0]) ],
 			exe_name=block_name,
 			default_size=(width, height),
 			category=lib_name,
