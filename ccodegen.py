@@ -47,7 +47,6 @@ __OPS = {
 def __arg_zipper(term_pairs, arguments) :
 	i = 0
 	for t, t_nr in term_pairs :
-#		print here(), t, t_nr, i
 		if t_nr is None :
 			yield (t, t_nr), None
 		else :
@@ -64,29 +63,13 @@ def __arg_grouper(term_pairs, arguments) :
 
 
 def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
+	"""
+	generate code for function call
+	"""
 
-	print here(), args_and_terms, outs_and_terms
-
-#TODO core.cast_issues
-
-	args = tuple(a for _, a in args_and_terms)
-	outs = tuple(a for _, a in outs_and_terms)
-
-	assert(n.prototype.exe_name != None)
+	assert(not n.prototype.exe_name is None)
 
 	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
-#	inputs = in_terms(n)
-#	outputs = out_terms(n)
-
-	inputs = tuple(get_terms_flattened(n, direction=core.INPUT_TERM,
-		fill_for_unconnected_var_terms=True))
-	outputs = tuple(get_terms_flattened(n, direction=core.OUTPUT_TERM,
-		fill_for_unconnected_var_terms=True))
-
-#	print here(), n.terms, args, outs
-
-#	assert(len(args)==len(inputs))
-#	assert((len(outs)==len(outputs)) or (len(outs)==0 and len(outputs)==1) and not outputs[0][0].variadic)
 
 	arg_list = []
 
@@ -94,49 +77,39 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 	term_pairs = get_terms_flattened(n, fill_for_unconnected_var_terms=True)
 	args_grouped = __arg_grouper(term_pairs, arguments)
 
-#	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
-#	for term_pairs in get_terms_flattened(n, fill_for_unconnected_var_terms=True) :
-	if 1 :
+	outputs_cnt = sum((1 for t, _ in term_pairs if t.direction == core.OUTPUT_TERM))
 
-
-		for (name, variadic), arg_group_it in args_grouped :#__arg_grouper(term_pairs, arguments) :
-
-
-
-			if variadic :
-				arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
-				if not arg_group :
-					arg_code = "NULL"
-				else :
-					arg_type = arg_group[0][0].type_name
-					assert(all(t.type_name == arg_type for t, _ in arg_group))
-					array_size = tmp_args[arg_type]
-					array_size = 0 if array_size is None else array_size
-					code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
-						for (_, a), i in zip(arg_group, count()))
-					tmp_args[arg_type] = array_size + len(arg_group)
-					arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, array_size)
-				arg_list.append(str(len(arg_group)))
-				arg_list.append(arg_code)
+	for (_, variadic), arg_group_it in args_grouped :
+		if variadic :
+			arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
+			if not arg_group :
+				arg_code = "NULL"
 			else :
-				((t, t_nr), a), = arg_group_it
-				assert((len(outputs)==1 and not t.variadic) if a is None else True);
-				if not a is None :
-					arg_list.append(a)
+				arg_type = arg_group[0][0].type_name
+				assert(all(t.type_name == arg_type for t, _ in arg_group))
+				array_size = tmp_args[arg_type]
+				array_size = 0 if array_size is None else array_size
+				code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
+					for (_, a), i in zip(arg_group, count()))
+				tmp_args[arg_type] = array_size + len(arg_group)
+				arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, array_size)
+			arg_list.append(str(len(arg_group)))
+			arg_list.append(arg_code)
+		else :
+			((t, _), a), = arg_group_it
+			assert((outputs_cnt==1 and not t.variadic) if a is None else True);
+			if not a is None :
+				arg_list.append(a)
 
 	for type_name, cnt in tmp_args.items() :
 		array_size = tmp_var_args[type_name]
 		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
-#			print here(), type_name, cnt
 			tmp_var_args[type_name] = cnt
 
 	return n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
 
 
 def __implement(g, n, tmp_args, args, outs, code) :
-#, types, known_types, pipe_vars) :
-#	print here(2), n, args, outs
-#	print(here(), n.prototype.type_name, n.prototype.library)
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
@@ -247,9 +220,6 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				args.append(((in_term, in_t_nr), "{0}_tmp{1}".format(slot_type, slot)))
 			else :
 				assert(False)
-##				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
-#				raise Exception("holy shit! {} not found, {} {}".format(
-#					str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
@@ -269,11 +239,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
-#		print here(), n, args
 		assert(n==del_out)
-#		print(here(), "del_in=", del_in, n.delay, visited.keys())
 		if del_in in evaluated : #visited :
-#			print here(), del_out
 			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
@@ -284,15 +251,12 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
 				slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 				expr = "{0}_tmp{1}".format(slot_type, slot)
-#				print here(), tmp
 			else :
 				expr = "{0}del{1}".format(state_var_prefix, n.nr)
 	else :
-#		print(here(), n.prototype.type_name)
 		expr = __implement(g, n, tmp_args, args, outs, code)#, types, known_types, pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
-#	print "\texpr:", expr, "is_expr:", is_expr#, "tmp=", tmp
 
 	if is_expr :
 		((out_term, out_t_nr, succs), ) = outputs
@@ -308,7 +272,6 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 #			slot = add_tmp_ref(tmp, outputs[0][2], slot_type=term_type)
 #			print here(), n, out_term, term_type, "slot=", slot
 #			pprint(tmp)
-
 			if expr_slot_type is None :
 				code.append("(void){};".format(expr))
 			else :
