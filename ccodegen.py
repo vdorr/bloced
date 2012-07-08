@@ -63,7 +63,10 @@ def __arg_grouper(term_pairs, arguments) :
 		key=lambda i: (i[0][0].name, i[0][0].variadic))
 
 
-def __make_call(n, args, outs, tmp_var_args, code) :
+def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
+
+	args = tuple(a for _, a in args_and_terms)
+	outs = tuple(a for _, a in outs_and_terms)
 
 	assert(n.prototype.exe_name != None)
 
@@ -125,11 +128,11 @@ def __implement(g, n, tmp_args, args, outs, code) :
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
-		return __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for a in args))
+		return __OPS[n.prototype.type_name](n, tuple("({0})".format(a) for _, a in args))
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
-		return func_name + "(" + ", ".join(args + outs) + ")"
+		return func_name + "(" + ", ".join(tuple(a for _, a in (args + outs))) + ")"
 	elif core.compare_proto_to_type(n.prototype, core.GlobalReadProto) :
 		assert(len(args)==0)
 		pipe_name = block_value_by_name(n, "Name")
@@ -139,15 +142,15 @@ def __implement(g, n, tmp_args, args, outs, code) :
 		assert(len(args)==1)
 		pipe_name = block_value_by_name(n, "Name")
 		assert(pipe_name)
-		return "{0} = {1}".format(pipe_name, args[0])
+		return "{0} = {1}".format(pipe_name, args[0][1])
 	elif core.compare_proto_to_type(n.prototype, core.MuxProto) :
 		assert(len(args)==3)
-		return "({0} ? {2} : {1})".format(*args)#XXX cast sometimes needed!!!
+		return "({0} ? {2} : {1})".format(*tuple(a for _, a in args))#XXX cast sometimes needed!!!
 	elif core.compare_proto_to_type(n.prototype, core.TypecastProto) :
 		assert(len(args)==1)
 		out = tuple(t for t in n.terms if t.direction==core.OUTPUT_TERM)
 		assert(len(out)==1)
-		return "({0})({1})".format(out[0].type_name, args[0])
+		return "({0})({1})".format(out[0].type_name, args[0][1])
 	else :
 		return __make_call(n, args, outs, tmp_args, code)
 #		assert(n.prototype.exe_name != None)
@@ -200,13 +203,13 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 #TODO if all succs have same type different from out_term, cast now and store as new type
 #if storage permits, however
 			if len(outputs) > 1 :
-				outs.append("&{0}_tmp{1}".format(expr_slot_type, expr_slot))
+				outs.append(((out_term, out_t_nr), "&{}_tmp{}".format(expr_slot_type, expr_slot)))
 		elif len(succs) == 1 and len(outputs) == 1 :
 #			print here(), "passing by", n
 			pass
 		else :
 			dummies.add(term_type)
-			outs.append("&"+term_type+"_dummy")
+			outs.append(((out_term, out_t_nr), "&{}_dummy".format(term_type)))
 
 	for in_term, in_t_nr, preds in inputs :
 #		print here(), n, preds
@@ -220,13 +223,13 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		if core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			assert(m.value != None)
 			assert(len(m.value) == 1)
-			args.append(str(m.value[0]))
+			args.append(((in_term, in_t_nr), str(m.value[0])))
 		elif (n, in_term, in_t_nr) in subtrees :
-			args.append(subtrees.pop((n, in_term, in_t_nr)))
+			args.append(((in_term, in_t_nr), subtrees.pop((n, in_term, in_t_nr))))
 		else :
 			slot_type, slot = pop_tmp_ref(tmp, n, in_term, in_t_nr)
 			if slot != None:
-				args.append("{0}_tmp{1}".format(slot_type, slot))
+				args.append(((in_term, in_t_nr), "{0}_tmp{1}".format(slot_type, slot)))
 			else :
 #				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
 				raise Exception("holy shit! {} not found, {} {}".format(
@@ -243,10 +246,10 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			if core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto) :# is_initdel :
 #				print here(), args
 				assert(len(args)==1 and len(outs)==0)
-				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0])
+				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
 			else :
 				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
-		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0])
+		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0][1])
 
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
 		del_in, del_out = expd_dels[n.delay]
@@ -262,7 +265,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				assert(len(args)==1 and len(outs)==0)
 				del_type = types[del_out, del_out.terms[0], 0]
 				slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
-				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0])
+				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
 				slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 				expr = "{0}_tmp{1}".format(slot_type, slot)
 #				print here(), tmp
