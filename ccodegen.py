@@ -12,7 +12,7 @@ from utils import here
 
 # ------------------------------------------------------------------------------------------------------------
 
-#TODO argument number checking
+#TODO argument number and type checking
 __OPS = {
 	"xor" :		lambda n, args : "(" + "!=".join(("!" + a) for a in args) + ")",
 	"or" :		lambda n, args : "(" + "||".join(args) + ")",
@@ -52,7 +52,7 @@ def __arg_zipper(term_pairs, arguments) :
 			yield (t, t_nr), None
 		else :
 			if i < len(arguments) :
-				yield (t, t_nr), arguments[i] 
+				yield (t, t_nr), arguments[t, t_nr]# , arguments[i] 
 				i += 1
 			else :
 				yield (t, t_nr), None
@@ -64,6 +64,10 @@ def __arg_grouper(term_pairs, arguments) :
 
 
 def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
+
+	print here(), args_and_terms, outs_and_terms
+
+#TODO core.cast_issues
 
 	args = tuple(a for _, a in args_and_terms)
 	outs = tuple(a for _, a in outs_and_terms)
@@ -86,11 +90,19 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 
 	arg_list = []
 
-	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
+	arguments = dict(args_and_terms + outs_and_terms)
+	term_pairs = get_terms_flattened(n, fill_for_unconnected_var_terms=True)
+	args_grouped = __arg_grouper(term_pairs, arguments)
 
-#	for term_pairs, arguments in get_terms_flattened(n, direction=core.INPUT_TERM, fill_for_unconnected_var_terms=True) :
+#	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
+#	for term_pairs in get_terms_flattened(n, fill_for_unconnected_var_terms=True) :
+	if 1 :
 
-		for (name, variadic), arg_group_it in __arg_grouper(term_pairs, arguments) :
+
+		for (name, variadic), arg_group_it in args_grouped :#__arg_grouper(term_pairs, arguments) :
+
+
+
 			if variadic :
 				arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
 				if not arg_group :
@@ -158,6 +170,9 @@ def __implement(g, n, tmp_args, args, outs, code) :
 
 
 def __get_initdel_value(code, n, state_var_prefix, del_type, tmp_slot, expr) :
+	"""
+	generate code for InitDelay block
+	"""
 	code.append("if ( {0}del{1}_init ) {{".format(state_var_prefix, n.nr))
 	code.append("{0}_tmp{1} = {2}del{3};".format(del_type, tmp_slot, state_var_prefix, n.nr))
 	code.append("} else {")
@@ -231,9 +246,10 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			if slot != None:
 				args.append(((in_term, in_t_nr), "{0}_tmp{1}".format(slot_type, slot)))
 			else :
-#				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
-				raise Exception("holy shit! {} not found, {} {}".format(
-					str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
+				assert(False)
+##				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
+#				raise Exception("holy shit! {} not found, {} {}".format(
+#					str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
@@ -337,6 +353,9 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 
 
 def churn_task_code(task_name, cg_out) :
+	"""
+	generate code, declarations and variables for single task
+	"""
 #TODO list known meta values
 
 	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types, vars_other = cg_out
@@ -453,6 +472,9 @@ def churn_task_code(task_name, cg_out) :
 
 
 def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_type=core.VM_TYPE_WORD) :
+	"""
+	generate code for simple cooperative periodic task switching
+	"""
 
 	groups = dict(tsk_groups)
 
@@ -500,6 +522,7 @@ def churn_periodic_sched(tsk_groups, time_function, global_meta, f, tmr_data_typ
 
 def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
 	"""
+	generate code of module
 	tasks_cg_out = [ (task_name, cg_out), ... ]
 	f - writeble filelike object
 	"""
