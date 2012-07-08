@@ -434,10 +434,12 @@ class UnaryOp(BlockPrototype) :
 
 
 class BinaryOp(BlockPrototype) :
-	def __init__(self, type_name, category, exe_name=None, commutative=False) :
+	def __init__(self, type_name, category, exe_name=None, commutative=False,
+			output_type=TYPE_INFERRED) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66), Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66),
+				Out(0, "y", dfs.E, .5, type_name=output_type) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			commutative=commutative,
@@ -1322,14 +1324,14 @@ def builtin_blocks() :
 #			In(-2, "d", dfs.W, .66),
 #			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
 		UnaryOp("abs", "Arithmetic"),
-		BinaryOp("lt", "Arithmetic", commutative=False),
-		BinaryOp("gt", "Arithmetic", commutative=False),
-		BinaryOp("eq", "Arithmetic", commutative=False),
-		BinaryOp("lte", "Arithmetic", commutative=False),
-		BinaryOp("gte", "Arithmetic", commutative=False),
+		BinaryOp("lt", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("gt", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("eq", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("lte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("gte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
 
-#		TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
-#		TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
+		TypecastProto("bool", "Type Casting", VM_TYPE_BOOL),
+		TypecastProto("char", "Type Casting", VM_TYPE_CHAR),
 		TypecastProto("word", "Type Casting", VM_TYPE_WORD),
 		TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
 		TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
