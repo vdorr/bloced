@@ -59,7 +59,8 @@ def __arg_zipper(term_pairs, arguments) :
 
 
 def __arg_grouper(term_pairs, arguments) :
-	return  groupby(tuple(__arg_zipper(term_pairs, arguments)), key=lambda i: (i[0][0].name, i[0][0].variadic))
+	return  groupby(tuple(__arg_zipper(term_pairs, arguments)),
+		key=lambda i: (i[0][0].name, i[0][0].variadic))
 
 
 def __make_call(n, args, outs, tmp_var_args, code) :
@@ -75,12 +76,17 @@ def __make_call(n, args, outs, tmp_var_args, code) :
 	outputs = tuple(get_terms_flattened(n, direction=core.OUTPUT_TERM,
 		fill_for_unconnected_var_terms=True))
 
+#	print here(), n.terms, args, outs
+
 #	assert(len(args)==len(inputs))
 #	assert((len(outs)==len(outputs)) or (len(outs)==0 and len(outputs)==1) and not outputs[0][0].variadic)
 
 	arg_list = []
 
 	for term_pairs, arguments in ((inputs, args), (outputs, outs)) :
+
+#	for term_pairs, arguments in get_terms_flattened(n, direction=core.INPUT_TERM, fill_for_unconnected_var_terms=True) :
+
 		for (name, variadic), arg_group_it in __arg_grouper(term_pairs, arguments) :
 			if variadic :
 				arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
@@ -223,8 +229,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				args.append("{0}_tmp{1}".format(slot_type, slot))
 			else :
 #				print subtrees.keys()[0][0], subtrees.keys()[0][1], id(subtrees.keys()[0][0]), id(subtrees.keys()[0][1])
-				raise Exception("holy shit! %s not found, %s %s" %
-					(str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
+				raise Exception("holy shit! {} not found, {} {}".format(
+					str((id(n), id(in_term), in_t_nr)), str(tmp), str(subtrees)))
 
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
 		del_in, del_out = expd_dels[n.delay]
@@ -502,7 +508,7 @@ def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
 	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
 
 	if periodic_sched :
-		ps_cg_out = churn_periodic_sched(tsk_groups, "time_ms", meta, f,
+		ps_cg_out = churn_periodic_sched(tsk_groups, "millis", meta, f,
 			tmr_data_type=core.VM_TYPE_WORD)
 		tsk_cg_out.append(("loop", ps_cg_out))
 #		print here(), churn_task_code("loop", ps_cg_out)
