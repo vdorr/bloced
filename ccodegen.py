@@ -372,7 +372,7 @@ def churn_task_code(task_name, cg_out) :
 		del_type = types[del_out, del_out.terms[0], 0]
 		if d.value[0] is None : #initializable delay
 			state_vars.append("\t{4}{0} {1}del{2}_init = 0;{3}".format(
-				core.VM_TYPE_WORD, state_var_prefix, del_out.nr, linesep, st_v_scope))#TODO use vm_bool_t
+				core.VM_TYPE_BOOL, state_var_prefix, del_out.nr, linesep, st_v_scope))
 			del_init = 0
 		else :
 			_, del_init = parse_literal(d.value[0], known_types=known_types, variables={})
