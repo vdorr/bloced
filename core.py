@@ -21,7 +21,7 @@ else :
 
 #TODO fetch type informations from some "machine support package"
 
-type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
+type_t = namedtuple("type_t", ("size_in_words", "size_in_bytes", "priority", "arithmetic"))
 
 TYPE_VOID = "void"
 TYPE_INFERRED = "<inferred>"
@@ -36,11 +36,11 @@ VM_TYPE_BOOL = "vm_bool_t"
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
-	VM_TYPE_BOOL : type_t(None, None, 0),
-	VM_TYPE_CHAR : type_t(1, 1, 0), #TODO
-	VM_TYPE_WORD : type_t(1, 2, 1),
-	VM_TYPE_DWORD : type_t(2, 4, 2),
-	VM_TYPE_FLOAT : type_t(2, 4, 3),
+	VM_TYPE_BOOL : type_t(None, None, 0, False),
+	VM_TYPE_CHAR : type_t(1, 1, 0, True), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1, True),
+	VM_TYPE_DWORD : type_t(2, 4, 2, True),
+	VM_TYPE_FLOAT : type_t(2, 4, 3, True),
 }
 
 # ------------------------------------------------------------------------------------------------------------
@@ -50,6 +50,22 @@ OUTPUT_TERM = 2
 
 term_model_t = namedtuple("term_model_t", ("name", "default_side", "default_pos", "direction",
 	"type_name", "arg_index", "variadic", "commutative", "virtual"))
+
+
+def cast_issues(t0, t1) :
+	"""
+	test for possible issues when casting from t0 to t1
+	arguments are of type type_t
+	"""
+	possible = False
+	truncating = None
+	if not None in (t0, t1) :
+		possible = True #further checking will be needed with vm_string_t
+		truncating = False
+		if ((t0.arithmetic and not t1.arithmetic) or
+				(t0.arithmetic and t1.arithmetic and t0.priority > t1.priority)) :
+			truncating = True
+	return possible, truncating
 
 
 #def TermModel(arg_index, name, default_side, default_pos, direction, variadic, commutative,

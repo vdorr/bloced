@@ -464,6 +464,7 @@ def __parse_num_lit(value, base=10, known_types=None) :
 
 
 def parse_literal(s, known_types=None, variables={}) :
+#TODO datetime values, physical units
 	x = s.strip()
 	num_sig = (x[1:].strip()[0:2] if x[0] == "-" else x[0:2]).lower()
 	if x[0] == x[-1] == '"' :
@@ -1128,6 +1129,7 @@ def parse_task_period(s) :
 	"""
 	parse task period string and return period in ms or "idle"
 	"""
+#TODO use parse_literal
 	p = s.strip().lower()
 #	print here(), s
 	if p.endswith("ms") :
