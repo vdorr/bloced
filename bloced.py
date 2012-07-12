@@ -2073,7 +2073,7 @@ class BlockEditorWindow(object) :
 			mnu_redo,
 			SepMnu(),
 			mnu_cut, #CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut),
-			mnu_cut, #CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
+			mnu_copy, #CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
 			mnu_paste, #CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste),
 			mnu_delete, #CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
 			SepMnu(),
