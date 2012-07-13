@@ -719,14 +719,11 @@ class GraphModel(object) :
 	def add_block(self, block) :
 
 		if block.get_instance_id() is None :
-			print here(), block.get_instance_id()
 			new_id = max(self.__block_ids.keys()) + 1 if self.__block_ids else 0
 			assert(not(new_id in self.__block_ids))
 			block.set_instance_id(new_id)
 
 		self.__block_ids[block.get_instance_id()] = block
-
-#		print here(), block.get_instance_id()
 
 		self.blocks.append(block)
 #		block.graph = self #XXX ?
@@ -1140,7 +1137,7 @@ class WorkbenchData(object) :
 		self.__meta = {}
 
 
-class Workbench(WorkbenchData) :
+class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	@sync
@@ -1165,6 +1162,7 @@ class Workbench(WorkbenchData) :
 			sheet = GraphModel()
 #		print here(), name, sheet
 		self.sheets[name] = sheet
+		sheet.add_listener(self)
 		self.__changed("sheet_added", (sheet, name))
 
 
@@ -1172,6 +1170,7 @@ class Workbench(WorkbenchData) :
 #		if name != None :
 #			sheet, = self.get_sheet_by_name(name)
 		sheet = self.sheets.pop(name)
+		sheet.remove_listener(self)
 		self.__changed("sheet_deleted", (sheet, name))
 		return (sheet, name)
 
@@ -1393,9 +1392,11 @@ class Workbench(WorkbenchData) :
 	def rescan_ports(self) :
 		self.set_port_list(build.get_ports())
 
+
 	def __timer_job(self) :
 #TODO TODO TODO
 		pass
+
 
 	def read_messages(self) :
 		messages = []
@@ -1420,6 +1421,7 @@ class Workbench(WorkbenchData) :
 	@sync
 	def get_port_list(self) :
 		return self.__ports
+
 
 	@sync
 	def set_port_list(self, port_list) :
@@ -1481,6 +1483,13 @@ class Workbench(WorkbenchData) :
 	def blob_time(self) :
 		return self.__blob_time
 
+	def block_added(self, block) : print here()
+	def block_removed(self, block) : print here()
+	def block_changed(self, block, event=None) : print here()
+	def connection_added(self, sb, st, tb, tt, deserializing=False) : print here()
+	def connection_removed(self, sb, st, tb, tt) : print here()
+	def connection_changed(self, sb, st, tb, tt) : print here()
+	def meta_changed(self, key, key_present, old_value, new_value) : print here()
 
 #	@catch_all
 	def __init__(self, lib_dir=None,
