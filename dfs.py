@@ -32,6 +32,44 @@ import mathutils
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+class EditorInterface(object) :
+	"""
+	draft interface for generic editor to allow support of different types of resources in workbench
+	"""
+
+	def get_capabilities(self) :
+		return {}
+
+	def get_editor_class(self) :
+		return "bloced", "LibraryMetadataEditor" #for example
+
+	def get_changed(self) : pass
+	def undo(self) : pass
+	def redo(self) : pass
+	def get_selection(self) : pass
+	def clear_selection(self) : pass
+	def cut(self) : pass
+	def copy(self) : pass
+	def paste(self) : pass
+	def delete(self) : pass
+
+
+class GraphModelListener(object) :
+	"""
+	interface for GraphModel-events consuming object
+	"""
+	def block_added(self, block) : pass
+	def block_removed(self, block) : pass
+	def block_changed(self, block, event=None) : pass
+	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
+	def connection_removed(self, sb, st, tb, tt) : pass
+	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def meta_changed(self, key, key_present, old_value, new_value) : pass
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 #TODO replace usages of Tkinter stuff elsewhere
 C = "C"
 N = "n"
@@ -349,6 +387,20 @@ class BlockModel(BlockModelData) :
 	caption = property(lambda self: self.__caption, __set_caption)
 
 
+	def get_instance_id(self) :
+		return self.__instance_id
+
+
+	@edit("instance_id")
+	def __set_instance_id(self, value) :
+#		print here(), value
+		self.__instance_id = value
+
+
+	def set_instance_id(self, value) :
+		self.__set_instance_id(value)
+
+
 	def get_meta(self) :
 		w, h = self.prototype.default_size
 		meta = {
@@ -362,6 +414,7 @@ class BlockModel(BlockModelData) :
 			"value" : self.value,
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
+			"instance_id" : self.get_instance_id(),
 		}
 #		if (core.compare_proto_to_type(self.prototype, core.MacroProto) or
 #				core.compare_proto_to_type(self.prototype, core.FunctionProto)) :
@@ -601,7 +654,7 @@ class BlockModel(BlockModelData) :
 #		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 
-	def __init__(self, prototype, model, left = 0, top = 0) :
+	def __init__(self, prototype, model, instance_id=None, left = 0, top = 0) :
 		"""
 		when there is no parent use for model argument value
 		'itentionally left blank' instead of GraphModel instance
@@ -613,6 +666,7 @@ class BlockModel(BlockModelData) :
 #			prototype.default_size[0], prototype.default_size[1],
 #			prototype.terms, prototype.values)
 
+		self.__instance_id = instance_id
 		self.__orientation = (0, 0, 0)
 		self.__caption = prototype.type_name
 		self.__left = left
@@ -630,17 +684,6 @@ class BlockModel(BlockModelData) :
 	def __repr__(self) :
 		return "%s(%s)" % (self.prototype.type_name, str(self.value))
 #		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
-
-# ------------------------------------------------------------------------------------------------------------
-
-class GraphModelListener(object) :
-	def block_added(self, block) : pass
-	def block_removed(self, block) : pass
-	def block_changed(self, block, event=None) : pass
-	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
-	def connection_removed(self, sb, st, tb, tt) : pass
-	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
-	def meta_changed(self, key, key_present, old_value, new_value) : pass
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -674,6 +717,17 @@ class GraphModel(object) :
 
 
 	def add_block(self, block) :
+
+		if block.get_instance_id() is None :
+			print here(), block.get_instance_id()
+			new_id = max(self.__block_ids.keys()) + 1 if self.__block_ids else 0
+			assert(not(new_id in self.__block_ids))
+			block.set_instance_id(new_id)
+
+		self.__block_ids[block.get_instance_id()] = block
+
+#		print here(), block.get_instance_id()
+
 		self.blocks.append(block)
 #		block.graph = self #XXX ?
 		self.__history_frame_append("block_added", (block, ))
@@ -682,7 +736,10 @@ class GraphModel(object) :
 
 	def remove_block(self, block) :
 		self.blocks.remove(block)
-		
+
+		instance = self.__block_ids.pop(block.get_instance_id())
+		assert(instance == block)
+
 		succs = [ c for c in self.connections.iteritems() if c[0][0] == block ]
 
 		for s, dests in succs :
@@ -976,6 +1033,7 @@ class GraphModel(object) :
 		self.__listeners = []
 		self.__connections_meta = {}
 		self.__meta = {}
+		self.__block_ids = {}
 
 # ------------------------------------------------------------------------------------------------------------
 
