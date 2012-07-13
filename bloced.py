@@ -806,7 +806,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	# ----------------------------------------------------------------------------------------------------
 
-	def block_added(self, model) :
+	def block_added(self, sheet, model) :
 	#TODO unify
 #		b = self.m_view_types[model.prototype](self, model)
 		if core.compare_proto_to_type(model.prototype, core.JointProto) :
@@ -821,13 +821,15 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.block_index[model] = b
 		self.window_index[b.window] = b
 
-	def block_removed(self, block) :
+
+	def block_removed(self, sheet, block) :
 		window = self.block_index[block].window
 		self.canv.delete(window)
 		self.block_index.pop(block)
 		self.window_index.pop(window)
 
-	def block_changed(self, block, event=None, reroute=False) :
+
+	def block_changed(self, sheet, block, event=None, reroute=False) :
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]
@@ -850,7 +852,8 @@ class BlockEditor(Frame, GraphModelListener) :
 #			for k, v in self.block_index[block].get_wires() :
 #				self.update_connection(*(k + (True,)))
 
-	def connection_changed(self, sb, st, tb, tt) :
+
+	def connection_changed(self, sheet, sb, st, tb, tt) :
 		line, linecoords = self.connection2line[(sb, st, tb, tt)]
 		meta = self.model.get_connection_meta(sb, st, tb, tt)
 		if "path" in meta :
@@ -858,7 +861,8 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.connection2line[(sb, st, tb, tt)] = (line, path)
 			self.canv.coords(line, *path)
 
-	def connection_added(self, sb, st, tb, tt, deserializing=False) :
+
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) :
 		#TODO i/o arrow dir, make it cleaner
 		line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
 		self.connection2line[(sb, st, tb, tt)] = (line, [])
@@ -886,7 +890,8 @@ class BlockEditor(Frame, GraphModelListener) :
 #				for k, v in self.block_index[b].get_wires() :
 #					self.update_connection(*(k + (True,)))
 
-	def connection_removed(self, sb, st, tb, tt) :
+
+	def connection_removed(self, sheet, sb, st, tb, tt) :
 		for block, term in ((sb, st), (tb, tt)) :
 #			if isinstance(block.prototype, core.JointProto) :
 #				block.terms.remove(term)
@@ -905,6 +910,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			if block in self.block_index :
 				for k, v in self.block_index[block].get_wires() :
 					self.update_connection(*(k + (True,)))
+
 
 	# ----------------------------------------------------------------------------------------------------
 	
@@ -1302,7 +1308,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
 
 
-	def meta_changed(self, key, key_present, old_value, new_value) :
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
 		print here(), key, new_value
 		if key == "task_period" :
 			if new_value is None :

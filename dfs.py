@@ -59,13 +59,13 @@ class GraphModelListener(object) :
 	"""
 	interface for GraphModel-events consuming object
 	"""
-	def block_added(self, block) : pass
-	def block_removed(self, block) : pass
-	def block_changed(self, block, event=None) : pass
-	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
-	def connection_removed(self, sb, st, tb, tt) : pass
-	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
-	def meta_changed(self, key, key_present, old_value, new_value) : pass
+	def block_added(self, sheet, block) : pass
+	def block_removed(self, sheet, block) : pass
+	def block_changed(self, sheet, block, event=None) : pass
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) : pass
+	def connection_removed(self, sheet, sb, st, tb, tt) : pass
+	def connection_changed(self, sheet, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) : pass
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -870,35 +870,35 @@ class GraphModel(object) :
 
 	def __on_block_added(self, block) :
 		for listener in self.__listeners :
-			listener.block_added(block)
+			listener.block_added(self, block)
 
 	def __on_block_removed(self, block) :
 		for listener in self.__listeners :
-			listener.block_removed(block)
+			listener.block_removed(self, block)
 
 	def __on_block_changed(self, block, event, old_meta, new_meta) :
 		assert(not(old_meta is None))
 		self.__history_frame_append("block_meta", (block, old_meta))
 		for listener in self.__listeners :
-			listener.block_changed(block, event)
+			listener.block_changed(self, block, event)
 
 	def __on_connection_added(self, sb, st, tb, tt, deserializing=False) :
 		for listener in self.__listeners :
-			listener.connection_added(sb, st, tb, tt, deserializing)
+			listener.connection_added(self, sb, st, tb, tt, deserializing)
 
 	def __on_connection_removed(self, sb, st, tb, tt) :
 		for listener in self.__listeners :
-			listener.connection_removed(sb, st, tb, tt)
+			listener.connection_removed(self, sb, st, tb, tt)
 
 	def __on_connection_changed(self, sb, st, tb, tt) :
 #		raise Exception("not implemented")
 		for listener in self.__listeners :
-			listener.connection_changed(sb, st, tb, tt)
+			listener.connection_changed(self, sb, st, tb, tt)
 #			print(here(), (sb, st, tb, tt))
 
 	def __on_meta_changed(self, key, key_present, old_value, new_value) :
 		for listener in self.__listeners :
-			listener.meta_changed(key, key_present, old_value, new_value)
+			listener.meta_changed(self, key, key_present, old_value, new_value)
 
 	# ---------------------------------------------------------------------------------
 
@@ -1483,13 +1483,33 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def blob_time(self) :
 		return self.__blob_time
 
-	def block_added(self, block) : print here()
-	def block_removed(self, block) : print here()
-	def block_changed(self, block, event=None) : print here()
-	def connection_added(self, sb, st, tb, tt, deserializing=False) : print here()
-	def connection_removed(self, sb, st, tb, tt) : print here()
-	def connection_changed(self, sb, st, tb, tt) : print here()
-	def meta_changed(self, key, key_present, old_value, new_value) : print here()
+
+	def __sheet_changed(self, sheet) :
+#TODO indicate change
+		self.__changed("sheet_modified", (sheet, ))
+
+
+	def block_added(self, sheet, block) :
+		self.__sheet_changed(sheet)
+
+	def block_removed(self, sheet, block) :
+		self.__sheet_changed(sheet)
+
+	def block_changed(self, sheet, block, event=None) :
+		self.__sheet_changed(sheet)
+
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) :
+		self.__sheet_changed(sheet)
+
+	def connection_removed(self, sheet, sb, st, tb, tt) :
+		self.__sheet_changed(sheet)
+
+	def connection_changed(self, sheet, sb, st, tb, tt) :
+		self.__sheet_changed(sheet)
+
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
+		self.__sheet_changed(sheet)
+
 
 #	@catch_all
 	def __init__(self, lib_dir=None,
