@@ -30,6 +30,7 @@ if sys.version_info.major == 3 :
 	from tkinter import ttk
 	from tkinter.simpledialog import Dialog
 	from configparser import SafeConfigParser
+	from functools import reduce
 else :
 	import Tkinter as tk
 	import tkFont
@@ -1299,18 +1300,18 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 
 
 	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
-		print here(), key, new_value
+		print(here(), key, new_value)
 		if key == "task_period" :
 			if new_value is None :
 				index = 0
 			else :
-				index = self.period_box_values.values().index(new_value)
+				index = tuple(self.period_box_values.values()).index(new_value)
 			self.period_box.current(index)
 		if key == "sheet_type" :
 			if new_value is None :
 				index = 0
 			else :
-				index = self.sheet_type_box_values.values().index(new_value)
+				index = tuple(self.sheet_type_box_values.values()).index(new_value)
 			self.sheet_type_box.current(index)
 		else :
 			pass
@@ -1367,7 +1368,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 				textvariable=self.sheet_type_box_value, 
 	                        state="readonly")
 			self.sheet_type_box_values = OrderedDict((i, v) for v, i in zip(("Task", "Macro"), count()))
-			self.sheet_type_box["values"] = self.sheet_type_box_values.values()
+			self.sheet_type_box["values"] = tuple(self.sheet_type_box_values.values())
 			self.sheet_type_box.bind("<<ComboboxSelected>>", self.sheet_type_box_changed)
 			self.sheet_type_box.current(0)
 			self.sheet_type_box.grid(column=1, row=0)
@@ -1382,7 +1383,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 			self.period_box_values = OrderedDict((i, v) for v, i in zip(("Idle task",
 				"10ms", "20ms", "50ms", "100ms",
 				"200ms", "500ms", "1s", "2s", "5s", "10s"), count()))
-			self.period_box["values"] = self.period_box_values.values()
+			self.period_box["values"] = tuple(self.period_box_values.values())
 			self.period_box.current(0)
 			self.period_box.bind("<<ComboboxSelected>>", self.period_box_changed)
 			self.period_box.grid(column=3, row=0)
@@ -1616,7 +1617,7 @@ class BlockEditorWindow(object) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
 		if old in self.__menu_vars :
-			print here(), self.__menu_vars.pop(old)
+			print(here(), self.__menu_vars.pop(old))
 #		print(here(), mnu, index, new.text, old.text)
 		mnu.delete(index)
 		self.__add_submenu_item(mnu, new, index=index)
@@ -1805,7 +1806,7 @@ class BlockEditorWindow(object) :
 		elif event == "sheet_modified" :
 			pass #maybe show star on tab?
 		else :
-			print here(), "unhandled workbench event:", event
+			print(here(), "unhandled workbench event:", event)
 			changed = False
 		if changed :
 			self.__changed_event()
@@ -1930,7 +1931,7 @@ class BlockEditorWindow(object) :
 
 
 	def __list_libraries(self) :
-		print here(), tuple(self.work.blockfactory.get_lib_files())
+		print(here(), tuple(self.work.blockfactory.get_lib_files()))
 		return []
 	
 
@@ -2196,7 +2197,9 @@ class BlockEditorWindow(object) :
 
 
 	def __load_default_config(self, config) :
-		config.add_section("Path")
+		try :
+			config.add_section("Path")
+		except : pass
 		config.set("Path", "all_in_one_arduino_dir", "")
 
 
@@ -2219,7 +2222,6 @@ class BlockEditorWindow(object) :
 			self.__load_default_config(self.config)
 			try :
 				with open(config_file, "w") as cf :
-					print here()
 					self.config.write(cf)
 			except :
 				print(here(), "error while writing '" + config_file + "'")

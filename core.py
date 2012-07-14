@@ -14,6 +14,7 @@ from utils import here
 import sys
 if sys.version_info.major == 3 :
 	from io import StringIO
+	from functools import reduce
 else :
 	from StringIO import StringIO
 
@@ -1205,7 +1206,7 @@ def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 	lib, (item, proto) = lib_data
 
 	if w_data is None :
-		with open(item.file_path) as f :
+		with open(item.file_path, "rb") as f :
 			w_data = serializer.unpickle_workbench_data(f)
 
 	res_found = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, sheet_name))

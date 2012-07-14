@@ -1198,7 +1198,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 #			self.build_job(board_type, sheets, meta)#TODO refac build invocation
 
 		except Exception as e :
-			print here(), traceback.format_exc()
+			print(here(), traceback.format_exc())
 			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
 
 
@@ -1241,7 +1241,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
 		except Exception as e:
-			print here(), traceback.format_exc()
+			print(here(), traceback.format_exc())
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
 

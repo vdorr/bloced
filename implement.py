@@ -10,6 +10,8 @@ import sys
 from hashlib import md5
 import os
 from utils import here
+if sys.version_info.major == 3 :
+	from functools import reduce
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1255,10 +1257,13 @@ def main() :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	import serializer
+
+	if len(sys.argv) != 3 :
+		print("expected exactly 2 arguments")
+		exit(100)
+
 	action = sys.argv[1]
 	fname = os.path.abspath(sys.argv[2])
-	if len(sys.argv) == 4 :
-		pass#TODO use output file
 
 	if os.path.splitext(fname)[1].lower() != ".w" :#TODO path separator
 		print("formats other than .w are not supported anymore")

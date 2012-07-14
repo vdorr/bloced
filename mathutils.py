@@ -1,6 +1,10 @@
 
 from math import sqrt
 from collections import namedtuple
+import sys
+
+if sys.version_info.major == 3 :
+	from functools import reduce
 
 # ------------------------------------------------------------------------------------------------------------
 

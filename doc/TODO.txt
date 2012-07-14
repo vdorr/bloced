@@ -36,7 +36,7 @@ DONE - editor context menu
 make operators variadic
 keep out of collisions in global vars names, take into account delays and temps
 DONE (rejected) - select block with right-click
-file menu - Revert
+DONE (rejected - reopen would do) - file menu - Revert
 editor move in grid
 editor show grid
 DONE - editor make move with mouse undoable at once
@@ -58,5 +58,5 @@ use block meta when pasting from clipboard
 DONE - use fixed output type for comparison and logic blocks
 loop detection
 type truncation detection (especially with Delay)
-examples_tests.py
+DONE - examples_tests.py
 remember last directory in open dialog and so on
