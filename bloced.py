@@ -1685,8 +1685,8 @@ class BlockEditorWindow(object) :
 		except IOError :
 			self.show_warning("Failed to open file '{0}'".format(fname))
 		else :
-			self.__set_current_file_name(fname)
 			self.__changed = False
+			self.__set_current_file_name(fname)
 			self.__update_recent_files(fname)
 			self.__select_board(self.work.get_board())
 			self.__select_port(self.work.get_port())
@@ -1712,8 +1712,6 @@ class BlockEditorWindow(object) :
 
 
 	def mnu_mode_run(self, a=None) :
-		if not self.work.have_blob() :
-			self.work.build()
 		self.work.upload()
 
 
@@ -1731,12 +1729,12 @@ class BlockEditorWindow(object) :
 
 
 	def __choose_port(self, *a, **b) :
-		print(here(), self.work.get_port(), " ->", a[0].get())
+#		print(here(), self.work.get_port(), " ->", a[0].get())
 		self.work.set_port(a[0].get())
 
 
 	def __choose_board(self, *a, **b) :
-		print(here(), self.work.get_board(), " ->", a[0].get())
+#		print(here(), self.work.get_board(), " ->", a[0].get())
 		self.work.set_board(a[0].get())
 
 
@@ -1802,19 +1800,24 @@ class BlockEditorWindow(object) :
 
 
 	def __change_callback(self, w, event, data) :
-		print(here(), w, event, data)
+#		print(here(), w, event, data)
 		sheet_name = None
-		changed = False
+		changed = True
 		if event == "sheet_added" :
 			sheet, sheet_name = data #?
 			self.add_sheet(sheet, sheet_name)
-			changed = True
+#			changed = True
 		elif event == "sheet_deleted" :
 			sheet, sheet_name = data #?
-			self.delete_sheet(sheet, sheet_name)
-			changed = True
-#		if changed :
-#			self.__changed_event()
+#			self.delete_sheet(sheet, sheet_name)
+#			changed = True
+		elif event == "sheet_modified" :
+			pass #maybe show star on tab?
+		else :
+			print here(), "unhandled workbench event:", event
+			changed = False
+		if changed :
+			self.__changed_event()
 		if not sheet_name is None :
 			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
 				self.__list_local_block()

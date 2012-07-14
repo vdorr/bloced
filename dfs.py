@@ -1439,6 +1439,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def set_board(self, board) :
 		if board in self.__board_types :
 			self.__board = board
+			self.__changed("board_set", (board, ))
 		return self.__board
 
 
@@ -1451,6 +1452,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def set_port(self, port) :
 		if port in { p[0] for p in self.__ports } :
 			self.__port = port
+			self.__changed("port_set", (port, ))
 		return self.__port
 
 
@@ -1464,16 +1466,6 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			self.__change_callback(self, event, data)
 
 
-#TODO TODO TODO
-	def __sheet_changed_event(self) :
-#		self.__changed = True
-#		self.__set_current_file_name(self.__fname)
-		pass
-
-
-	MULTITHREADED = True
-
-
 	@sync
 	def have_blob(self) :
 		return not self.__blob is None
@@ -1485,7 +1477,6 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __sheet_changed(self, sheet) :
-#TODO indicate change
 		self.__changed("sheet_modified", (sheet, ))
 
 
@@ -1509,6 +1500,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
 		self.__sheet_changed(sheet)
+
+
+	MULTITHREADED = True
 
 
 #	@catch_all
