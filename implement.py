@@ -1044,6 +1044,9 @@ def __check_for_cycles_post_visit(n, visited) :
 
 
 def check_for_cycles(g) :
+	"""
+	return possibly incomplete list of cycles in graph g
+	"""
 	pass
 
 
@@ -1051,17 +1054,21 @@ def check_for_cycles(g) :
 
 
 def create_function_call(name) :
+	"""
+	return block instance calling c function <name> with zero arguments
+	"""
 	block = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
 	block.value = (name, )
 	return block
 
 
-def implement_dfs(model, meta, codegen, known_types, out_fobj) :
-	graph, delays = make_dag(model, meta, known_types)
-	types = infer_types(graph, delays, known_types=known_types)
-	libs_used = {}
-	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
-	out_fobj.write(code)#XXX pass out_fobj to codegen?
+#probably not needed anymore
+#def implement_dfs(model, meta, codegen, known_types, out_fobj) :
+#	graph, delays = make_dag(model, meta, known_types)
+#	types = infer_types(graph, delays, known_types=known_types)
+#	libs_used = {}
+#	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
+#	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
 def process_sheet(dag, meta, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement) :
@@ -1250,6 +1257,9 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 # ------------------------------------------------------------------------------------------------------------
 
 def main() :
+	"""
+	standalone entry point, looking for arguments in sys.argv
+	"""
 #	import argparse
 #	parser = argparse.ArgumentParser(description="bloced")
 #	parser.add_argument("file", metavar="fname", type=str, nargs=1,
