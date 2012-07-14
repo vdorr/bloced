@@ -1682,6 +1682,7 @@ class BlockEditorWindow(object) :
 			self.__update_recent_files(fname)
 			self.__select_board(self.work.get_board())
 			self.__select_port(self.work.get_port())
+			self.__update_status_bar()
 
 
 	def save_file(self, fname) :
@@ -1746,7 +1747,6 @@ class BlockEditorWindow(object) :
 				msg = "build started ..."
 			else :
 				msg = "build ok" if is_ok else "build failed"
-			self.status_label_right.configure(text=msg)
 
 		if not term_stream is None :
 #			self.term_txt.insert("1.0", "hello")
@@ -1791,6 +1791,16 @@ class BlockEditorWindow(object) :
 		self.__select_sheet(name)
 
 
+	def __update_status_bar(self) :
+		board = self.work.get_board()
+		port = self.work.get_port()
+		target = "{}@{}".format(
+			"(board not set)" if board is None else self.work.get_board_types()[board]["name"],
+			"(port not set)" if port is None else port)
+		self.status_label_right.configure(text=target)
+#		self.status_label_left.configure(text="?")
+
+
 	def __change_callback(self, w, event, data) :
 #		print(here(), w, event, data)
 		sheet_name = None
@@ -1805,6 +1815,8 @@ class BlockEditorWindow(object) :
 #			changed = True
 		elif event == "sheet_modified" :
 			pass #maybe show star on tab?
+		elif event in ("board_set","port_set") :
+			self.__update_status_bar()
 		else :
 			print(here(), "unhandled workbench event:", event)
 			changed = False
@@ -2317,11 +2329,12 @@ class BlockEditorWindow(object) :
 		self.statusbar.columnconfigure(0, weight=1)
 		self.statusbar.columnconfigure(1, weight=1)
 
-		self.status_label_left = tk.Label(self.statusbar, text="left", relief=tk.SUNKEN)
+		self.status_label_left = tk.Label(self.statusbar, text="", relief=tk.SUNKEN)
 		self.status_label_left.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.S))
 
-		self.status_label_right = tk.Label(self.statusbar, text="right", relief=tk.SUNKEN)
+		self.status_label_right = tk.Label(self.statusbar, text="", relief=tk.SUNKEN)
 		self.status_label_right.grid(column=1, row=0, sticky=(tk.N, tk.E, tk.S))
+		self.__update_status_bar()
 
 		self.setup_menus()
 

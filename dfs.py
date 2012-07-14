@@ -1443,7 +1443,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		return self.__board
 
 
-	@sync
+#	@sync
 	def get_board(self) :
 		return self.__board
 
@@ -1456,7 +1456,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		return self.__port
 
 
-	@sync
+#	@sync
 	def get_port(self) :
 		return self.__port
 
