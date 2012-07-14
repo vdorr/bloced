@@ -1,45 +1,36 @@
 #! /usr/bin/python
 
-from sys import exit, version_info
 from pprint import pprint
 from collections import namedtuple
 from functools import partial
-from itertools import dropwhile, groupby, count, islice
-#import argparse #TODO use sys instead
-import traceback
+from itertools import groupby, count, islice
+#import argparse
+#import traceback
 import os
-import string
 import pickle
 import fnmatch
 from collections import OrderedDict
 import sys
+import webbrowser
 
 import pyperclip
 
-import webbrowser
-
 import autoroute
-#from dfs import *
 import dfs
 import core
-#from serializer import *
 import serializer
-#from implement import implement_dfs, try_mkmac, here
 from utils import here
 import mathutils
-import build
 
-if version_info.major == 3 :
-#	from tkinter import * #TODO this is not good
+if sys.version_info.major == 3 :
 	import tkinter as tk
-	from tkinter import font as tkFont #XXX ?!?!?!?
+	from tkinter import font as tkFont
 	import tkinter.messagebox as tkMessageBox
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
 	from tkinter.simpledialog import Dialog
 	from configparser import SafeConfigParser
 else :
-#	from Tkinter import * #TODO this is not good
 	import Tkinter as tk
 	import tkFont
 	import tkMessageBox
@@ -47,12 +38,6 @@ else :
 	import ttk
 	from tkSimpleDialog import Dialog
 	from ConfigParser import SafeConfigParser
-
-# ------------------------------------------------------------------------------------------------------------
-
-#TODO map from model to presentation: { dfs.JointProto : Joint, BlockModel:
-#TODO somehow implement system of "actions" so its not neccessary to have separate  implementations
-# for menu and shortcut handlers, use functools.partial or so, look at gtk
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -389,7 +374,6 @@ class Block(tk.Canvas, BlockBase) :
 		self.model.height = h
 
 
-	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here()#, self.model.prototype, self.model.prototype.values
@@ -1375,7 +1359,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 			self.attr_frame.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N))
 			self.attr_frame.pack(fill=tk.X, expand=False)
 		if 0 :
-			self.sheet_type_lbl = tk.Label(self.attr_frame, text="Sheet Type ");
+			self.sheet_type_lbl = tk.Label(self.attr_frame, text="Sheet Type ")
 			self.sheet_type_lbl.grid(column=0, row=0)
 
 			self.sheet_type_box_value = tk.StringVar()
@@ -1388,7 +1372,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 			self.sheet_type_box.current(0)
 			self.sheet_type_box.grid(column=1, row=0)
 		if 1 :
-			self.period_lbl = tk.Label(self.attr_frame, text="Period ");
+			self.period_lbl = tk.Label(self.attr_frame, text="Period ")
 			self.period_lbl.grid(column=2, row=0)
 
 			self.period_box_value = tk.StringVar()
@@ -1669,7 +1653,8 @@ class BlockEditorWindow(object) :
 
 
 	def save_current_file(self, a=None) :
-		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=dfs.KNOWN_EXTENSIONS))
+		return self.save_file(self.current_filename if self.have_file
+			else asksaveasfilename(filetypes=dfs.KNOWN_EXTENSIONS))
 
 
 	def new_file(self, a=None) :
@@ -2360,7 +2345,7 @@ class BlockEditorWindow(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-if __name__ == "__main__" :
+def main() :
 #	be = BlockEditorWindow()
 #	if len(sys.argv) == 2 :
 #		be.open_this_file_new(os.path.abspath(os.path.join(os.path.curdir, sys.argv[1])))
@@ -2377,6 +2362,10 @@ if __name__ == "__main__" :
 #		w.work._Workbench__set_should_finish()
 #TODO kill threads!!!
 		raise
+
+
+if __name__ == "__main__" :
+	main()
 
 # ------------------------------------------------------------------------------------------------------------
 
