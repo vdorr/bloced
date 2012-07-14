@@ -415,12 +415,10 @@ def get_terms_flattened(block, direction=None, fill_for_unconnected_var_terms=Fa
 
 
 def in_terms(block) :
-#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
 	return tuple(get_terms_flattened(block, direction=core.INPUT_TERM))
 
 
 def out_terms(block) :
-#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
 	return tuple(get_terms_flattened(block, direction=core.OUTPUT_TERM))
 
 
@@ -1021,15 +1019,20 @@ def block_cache_init() :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def __check_for_cycles_post_visit(n, visited) :
-	pass
+def __check_for_cycles_post_visit(cycles, n, visited) :
+	print here(), n
 
 
 def check_for_cycles(g) :
 	"""
 	return possibly incomplete list of cycles in graph g
 	"""
-	pass
+
+	cycles = []
+
+	dft_alt(g, post_visit=partial(__check_for_cycles_post_visit, cycles))
+
+	return cycles
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1197,6 +1200,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 		for tsk_name, s in tsk_sheets :
 #XXX mangle/pre/postfix tsk_name
 			dag = make_dag(s, None, known_types, do_join_taps=False)
+#			print here(), check_for_cycles(dag[0])
 			meta = dict(s.get_meta())
 			if "task_period" in meta :
 				tsk_period = parse_task_period(meta["task_period"])
