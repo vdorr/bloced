@@ -34,35 +34,18 @@ def dict_map(d, k_map, v_map, item_filter=lambda k, v: True) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-##TODO implement
-##TODO possibly use in dft
-#def __edges_iter(neighbours) :
-#	for st, dests in neighbours :
-#		for tb, tt in dests :
-#			yield (st, tb, tt)
-
-# ------------------------------------------------------------------------------------------------------------
-
-#TODO TODO TODO
-
-#def __neigbourhood_sanity_check(neigbourhood) :
-#	pass
-
-def __dag_structural_check(g, stop_on_first=True) :
-# implicit feedback loops
-# explicit feedback loops matching
-	return False
-
 
 def __dag_sanity_check(g, stop_on_first=True) :
-# 1) dangling references (because of joints and macroes) :
-#  a) terms in neigbourhood but not in prototype
-#  b) the same as above for neigbours
-#  c) blocks in neigbours but not in graph
+	"""
+	1) dangling references (because of joints and macroes) :
+	  a) terms in neigbourhood but not in prototype
+	  b) the same as above for neigbours
+	  c) blocks in neigbours but not in graph
+	2) basic rules :
+	  a) one predeccessor to input (equals unconnected inputs)
+	  b) matching i/o directions
+	"""
 #TODO matching predeccessors and successors lists
-# 2) basic rules :
-#  a) one predeccessor to input (equals unconnected inputs)
-#  b) matching i/o directions
 #TODO duplicities in neighbour lists
 	for b, (p, s) in g.items() :
 		for t, nr, preds in p :
@@ -92,8 +75,6 @@ def __dag_sanity_check(g, stop_on_first=True) :
 				if not t_succ in b_succ.prototype.terms :
 					return (False, 10)
 	return (True, )
-
-#TODO TODO TODO
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -190,7 +171,8 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 		for b_pred, t_pred, t_pred_nr in values :
 			assert(t_pred.direction == core.OUTPUT_TERM)
 			b_pred_succ = g[b_pred].s
-			__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
+			__neighbourhood_safe_replace(
+				b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None)# now remove connection to n
 			for b, t, nr in succs :
 				assert(t.direction == core.INPUT_TERM)
 				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
@@ -202,38 +184,32 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 		for b_succ, t_succ, t_succ_nr in values :
 			assert(t_succ.direction == core.INPUT_TERM)
 			b_succ_pred = g[b_succ].p
-			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
+			__neighbourhood_safe_replace(
+				b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) # remove connection to n
 			for b, t, nr in preds :
 				assert(t.direction == core.OUTPUT_TERM)
 				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
-
-#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, core.OUTPUT_TERM, core.INPUT_TERM),) :
-#		assert(n_t.direction == dir_from)
-#		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
-#		for b_adj, t_adj, t_adj_nr in values :
-#			assert(t_adj.direction == dir_to)
-#			b_adj_pred, _ = neighbourhood_from_term_dir(g[b_adj], dir_from)
-#			__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), None) #remove connection to n
-#			for b, t, nr in replacement :
-#				assert(t.direction == dir_from)
-#				__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), (b, t, nr))
-#				_, b_succs = neighbourhood_from_term_dir(g[b], dir_from)
-#				__neighbourhood_safe_replace(b_succs, t, nr, None, (b_adj, t_adj, t_adj_nr))
-
 	return None
 
 
 def printg(g) :
+	"""
+	print grap g in somehow readable form
+	"""
 	for b, (_, s) in g.items() :
 		for t, x in s :
 			print(str(b)+str(t))
 			for nb, nt in x :
-				print("\t -> %s%s"%(str(nb), str(nt)))
+				print("\t -> {}{}".format(str(nb), str(nt)))
 
 
 def dag_merge(l) :
+	"""
+	l is list of tuples produced by make_dag [ (grap, delays), ... ]
+	return single (grap, delays) tuple made of input list
+	"""
 	g, d = {}, {}
 	for graph0, delays0 in l :
 		g.update(graph0)
@@ -277,6 +253,11 @@ def remove_block(g, n) :
 
 
 def block_value_by_name(n, value_name) :
+	"""
+	n is BlockModel instance
+	search for position of value_name in prototype value names and
+	return value from block instance on given position
+	"""
 	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
 
 
@@ -723,7 +704,7 @@ def dft(g, v,
 		sort_successors = lambda *a, **b: None,
 		sinks_to_sources=True,
 		undirected=False,
-		visited={},
+		visited=None,
 		term=None) :
 	"""
 	graph structure:
@@ -734,7 +715,8 @@ def dft(g, v,
 			 s=[ ]), ...
 	}
 	"""
-
+	if visited is None :
+		visited = {}
 	visited[v] = True
 	term_list = None
 	if term != None :
