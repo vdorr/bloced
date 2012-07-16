@@ -562,6 +562,9 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 	else :
 		filename = a_hex
 
+	if filename is None :
+		return (50, )
+
 	print("filename=", filename)
 
 	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
