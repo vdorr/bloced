@@ -662,7 +662,8 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 
 
 def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
-		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
+		sort_successors, visited, sinks_to_sources, undir,
+		term_list=None, follow_visited=False) :
 
 #	terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
 #	pre_visit(root, visited, terms)
@@ -681,14 +682,15 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		n, prev, it = stack[-1]
 		if prev != None :
 			nt, nt_nr, m, mt, mt_nr = prev
-			assert(n in visited if undir else True)
-			assert(m in visited if undir else True)
+			assert(n in visited)
+			assert(m in visited)
 			post_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 		try :
 			((nt, nt_nr, m, mt, mt_nr), ) = islice(it, 1)
 			stack[-1] = n, (nt, nt_nr, m, mt, mt_nr), it
 			dive = pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
-			if not m in visited and (dive is None or (len(dive) > 0 and dive[0] != True)) :
+			do_dive = dive is None or (len(dive) > 0 and dive[0] != True)
+			if (follow_visited or not m in visited) and do_dive :
 				visited[m] = True
 				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
 #				print "\t", here(), m
@@ -708,7 +710,8 @@ def dft(g, v,
 		sinks_to_sources=True,
 		undirected=False,
 		visited=None,
-		term=None) :
+		term=None,
+		follow_visited=False) :
 	"""
 	graph structure:
 	{
@@ -728,7 +731,9 @@ def dft(g, v,
 			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
 
 	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
-		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
+		post_visit, sort_successors, visited, sinks_to_sources, undirected,
+		term_list=term_list,
+		follow_visited=follow_visited)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -740,7 +745,8 @@ def dft_alt(g,
 		pre_tree = lambda *a, **b: None,
 		post_tree = lambda *a, **b: None,
 		roots_sorter=dft_alt_roots_sorter,
-		sinks_to_sources=True) :
+		sinks_to_sources=True,
+		follow_visited=False) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 
 	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
@@ -756,7 +762,8 @@ def dft_alt(g,
 			post_visit = post_visit,
 			sinks_to_sources=sinks_to_sources,
 			undirected=False,
-			visited=visited) 
+			visited=visited,
+			follow_visited=follow_visited) 
 		post_tree(v, visited)
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1026,9 +1033,6 @@ def block_cache_init() :
 
 
 def __check_for_cycles_pre_dive(cycles, stack, breaks, n, nt, nt_nr, m, mt, mt_nr, visited) :
-
-	visited.clear()
-
 	if (n, nt, nt_nr, m, mt, mt_nr) in cycles :
 		return (True, ) #do NOT dive
 
@@ -1042,7 +1046,7 @@ def __check_for_cycles_pre_dive(cycles, stack, breaks, n, nt, nt_nr, m, mt, mt_n
 	except KeyError :
 		stack[n, nt, nt_nr, m, mt, mt_nr] = len(stack)
 
-	return None #do dive
+	return (False, ) #do dive
 
 
 def __check_for_cycles_post_dive(cycles, stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
@@ -1066,8 +1070,10 @@ def check_for_cycles(g) :
 	breaks = None
 
 #TODO if there are no sinks nor sources, try all blocks as source
+#TODO if there are sinks or sources, still there might be component with cycle
 
 	dft_alt(g, roots_sorter=dft_alt_simple_roots_sorter, sinks_to_sources=False,
+		follow_visited=True,
 		pre_dive=partial(__check_for_cycles_pre_dive, cycles, stack, breaks),
 		post_dive=partial(__check_for_cycles_post_dive, cycles, stack),
 		pre_tree=partial(__check_for_cycles_tree_callback, cycles, stack),
