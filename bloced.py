@@ -12,6 +12,7 @@ import fnmatch
 from collections import OrderedDict
 import sys
 import webbrowser
+import time
 
 import pyperclip
 
@@ -1740,13 +1741,24 @@ class BlockEditorWindow(object) :
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
-	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None) :
-		print("workbench changed", job, is_ok, reason)
+	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None, other=None) :
+#		print(here(), "workbench changed", job, is_ok, reason, other)
 		if job == "build" :
-			if reason == "build_started" :
-				msg = "build started ..."
-			else :
-				msg = "build ok" if is_ok else "build failed"
+#			if reason == "build_started" :
+#				msg = "build started ..."
+#			else :
+#				msg = "build ok" if is_ok else "build failed"
+			pass
+		elif job == "upload" :
+			if reason == "upload_started" :
+				blob_time, prog_mcu, port = other["info"]
+				term_stream = "uploading blob dated {} to {} at {}".format(
+					time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(blob_time)),
+					prog_mcu, port) + os.linesep
+			elif reason == "upload_failed" :
+				term_stream = "upload failed ({})".format(other["reason"]) + os.linesep
+			elif reason == "upload_done" :
+				term_stream = "upload succeeded" + os.linesep
 
 		if not term_stream is None :
 #			self.term_txt.insert("1.0", "hello")
@@ -1802,7 +1814,7 @@ class BlockEditorWindow(object) :
 
 
 	def __change_callback(self, w, event, data) :
-#		print(here(), w, event, data)
+#		print(here(), event)
 		sheet_name = None
 		changed = True
 		if event == "sheet_added" :
@@ -1943,7 +1955,7 @@ class BlockEditorWindow(object) :
 
 
 	def __list_libraries(self) :
-		print(here(), tuple(self.work.blockfactory.get_lib_files()))
+#TODO		print(here(), tuple(self.work.blockfactory.get_lib_files()))
 		return []
 	
 

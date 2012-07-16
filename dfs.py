@@ -1319,19 +1319,30 @@ class Workbench(WorkbenchData, GraphModelListener) :
 #		prog_port, blob = None, None
 		board_info = self.__board_types[self.get_board()]
 		prog_mcu = board_info["build.mcu"]
-		self.__jobs.put(("upload", (prog_mcu, self.__blob)))
+		self.__jobs.put(("upload", (prog_mcu, self.get_port(), self.__blob, self.__blob_time)))
 
 
-	def upload_job(self, prog_mcu, blob) :
-		print(here())
-		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
+	def upload_job(self, prog_mcu, port, blob, blob_time) :
+		if blob is None :
+			self.__messages.put(("status", (("upload", False, "upload_failed"),
+				{ "other" : { "reason" : "no_blob"}})))
+			return None
+
+		self.__messages.put(("status", (("upload", True, "upload_started"),
+			{ "other" : { "info" : (blob_time, prog_mcu, port) }})))
+
+		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
 			a_hex_blob=blob,
 			verbose=False,
 			dry_run=False)
+
 		if rc[0] :
-			print("programming failed ({0})".format(rc[0]))
+#			print("programming failed ({})".format(rc[0]))
+			self.__messages.put(("status", (("upload", False, "upload_failed"),
+				{ "other" : { "reason" : rc[0] }})))
 		else :
-			print("programming succeeded")
+#			print("programming succeeded")
+			self.__messages.put(("status", (("upload", True, "upload_done"), {})))
 
 
 	state_info = property(lambda self: self.get_state_info())
