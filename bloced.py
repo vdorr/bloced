@@ -1811,7 +1811,7 @@ class BlockEditorWindow(object) :
 #			changed = True
 		elif event == "sheet_deleted" :
 			sheet, sheet_name = data #?
-#			self.delete_sheet(sheet, sheet_name)
+			self.delete_sheet(sheet, sheet_name)
 #			changed = True
 		elif event == "sheet_modified" :
 			pass #maybe show star on tab?
