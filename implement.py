@@ -2,7 +2,7 @@
 
 import dfs
 import core
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from functools import partial
 from itertools import groupby, chain, count, islice
 from pprint import pprint
@@ -518,7 +518,7 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 
 
 def __inferr_types_dft_roots_sorter(g, roots) :
-	return sorted(__dft_alt_roots_sorter(g, roots),
+	return sorted(dft_alt_roots_sorter(g, roots),
 		key=lambda n: 0 if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) else 1)
 
 
@@ -570,7 +570,12 @@ def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=
 
 # ------------------------------------------------------------------------------------------------------------
 
-def __dft_alt_roots_sorter(g, roots) :
+
+def dft_alt_simple_roots_sorter(g, roots) :
+	return roots
+
+
+def dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp in graph_components(g) :
 		hsh = md5()
@@ -676,14 +681,14 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		n, prev, it = stack[-1]
 		if prev != None :
 			nt, nt_nr, m, mt, mt_nr = prev
-			assert(n in visited)
-			assert(m in visited)
+			assert(n in visited if undir else True)
+			assert(m in visited if undir else True)
 			post_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
 		try :
 			((nt, nt_nr, m, mt, mt_nr), ) = islice(it, 1)
 			stack[-1] = n, (nt, nt_nr, m, mt, mt_nr), it
-			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
-			if not m in visited :
+			dive = pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
+			if not m in visited and (dive is None or (len(dive) > 0 and dive[0] != True)) :
 				visited[m] = True
 				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
 #				print "\t", here(), m
@@ -721,6 +726,7 @@ def dft(g, v,
 		t, t_nr = term
 		(term_list, ) = [ (t, t_nr, nbh) for t, t_nr, nbh in
 			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
+
 	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
 		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
 
@@ -733,7 +739,7 @@ def dft_alt(g,
 		post_visit = lambda *a, **b: None,
 		pre_tree = lambda *a, **b: None,
 		post_tree = lambda *a, **b: None,
-		roots_sorter=__dft_alt_roots_sorter,
+		roots_sorter=dft_alt_roots_sorter,
 		sinks_to_sources=True) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 
@@ -1019,8 +1025,35 @@ def block_cache_init() :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def __check_for_cycles_post_visit(cycles, n, visited) :
-	print here(), n
+def __check_for_cycles_pre_dive(cycles, stack, breaks, n, nt, nt_nr, m, mt, mt_nr, visited) :
+
+	visited.clear()
+
+	if (n, nt, nt_nr, m, mt, mt_nr) in cycles :
+		return (True, ) #do NOT dive
+
+	try :
+		index = stack.pop((n, nt, nt_nr, m, mt, mt_nr))
+		cycle_edges = tuple(stack.keys()[index:])
+		for k in cycle_edges :
+			del stack[k]
+		cycles[n, nt, nt_nr, m, mt, mt_nr] = cycle_edges
+		return (True, ) #do NOT dive
+	except KeyError :
+		stack[n, nt, nt_nr, m, mt, mt_nr] = len(stack)
+
+	return None #do dive
+
+
+def __check_for_cycles_post_dive(cycles, stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	try :
+		stack.pop((n, nt, nt_nr, m, mt, mt_nr))
+	except KeyError :
+		pass
+
+
+def __check_for_cycles_tree_callback(cycles, stack, v, visited) :
+	assert(not stack)
 
 
 def check_for_cycles(g) :
@@ -1028,11 +1061,19 @@ def check_for_cycles(g) :
 	return possibly incomplete list of cycles in graph g
 	"""
 
-	cycles = []
+	cycles = {}
+	stack = OrderedDict()
+	breaks = None
 
-	dft_alt(g, post_visit=partial(__check_for_cycles_post_visit, cycles))
+#TODO if there are no sinks nor sources, try all blocks as source
 
-	return cycles
+	dft_alt(g, roots_sorter=dft_alt_simple_roots_sorter, sinks_to_sources=False,
+		pre_dive=partial(__check_for_cycles_pre_dive, cycles, stack, breaks),
+		post_dive=partial(__check_for_cycles_post_dive, cycles, stack),
+		pre_tree=partial(__check_for_cycles_tree_callback, cycles, stack),
+		post_tree=partial(__check_for_cycles_tree_callback, cycles, stack))
+
+	return tuple(cycles.values())
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1200,7 +1241,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 		for tsk_name, s in tsk_sheets :
 #XXX mangle/pre/postfix tsk_name
 			dag = make_dag(s, None, known_types, do_join_taps=False)
-#			print here(), check_for_cycles(dag[0])
+#			print(here(), check_for_cycles(dag[0])); exit(1000)
 			meta = dict(s.get_meta())
 			if "task_period" in meta :
 				tsk_period = parse_task_period(meta["task_period"])
