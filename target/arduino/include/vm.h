@@ -9,8 +9,12 @@
 #define _VM_INPUT_ volatile
 #define _VM_OUTPUT_ volatile
 
+typedef uint8_t vm_bool_t;
+typedef int8_t vm_char_t;
 typedef int16_t vm_word_t;
 typedef int32_t vm_dword_t;
+//typedef int64_t vm_qword_t;
+//typedef float vm_float_t;
 
 #endif
 

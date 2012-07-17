@@ -14,6 +14,7 @@ from utils import here
 import sys
 if sys.version_info.major == 3 :
 	from io import StringIO
+	from functools import reduce
 else :
 	from StringIO import StringIO
 
@@ -21,7 +22,7 @@ else :
 
 #TODO fetch type informations from some "machine support package"
 
-type_t = namedtuple("type_t", [ "size_in_words", "size_in_bytes", "priority", ])
+type_t = namedtuple("type_t", ("size_in_words", "size_in_bytes", "priority", "arithmetic"))
 
 TYPE_VOID = "void"
 TYPE_INFERRED = "<inferred>"
@@ -30,16 +31,17 @@ VM_TYPE_WORD = "vm_word_t"
 VM_TYPE_DWORD = "vm_dword_t"
 VM_TYPE_FLOAT = "vm_float_t"
 #VM_TYPE_DOUBLE = "vm_double_t" : type_t(4, 8, 4),
-#VM_TYPE_BOOL = "vm_bool_t" : type_t(None, None, 0),
+VM_TYPE_BOOL = "vm_bool_t"
 #VM_TYPE_STRING = "vm_string_t" : None,
 
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
-	VM_TYPE_CHAR : type_t(1, 1, 0), #TODO
-	VM_TYPE_WORD : type_t(1, 2, 1),
-	VM_TYPE_DWORD : type_t(2, 4, 2),
-	VM_TYPE_FLOAT : type_t(2, 4, 3),
+	VM_TYPE_BOOL : type_t(None, None, 0, False),
+	VM_TYPE_CHAR : type_t(1, 1, 0, True), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1, True),
+	VM_TYPE_DWORD : type_t(2, 4, 2, True),
+	VM_TYPE_FLOAT : type_t(2, 4, 3, True),
 }
 
 # ------------------------------------------------------------------------------------------------------------
@@ -49,6 +51,22 @@ OUTPUT_TERM = 2
 
 term_model_t = namedtuple("term_model_t", ("name", "default_side", "default_pos", "direction",
 	"type_name", "arg_index", "variadic", "commutative", "virtual"))
+
+
+def cast_issues(t0, t1) :
+	"""
+	test for possible issues when casting from t0 to t1
+	arguments are of type type_t
+	"""
+	possible = False
+	truncating = None
+	if not None in (t0, t1) :
+		possible = True #further checking will be needed with vm_string_t
+		truncating = False
+		if ((t0.arithmetic and not t1.arithmetic) or
+				(t0.arithmetic and t1.arithmetic and t0.priority > t1.priority)) :
+			truncating = True
+	return possible, truncating
 
 
 #def TermModel(arg_index, name, default_side, default_pos, direction, variadic, commutative,
@@ -417,13 +435,39 @@ class UnaryOp(BlockPrototype) :
 
 
 class BinaryOp(BlockPrototype) :
-	def __init__(self, type_name, category, exe_name=None, commutative=False) :
+	def __init__(self, type_name, category, exe_name=None, commutative=False,
+			output_type=TYPE_INFERRED) :
 		BlockPrototype.__init__(self,
 			type_name,
-			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66), Out(0, "y", dfs.E, .5) ],
+			[ In(0, "a", dfs.W, .33), In(0, "b", dfs.W, .66),
+				Out(0, "y", dfs.E, .5, type_name=output_type) ],
 			exe_name=type_name if not exe_name else exe_name,
 			category=category,
 			commutative=commutative,
+			pure=True)
+
+
+class BinaryBooleanOp(BlockPrototype) :
+	def __init__(self, type_name, category, exe_name=None, commutative=False) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .33, type_name=VM_TYPE_BOOL),
+				In(0, "b", dfs.W, .66, type_name=VM_TYPE_BOOL),
+				Out(0, "y", dfs.E, .5, type_name=VM_TYPE_BOOL) ],
+			exe_name=type_name if not exe_name else exe_name,
+			category=category,
+			commutative=commutative,
+			pure=True)
+
+
+class UnaryBooleanOp(BlockPrototype) :
+	def __init__(self, type_name, category, exe_name=None) :
+		BlockPrototype.__init__(self,
+			type_name,
+			[ In(0, "a", dfs.W, .5, type_name=VM_TYPE_BOOL),
+				Out(0, "y", dfs.E, .5, type_name=VM_TYPE_BOOL) ],
+			exe_name=type_name if not exe_name else exe_name,
+			category=category,
 			pure=True)
 
 
@@ -472,20 +516,23 @@ term_type_t = namedtuple("term", (
 #	"arg_index",
 	"name",
 #	"side", "pos",
-	"direction", "variadic", "commutative", "type_name"))
+	"direction", "variadic", "commutative", "type_name", "index"))
 
 
-def vmex_arg(a, known_types, variadic=False, commutative=False, direction=None) :
+def vmex_arg(a, known_types, index, variadic=False, commutative=False, direction=None) :
 	sig, name = a
-#	print here(), name, a
+#	print here(), a
 
 #	TermModel arg_index, name, side, pos, direction, variadic, commutative, type_name=None
 #	name,
 	if direction is None :
 		direction = OUTPUT_TERM if "*" in sig else INPUT_TERM
-	
-	(type_name, ) = [ tp for tp in sig if tp in known_types ]
-	return term_type_t(name, direction, variadic, commutative, type_name)
+
+	type_names_found = [ tp for tp in sig if tp in known_types ]
+	if len(type_names_found) != 1 :
+		raise Exception("unknown or ambiguous type name '{}'".format(sig))
+	(type_name, ) = type_names_found
+	return term_type_t(name, direction, variadic, commutative, type_name, index)
 
 
 VMEX_SIG = "_VM_EXPORT_"
@@ -520,17 +567,18 @@ def __group_vmex_args(args_list) :
 #_VM_VA_CNT_ _VM_INPUT_
 #_VM_VA_LST_
 def parse_vmex_export(export, known_types) :
+#	print here(), export
 	ret_type, name, args_list = export
 	assert(VMEX_SIG in ret_type)
 #	print here(), name
 	args_info = []
 
-	for arg_group in __group_vmex_args(args_list) :
+	for arg_group, i in zip(__group_vmex_args(args_list), count()) :
 #		print here(), len(arg_group)
 
 		arg_group_len = len(arg_group)
 		if arg_group_len == 1 :
-			a = vmex_arg(arg_group[0], known_types)
+			a = vmex_arg(arg_group[0], known_types, i)
 			args_info.append(a)
 		elif arg_group_len == 2 :
 			(cnt_sig, cnt_name), (lst_sig, lst_name) = arg_group
@@ -542,7 +590,7 @@ def parse_vmex_export(export, known_types) :
 					direction = OUTPUT_TERM
 				else :
 					raise Exception(here() + " variadic term declaration lacks direction")
-				a = vmex_arg((lst_sig, lst_name), known_types,
+				a = vmex_arg((lst_sig, lst_name), known_types, i, 
 					variadic=True,
 					direction=direction)
 				args_info.append(a)
@@ -568,7 +616,9 @@ def parse_vmex_export(export, known_types) :
 	terms_out = [ a for a in args_info if a.direction == OUTPUT_TERM ]
 
 	if not terms_out and not "void" in ret_type :
-		terms_out = [ vmex_arg((ret_type, "out"), known_types) ]
+		terms_out = [ vmex_arg((ret_type, "out"), known_types, len(terms_in)) ]
+
+#	print here(), [ai.name for ai in terms_in], [ai.name for ai in terms_out]
 
 	return name, (terms_in, terms_out)
 
@@ -618,17 +668,19 @@ def __cmod_create_proto(lib_name, export) :
 	width, height, in_terms_pos, out_terms_pos = block_layout(len(terms_in), len(terms_out))
 
 	#arg_index, name, side, pos, type_name=None, variadic=False, commutative=False
-	inputs = [ In(-i, name, dfs.W, pos,
-			type_name=type_name, variadic=variadic, commutative=commutative)
-		for (name, direction, variadic, commutative, type_name), pos, i
+	inputs = [ (arg_index, In(-i, name, dfs.W, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative))
+		for (name, direction, variadic, commutative, type_name, arg_index), pos, i
 			in zip(terms_in, in_terms_pos, count()) ]
-	outputs = [ Out(-i, name, dfs.E, pos,
-			type_name=type_name, variadic=variadic, commutative=commutative)
-		for (name, direction, variadic, commutative, type_name), pos, i
+	outputs = [ (arg_index, Out(-i, name, dfs.E, pos,
+			type_name=type_name, variadic=variadic, commutative=commutative))
+		for (name, direction, variadic, commutative, type_name, arg_index), pos, i
 			in zip(terms_out, out_terms_pos, count()) ]
 
+#	print here(), [ t for _, t in sorted(inputs + outputs, key=lambda itm: itm[0]) ]
+
 	proto = CFunctionProto(block_name,
-			inputs + outputs,
+			[ t for _, t in sorted(inputs + outputs, key=lambda itm: itm[0]) ],
 			exe_name=block_name,
 			default_size=(width, height),
 			category=lib_name,
@@ -1154,7 +1206,7 @@ def load_library_sheet(library, full_name, sheet_name, w_data=None) :
 	lib, (item, proto) = lib_data
 
 	if w_data is None :
-		with open(item.file_path) as f :
+		with open(item.file_path, "rb") as f :
 			w_data = serializer.unpickle_workbench_data(f)
 
 	res_found = tuple(serializer.get_resource(w_data, serializer.RES_TYPE_SHEET, None, sheet_name))
@@ -1223,6 +1275,14 @@ def clone_sheet(sheet, lib) :
 	return cloned
 
 
+def compare_prototypes(a, b) :
+	"""
+	check if prototypes equal
+	"""
+#TODO
+	pass
+
+
 # ------------------------------------------------------------------------------------------------------------
 
 def builtin_blocks() :
@@ -1242,18 +1302,18 @@ def builtin_blocks() :
 		SysRqProto(),
 		InputProto(),
 		OutputProto(),
-		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name="<infer>") ], pure=True),
+		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name=TYPE_INFERRED) ], pure=True),
 		PipeProto(),
 		PipeEndProto(),
 		MuxProto(),
 		TextAreaProto(),
 
-		BinaryOp("xor", "Logic", commutative=True),
-		BinaryOp("or", "Logic", commutative=True),
-		BinaryOp("nor", "Logic", commutative=True),
-		BinaryOp("and", "Logic", commutative=True),
-		BinaryOp("nand", "Logic", commutative=True),
-		UnaryOp("not", "Logic"),
+		BinaryBooleanOp("xor", "Logic", commutative=True),
+		BinaryBooleanOp("or", "Logic", commutative=True),
+		BinaryBooleanOp("nor", "Logic", commutative=True),
+		BinaryBooleanOp("and", "Logic", commutative=True),
+		BinaryBooleanOp("nand", "Logic", commutative=True),
+		UnaryBooleanOp("not", "Logic"),
 
 		BinaryOp("bwxor", "Bitwise Logic", commutative=True),
 		BinaryOp("bwor", "Bitwise Logic", commutative=True),
@@ -1273,14 +1333,14 @@ def builtin_blocks() :
 #			In(-2, "d", dfs.W, .66),
 #			Out(-1, "q", dfs.E, .33), Out(-2, "r", dfs.E, .66) ], pure=True),
 		UnaryOp("abs", "Arithmetic"),
-		BinaryOp("lt", "Arithmetic", commutative=False),
-		BinaryOp("gt", "Arithmetic", commutative=False),
-		BinaryOp("eq", "Arithmetic", commutative=False),
-		BinaryOp("lte", "Arithmetic", commutative=False),
-		BinaryOp("gte", "Arithmetic", commutative=False),
+		BinaryOp("lt", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("gt", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("eq", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("lte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
+		BinaryOp("gte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
 
-#		TypecastProto("to_bool", "Type Casting", VM_TYPE_BOOL),
-#		TypecastProto("to_word", "Type Casting", VM_TYPE_CHAR),
+		TypecastProto("bool", "Type Casting", VM_TYPE_BOOL),
+		TypecastProto("char", "Type Casting", VM_TYPE_CHAR),
 		TypecastProto("word", "Type Casting", VM_TYPE_WORD),
 		TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
 		TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
@@ -1367,6 +1427,11 @@ class BasicBlocksFactory(object) :
 	block_list = property(lambda self: self.__blocks)
 
 
+	def get_lib_files(self) :
+		return (l for llst in self.libs for l in llst.source_files)
+#		return (l for l in self.libs)
+
+
 	def __init__(self, load_basic_blocks=True) :
 #		print("factory init scan_dir=", scan_dir, id(self), here(10))
 		self.libs = []
@@ -1412,6 +1477,7 @@ class SuperLibrary(object) :
 
 
 	libs = property(lambda self: self.get_libs())
+
 
 	def __init__(self, librarians) :
 		"""

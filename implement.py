@@ -2,7 +2,7 @@
 
 import dfs
 import core
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from functools import partial
 from itertools import groupby, chain, count, islice
 from pprint import pprint
@@ -10,6 +10,8 @@ import sys
 from hashlib import md5
 import os
 from utils import here
+if sys.version_info.major == 3 :
+	from functools import reduce
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -32,35 +34,18 @@ def dict_map(d, k_map, v_map, item_filter=lambda k, v: True) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-##TODO implement
-##TODO possibly use in dft
-#def __edges_iter(neighbours) :
-#	for st, dests in neighbours :
-#		for tb, tt in dests :
-#			yield (st, tb, tt)
-
-# ------------------------------------------------------------------------------------------------------------
-
-#TODO TODO TODO
-
-#def __neigbourhood_sanity_check(neigbourhood) :
-#	pass
-
-def __dag_structural_check(g, stop_on_first=True) :
-# implicit feedback loops
-# explicit feedback loops matching
-	return False
-
 
 def __dag_sanity_check(g, stop_on_first=True) :
-# 1) dangling references (because of joints and macroes) :
-#  a) terms in neigbourhood but not in prototype
-#  b) the same as above for neigbours
-#  c) blocks in neigbours but not in graph
+	"""
+	1) dangling references (because of joints and macroes) :
+	  a) terms in neigbourhood but not in prototype
+	  b) the same as above for neigbours
+	  c) blocks in neigbours but not in graph
+	2) basic rules :
+	  a) one predeccessor to input (equals unconnected inputs)
+	  b) matching i/o directions
+	"""
 #TODO matching predeccessors and successors lists
-# 2) basic rules :
-#  a) one predeccessor to input (equals unconnected inputs)
-#  b) matching i/o directions
 #TODO duplicities in neighbour lists
 	for b, (p, s) in g.items() :
 		for t, nr, preds in p :
@@ -90,8 +75,6 @@ def __dag_sanity_check(g, stop_on_first=True) :
 				if not t_succ in b_succ.prototype.terms :
 					return (False, 10)
 	return (True, )
-
-#TODO TODO TODO
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -188,7 +171,8 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 		for b_pred, t_pred, t_pred_nr in values :
 			assert(t_pred.direction == core.OUTPUT_TERM)
 			b_pred_succ = g[b_pred].s
-			__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None) #remove connection to n
+			__neighbourhood_safe_replace(
+				b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None)# now remove connection to n
 			for b, t, nr in succs :
 				assert(t.direction == core.INPUT_TERM)
 				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
@@ -200,38 +184,32 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 		for b_succ, t_succ, t_succ_nr in values :
 			assert(t_succ.direction == core.INPUT_TERM)
 			b_succ_pred = g[b_succ].p
-			__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) #remove connection to n
+			__neighbourhood_safe_replace(
+				b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) # remove connection to n
 			for b, t, nr in preds :
 				assert(t.direction == core.OUTPUT_TERM)
 				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
-
-#	for (n_t, n_t_nr, values), mapping, dir_from, dir_to in ((s, map_out, core.OUTPUT_TERM, core.INPUT_TERM),) :
-#		assert(n_t.direction == dir_from)
-#		replacement = mapping[n_t, n_t_nr] if (n_t, n_t_nr) in mapping else []
-#		for b_adj, t_adj, t_adj_nr in values :
-#			assert(t_adj.direction == dir_to)
-#			b_adj_pred, _ = neighbourhood_from_term_dir(g[b_adj], dir_from)
-#			__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), None) #remove connection to n
-#			for b, t, nr in replacement :
-#				assert(t.direction == dir_from)
-#				__neighbourhood_safe_replace(b_adj_pred, t_adj, t_adj_nr, (n, out_t, out_t_nr), (b, t, nr))
-#				_, b_succs = neighbourhood_from_term_dir(g[b], dir_from)
-#				__neighbourhood_safe_replace(b_succs, t, nr, None, (b_adj, t_adj, t_adj_nr))
-
 	return None
 
 
 def printg(g) :
+	"""
+	print grap g in somehow readable form
+	"""
 	for b, (_, s) in g.items() :
 		for t, x in s :
 			print(str(b)+str(t))
 			for nb, nt in x :
-				print("\t -> %s%s"%(str(nb), str(nt)))
+				print("\t -> {}{}".format(str(nb), str(nt)))
 
 
 def dag_merge(l) :
+	"""
+	l is list of tuples produced by make_dag [ (grap, delays), ... ]
+	return single (grap, delays) tuple made of input list
+	"""
 	g, d = {}, {}
 	for graph0, delays0 in l :
 		g.update(graph0)
@@ -275,6 +253,11 @@ def remove_block(g, n) :
 
 
 def block_value_by_name(n, value_name) :
+	"""
+	n is BlockModel instance
+	search for position of value_name in prototype value names and
+	return value from block instance on given position
+	"""
 	return { name : value for (name, _), value in zip(n.prototype.values, n.value) }[value_name]
 
 
@@ -432,12 +415,10 @@ def get_terms_flattened(block, direction=None, fill_for_unconnected_var_terms=Fa
 
 
 def in_terms(block) :
-#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.INPUT_TERM  ]
 	return tuple(get_terms_flattened(block, direction=core.INPUT_TERM))
 
 
 def out_terms(block) :
-#	return [ (t, n) for t, n in get_terms_flattened(block) if t.direction == core.OUTPUT_TERM  ]
 	return tuple(get_terms_flattened(block, direction=core.OUTPUT_TERM))
 
 
@@ -464,6 +445,7 @@ def __parse_num_lit(value, base=10, known_types=None) :
 
 
 def parse_literal(s, known_types=None, variables={}) :
+#TODO datetime values, physical units
 	x = s.strip()
 	num_sig = (x[1:].strip()[0:2] if x[0] == "-" else x[0:2]).lower()
 	if x[0] == x[-1] == '"' :
@@ -536,7 +518,7 @@ def __infer_types_post_visit(g, types, known_types, n, visited) :
 
 
 def __inferr_types_dft_roots_sorter(g, roots) :
-	return sorted(__dft_alt_roots_sorter(g, roots),
+	return sorted(dft_alt_roots_sorter(g, roots),
 		key=lambda n: 0 if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) else 1)
 
 
@@ -588,7 +570,12 @@ def make_dag(model, meta, known_types, do_join_taps=True, delay_numbering_start=
 
 # ------------------------------------------------------------------------------------------------------------
 
-def __dft_alt_roots_sorter(g, roots) :
+
+def dft_alt_simple_roots_sorter(g, roots) :
+	return roots
+
+
+def dft_alt_roots_sorter(g, roots) :
 	comps = {}
 	for comp in graph_components(g) :
 		hsh = md5()
@@ -675,7 +662,8 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 
 
 def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
-		sort_successors, visited, sinks_to_sources, undir, term_list=None) :
+		sort_successors, visited, sinks_to_sources, undir,
+		term_list=None, follow_visited=False) :
 
 #	terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
 #	pre_visit(root, visited, terms)
@@ -700,8 +688,9 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		try :
 			((nt, nt_nr, m, mt, mt_nr), ) = islice(it, 1)
 			stack[-1] = n, (nt, nt_nr, m, mt, mt_nr), it
-			pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
-			if not m in visited :
+			dive = pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
+			do_dive = dive is None or (len(dive) > 0 and dive[0] != True)
+			if (follow_visited or not m in visited) and do_dive :
 				visited[m] = True
 				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
 #				print "\t", here(), m
@@ -720,8 +709,9 @@ def dft(g, v,
 		sort_successors = lambda *a, **b: None,
 		sinks_to_sources=True,
 		undirected=False,
-		visited={},
-		term=None) :
+		visited=None,
+		term=None,
+		follow_visited=False) :
 	"""
 	graph structure:
 	{
@@ -731,15 +721,19 @@ def dft(g, v,
 			 s=[ ]), ...
 	}
 	"""
-
+	if visited is None :
+		visited = {}
 	visited[v] = True
 	term_list = None
 	if term != None :
 		t, t_nr = term
 		(term_list, ) = [ (t, t_nr, nbh) for t, t_nr, nbh in
 			__where_to_go(g[v], sinks_to_sources, undirected) if (t, t_nr) == term]
+
 	return __dft_alt_nr_tree(g, v, pre_visit, pre_dive, post_dive,
-		post_visit, sort_successors, visited, sinks_to_sources, undirected, term_list=term_list)
+		post_visit, sort_successors, visited, sinks_to_sources, undirected,
+		term_list=term_list,
+		follow_visited=follow_visited)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -750,8 +744,9 @@ def dft_alt(g,
 		post_visit = lambda *a, **b: None,
 		pre_tree = lambda *a, **b: None,
 		post_tree = lambda *a, **b: None,
-		roots_sorter=__dft_alt_roots_sorter,
-		sinks_to_sources=True) :
+		roots_sorter=dft_alt_roots_sorter,
+		sinks_to_sources=True,
+		follow_visited=False) :
 #	s = roots_sorter([ v for v, (p, s) in g.items() if not ( s if sinks_to_sources else p ) ])
 
 	s = __dft_alt_roots_selector(g, sinks_to_sources, roots_sorter)
@@ -767,7 +762,8 @@ def dft_alt(g,
 			post_visit = post_visit,
 			sinks_to_sources=sinks_to_sources,
 			undirected=False,
-			visited=visited) 
+			visited=visited,
+			follow_visited=follow_visited) 
 		post_tree(v, visited)
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1036,29 +1032,75 @@ def block_cache_init() :
 # ------------------------------------------------------------------------------------------------------------
 
 
-def __check_for_cycles_post_visit(n, visited) :
-	pass
+def __check_for_cycles_pre_dive(cycles, stack, breaks, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	if (n, nt, nt_nr, m, mt, mt_nr) in cycles :
+		return (True, ) #do NOT dive
+
+	try :
+		index = stack.pop((n, nt, nt_nr, m, mt, mt_nr))
+		cycle_edges = tuple(stack.keys()[index:])
+		for k in cycle_edges :
+			del stack[k]
+		cycles[n, nt, nt_nr, m, mt, mt_nr] = cycle_edges
+		return (True, ) #do NOT dive
+	except KeyError :
+		stack[n, nt, nt_nr, m, mt, mt_nr] = len(stack)
+
+	return (False, ) #do dive
+
+
+def __check_for_cycles_post_dive(cycles, stack, n, nt, nt_nr, m, mt, mt_nr, visited) :
+	try :
+		stack.pop((n, nt, nt_nr, m, mt, mt_nr))
+	except KeyError :
+		pass
+
+
+def __check_for_cycles_tree_callback(cycles, stack, v, visited) :
+	assert(not stack)
 
 
 def check_for_cycles(g) :
-	pass
+	"""
+	return possibly incomplete list of cycles in graph g
+	"""
+
+	cycles = {}
+	stack = OrderedDict()
+	breaks = None
+
+#TODO if there are no sinks nor sources, try all blocks as source
+#TODO if there are sinks or sources, still there might be component with cycle
+
+	dft_alt(g, roots_sorter=dft_alt_simple_roots_sorter, sinks_to_sources=False,
+		follow_visited=True,
+		pre_dive=partial(__check_for_cycles_pre_dive, cycles, stack, breaks),
+		post_dive=partial(__check_for_cycles_post_dive, cycles, stack),
+		pre_tree=partial(__check_for_cycles_tree_callback, cycles, stack),
+		post_tree=partial(__check_for_cycles_tree_callback, cycles, stack))
+
+	return tuple(cycles.values())
 
 
 # ------------------------------------------------------------------------------------------------------------
 
 
 def create_function_call(name) :
+	"""
+	return block instance calling c function <name> with zero arguments
+	"""
 	block = dfs.BlockModel(core.FunctionCallProto(), "itentionally left blank")
 	block.value = (name, )
 	return block
 
 
-def implement_dfs(model, meta, codegen, known_types, out_fobj) :
-	graph, delays = make_dag(model, meta, known_types)
-	types = infer_types(graph, delays, known_types=known_types)
-	libs_used = {}
-	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
-	out_fobj.write(code)#XXX pass out_fobj to codegen?
+#probably not needed anymore
+#def implement_dfs(model, meta, codegen, known_types, out_fobj) :
+#	graph, delays = make_dag(model, meta, known_types)
+#	types = infer_types(graph, delays, known_types=known_types)
+#	libs_used = {}
+#	code = codegen.codegen_alt(graph, delays, {}, libs_used, types)
+#	out_fobj.write(code)#XXX pass out_fobj to codegen?
 
 
 def process_sheet(dag, meta, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement) :
@@ -1104,11 +1146,11 @@ def check_delay_numbering(graph_data) :
 		yield len(del_check)==len({nr for nr, _ in del_check})
 
 
-def simple_entry_point_stub(tsk_name, call_setup) :
+def simple_entry_point_stub(user_function, call_setup) :
 	"""
 	create graph stub for simple entry point function
 	"""
-	loop_call = create_function_call(tsk_name)
+	loop_call = create_function_call(user_function)
 	init_call = create_function_call("init")
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
 	first_call = loop_call
@@ -1121,13 +1163,32 @@ def simple_entry_point_stub(tsk_name, call_setup) :
 
 	main_tsk_meta = { "endless_loop_wrap" : False}
 
-	return tsk_name, main_tsk_g, {}, main_tsk_meta, {}
+	return "main", main_tsk_g, {}, main_tsk_meta, {}
 
 
-def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_fobj) :
+def parse_task_period(s) :
+	"""
+	parse task period string and return period in ms or "idle"
+	"""
+#TODO use parse_literal
+	p = s.strip().lower()
+#	print here(), s
+	if p.endswith("ms") :
+		return int(p[0:-2])
+	elif p.endswith("s") :
+		return 1000 * int(p[0:-1])
+	elif p == "idle" :
+		return "idle"
+	else :
+		return None
+
+
+def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
 	"""
+
+	global_meta = dict(w_meta)
 
 	special_sheets = { "@setup" } #TODO interrupts; would be dict better?
 	special = { name : s for name, s in sheets.items() if name.strip()[0] == "@" }
@@ -1155,9 +1216,9 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		#TODO handle multiple special sheets of same type
 		if name == "@setup" :
 			tsk_name = name.strip("@")
-			l = [ make_dag(s, None, known_types, do_join_taps=False)
-				for name, s in sorted(sheet_list, key=lambda x: x[0]) ]
-			g_data = process_sheet(dag_merge(l), tsk_setup_meta, known_types, lib,
+			(_, s), = tuple(sheet_list)
+			dag = make_dag(s, None, known_types, do_join_taps=False)
+			g_data = process_sheet(dag, tsk_setup_meta, known_types, lib,
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
 			graph_data.append((tsk_name, ) + g_data)
 		elif core.is_macro_name(name) :
@@ -1169,14 +1230,43 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 		else :
 			raise Exception("impossible exception")
 
-	l = [ make_dag(s, None, known_types, do_join_taps=False)
-		for name, s in sorted(sheets.items(), key=lambda x: x[0])
-		if not name in special ]
-	graph, delays = dag_merge(l)
-	g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
-	graph_data.append(("loop", ) + g_data)
+	periodic_sched = True
 
-	graph_data.append(simple_entry_point_stub("main", "@setup" in special))
+	if not periodic_sched :
+		l = [ make_dag(s, None, known_types, do_join_taps=False)
+			for name, s in sorted(sheets.items(), key=lambda x: x[0])
+			if not name in special ]
+		g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
+		graph_data.append(("loop", ) + g_data)
+	else :
+		tsk_groups = {}
+		global_meta["periodic_sched"] = True
+		tsk_sheets = ((tsk_name, s)
+			for tsk_name, s in sorted(sheets.items(), key=lambda x: x[0])
+			if not tsk_name in special)
+		for tsk_name, s in tsk_sheets :
+#XXX mangle/pre/postfix tsk_name
+			dag = make_dag(s, None, known_types, do_join_taps=False)
+#			print(here(), check_for_cycles(dag[0])); exit(1000)
+			meta = dict(s.get_meta())
+			if "task_period" in meta :
+				tsk_period = parse_task_period(meta["task_period"])
+			else :
+				tsk_period = "idle"
+			if not tsk_period in tsk_groups :
+				tsk_groups[tsk_period] = []
+			tsk_groups[tsk_period].append(tsk_name)
+			meta["endless_loop_wrap"] = False
+			meta["function_attributes"] = "inline"
+			meta["state_vars_scope"] = "local"#"module"
+			meta["state_vars_storage"] = "heap"
+			g_data = process_sheet(dag, meta, known_types, lib,
+				local_block_sheets, block_cache, g_protos, pipe_replacement)
+			graph_data.append((tsk_name, ) + g_data)
+
+#	print here(), tsk_groups
+
+	graph_data.append(simple_entry_point_stub("loop", "@setup" in special))
 
 	assert(all(check_delay_numbering(graph_data)))
 
@@ -1192,7 +1282,7 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 
 	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
 
-	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, out_fobj)
+	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, tsk_groups, out_fobj)
 
 	#TODO say something about what you've done
 	return libs_used,
@@ -1200,6 +1290,9 @@ def implement_workbench(w, sheets, global_meta, codegen, known_types, lib, out_f
 # ------------------------------------------------------------------------------------------------------------
 
 def main() :
+	"""
+	standalone entry point, looking for arguments in sys.argv
+	"""
 #	import argparse
 #	parser = argparse.ArgumentParser(description="bloced")
 #	parser.add_argument("file", metavar="fname", type=str, nargs=1,
@@ -1207,10 +1300,13 @@ def main() :
 #	args = parser.parse_args()
 #	fname = args.file[0]
 	import serializer
+
+	if len(sys.argv) != 3 :
+		print("expected exactly 2 arguments")
+		exit(100)
+
 	action = sys.argv[1]
 	fname = os.path.abspath(sys.argv[2])
-	if len(sys.argv) == 4 :
-		pass#TODO use output file
 
 	if os.path.splitext(fname)[1].lower() != ".w" :#TODO path separator
 		print("formats other than .w are not supported anymore")

@@ -1,4 +1,8 @@
+#!/usr/bin/env python
 
+"""
+standalone utility to compile avr-gcc programs
+"""
 
 #TODO use as gedit plugin
 
@@ -371,7 +375,7 @@ def build(board, workdir,
 	if verbose :
 		term.write("source files:")
 		term.write(os.linesep)
-		pprint(source, sterm)
+#		pprint(source, sterm)
 
 	mcu = board_info[board]["build.mcu"]
 	f_cpu = board_info[board]["build.f_cpu"]
@@ -382,7 +386,7 @@ def build(board, workdir,
 		board_info[board]["name"], mcu, int(f_cpu[:-1])/1000000,
 		len(sources), src_total, len(idirs), idir_total, os.linesep))
 
-	redir_streams = True
+	redir_streams = False
 
 #	board_idirs = [ "/usr/lib/avr", "/usr/lib/avr/include",
 #		"/usr/lib/avr/util", "/usr/lib/avr/compat" ]
@@ -578,6 +582,9 @@ def program(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex,
 	else :
 		filename = a_hex
 
+	if filename is None :
+		return (50, )
+
 	print("filename=", filename)
 
 	rc = driver(prog_driver, prog_port, prog_adapter, prog_mcu, filename,
@@ -654,21 +661,80 @@ def program_dfu_programmer(prog_driver, prog_port, prog_adapter, prog_mcu, a_hex
 
 
 def main() :
+
+	import argparse
+	parser = argparse.ArgumentParser(description="build")
+	parser.add_argument("action", metavar="action", type=str, nargs=1,
+		default="b",
+		help="Action to perform" + os.linesep
+			+ "\tb - build" + os.linesep
+			+ "\tp - program" + os.linesep
+			+ "\tbp - build and program")
+	parser.add_argument("--brd", metavar="board", type=str, nargs=1,
+		default="uno", help="Target Arduino Board")
+	parser.add_argument("--port", metavar="port", type=str, nargs=1,
+		default="/dev/ttyACM0", help="Programmer Port")
+	parser.add_argument("--ignore", metavar="ignore", type=str, nargs=1,
+		default="amkignore", help="Ignore File Path")
+#	parser.add_argument("--out", metavar="out", type=str, nargs=1,
+#		default="a.out", help="Output File")
+	args = parser.parse_args()
+#	print here(), args
+#	sys.exit(0)
+
 	libc_dir, tools_dir, boards_txt, target_files_dir = get_avr_arduino_paths(all_in_one_arduino_dir=None)
-	rc, = build("uno", os.getcwd(),
-		wdir_recurse = True,
-		libc_dir = libc_dir,
-		tools_dir = tools_dir,
-		aux_src_dirs = [ src_dir_t(os.path.join(target_files_dir, "cores", "arduino"), False) ],
-		boards_txt = boards_txt,
-		ignore_file = "amkignore",
-		prog_port = "/dev/ttyACM0",
-		prog_driver = "avrdude", # or "dfu-programmer"
-		prog_adapter = "arduino", #None for dfu-programmer
-		optimization = "-Os",
-		verbose = False,
-		skip_programming = False,
-		dry_run = False)
+
+	board_info = get_board_types()[args.brd]
+	variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
+
+	work_dir = os.getcwd()
+	source_dirs = tuple()#in dfs derived from libs
+
+	do_programming = "p" in args.action[0]
+
+#	print here(), args.action, "p" in args.action
+
+#	with open(args.out, "w") as blob_stream :
+	if 1 :
+		rc = build(args.brd, work_dir,
+			wdir_recurse = True,
+			aux_src_dirs=(
+				(os.path.join(target_files_dir, "cores", "arduino"), False),
+				(os.path.join(target_files_dir, "variants", variant), False),
+#				(os.path.join(install_path, "library", "arduino"), False),
+			) + tuple( (path, True) for path in source_dirs ),
+#			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
+			boards_txt=boards_txt,
+			libc_dir=libc_dir,
+#			board_db={},
+			ignore_file=args.ignore,
+#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
+			ignore_lines=( "*" + os.path.sep + "main.cpp", ),
+			prog_port=args.port,
+			prog_driver="avrdude", # or "dfu-programmer"
+			prog_adapter="arduino", #None for dfu-programmer
+			optimization="-Os",
+			verbose=True,
+			skip_programming=not do_programming,#False,
+#			dry_run=False,
+#			blob_stream=blob_stream,
+			term=sys.stdout)
+
+#	rc, = build("uno", os.getcwd(),
+#		wdir_recurse = True,
+#		libc_dir = libc_dir,
+#		tools_dir = tools_dir,
+#		aux_src_dirs = [ src_dir_t(os.path.join(target_files_dir, "cores", "arduino"), False) ],
+#		boards_txt = boards_txt,
+#		ignore_file = "amkignore",
+#		prog_port = "/dev/ttyACM0",
+#		prog_driver = "avrdude", # or "dfu-programmer"
+#		prog_adapter = "arduino", #None for dfu-programmer
+#		optimization = "-Os",
+#		verbose = False,
+#		skip_programming = False,
+#		dry_run = False)
+
 	sys.exit(rc)
 
 #	board_db = {

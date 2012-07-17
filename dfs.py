@@ -32,6 +32,44 @@ import mathutils
 
 # ------------------------------------------------------------------------------------------------------------
 
+
+class EditorInterface(object) :
+	"""
+	draft interface for generic editor to allow support of different types of resources in workbench
+	"""
+
+	def get_capabilities(self) :
+		return {}
+
+	def get_editor_class(self) :
+		return "bloced", "LibraryMetadataEditor" #for example
+
+	def get_changed(self) : pass
+	def undo(self) : pass
+	def redo(self) : pass
+	def get_selection(self) : pass
+	def clear_selection(self) : pass
+	def cut(self) : pass
+	def copy(self) : pass
+	def paste(self) : pass
+	def delete(self) : pass
+
+
+class GraphModelListener(object) :
+	"""
+	interface for GraphModel-events consuming object
+	"""
+	def block_added(self, sheet, block) : pass
+	def block_removed(self, sheet, block) : pass
+	def block_changed(self, sheet, block, event=None) : pass
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) : pass
+	def connection_removed(self, sheet, sb, st, tb, tt) : pass
+	def connection_changed(self, sheet, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) : pass
+
+
+# ------------------------------------------------------------------------------------------------------------
+
 #TODO replace usages of Tkinter stuff elsewhere
 C = "C"
 N = "n"
@@ -349,6 +387,20 @@ class BlockModel(BlockModelData) :
 	caption = property(lambda self: self.__caption, __set_caption)
 
 
+	def get_instance_id(self) :
+		return self.__instance_id
+
+
+	@edit("instance_id")
+	def __set_instance_id(self, value) :
+#		print here(), value
+		self.__instance_id = value
+
+
+	def set_instance_id(self, value) :
+		self.__set_instance_id(value)
+
+
 	def get_meta(self) :
 		w, h = self.prototype.default_size
 		meta = {
@@ -362,6 +414,7 @@ class BlockModel(BlockModelData) :
 			"value" : self.value,
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
+			"instance_id" : self.get_instance_id(),
 		}
 #		if (core.compare_proto_to_type(self.prototype, core.MacroProto) or
 #				core.compare_proto_to_type(self.prototype, core.FunctionProto)) :
@@ -601,7 +654,7 @@ class BlockModel(BlockModelData) :
 #		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
 
 
-	def __init__(self, prototype, model, left = 0, top = 0) :
+	def __init__(self, prototype, model, instance_id=None, left = 0, top = 0) :
 		"""
 		when there is no parent use for model argument value
 		'itentionally left blank' instead of GraphModel instance
@@ -613,6 +666,7 @@ class BlockModel(BlockModelData) :
 #			prototype.default_size[0], prototype.default_size[1],
 #			prototype.terms, prototype.values)
 
+		self.__instance_id = instance_id
 		self.__orientation = (0, 0, 0)
 		self.__caption = prototype.type_name
 		self.__left = left
@@ -630,17 +684,6 @@ class BlockModel(BlockModelData) :
 	def __repr__(self) :
 		return "%s(%s)" % (self.prototype.type_name, str(self.value))
 #		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
-
-# ------------------------------------------------------------------------------------------------------------
-
-class GraphModelListener(object) :
-	def block_added(self, block) : pass
-	def block_removed(self, block) : pass
-	def block_changed(self, block, event=None) : pass
-	def connection_added(self, sb, st, tb, tt, deserializing=False) : pass
-	def connection_removed(self, sb, st, tb, tt) : pass
-	def connection_changed(self, sb, st, tb, tt) : pass #TODO monitoring etc.
-	def meta_changed(self, key, key_present, old_value, new_value) : pass
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -674,6 +717,14 @@ class GraphModel(object) :
 
 
 	def add_block(self, block) :
+
+		if block.get_instance_id() is None :
+			new_id = max(self.__block_ids.keys()) + 1 if self.__block_ids else 0
+			assert(not(new_id in self.__block_ids))
+			block.set_instance_id(new_id)
+
+		self.__block_ids[block.get_instance_id()] = block
+
 		self.blocks.append(block)
 #		block.graph = self #XXX ?
 		self.__history_frame_append("block_added", (block, ))
@@ -682,7 +733,10 @@ class GraphModel(object) :
 
 	def remove_block(self, block) :
 		self.blocks.remove(block)
-		
+
+		instance = self.__block_ids.pop(block.get_instance_id())
+		assert(instance == block)
+
 		succs = [ c for c in self.connections.iteritems() if c[0][0] == block ]
 
 		for s, dests in succs :
@@ -816,35 +870,35 @@ class GraphModel(object) :
 
 	def __on_block_added(self, block) :
 		for listener in self.__listeners :
-			listener.block_added(block)
+			listener.block_added(self, block)
 
 	def __on_block_removed(self, block) :
 		for listener in self.__listeners :
-			listener.block_removed(block)
+			listener.block_removed(self, block)
 
 	def __on_block_changed(self, block, event, old_meta, new_meta) :
 		assert(not(old_meta is None))
 		self.__history_frame_append("block_meta", (block, old_meta))
 		for listener in self.__listeners :
-			listener.block_changed(block, event)
+			listener.block_changed(self, block, event)
 
 	def __on_connection_added(self, sb, st, tb, tt, deserializing=False) :
 		for listener in self.__listeners :
-			listener.connection_added(sb, st, tb, tt, deserializing)
+			listener.connection_added(self, sb, st, tb, tt, deserializing)
 
 	def __on_connection_removed(self, sb, st, tb, tt) :
 		for listener in self.__listeners :
-			listener.connection_removed(sb, st, tb, tt)
+			listener.connection_removed(self, sb, st, tb, tt)
 
 	def __on_connection_changed(self, sb, st, tb, tt) :
 #		raise Exception("not implemented")
 		for listener in self.__listeners :
-			listener.connection_changed(sb, st, tb, tt)
+			listener.connection_changed(self, sb, st, tb, tt)
 #			print(here(), (sb, st, tb, tt))
 
 	def __on_meta_changed(self, key, key_present, old_value, new_value) :
 		for listener in self.__listeners :
-			listener.meta_changed(key, key_present, old_value, new_value)
+			listener.meta_changed(self, key, key_present, old_value, new_value)
 
 	# ---------------------------------------------------------------------------------
 
@@ -976,6 +1030,7 @@ class GraphModel(object) :
 		self.__listeners = []
 		self.__connections_meta = {}
 		self.__meta = {}
+		self.__block_ids = {}
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1082,7 +1137,7 @@ class WorkbenchData(object) :
 		self.__meta = {}
 
 
-class Workbench(WorkbenchData) :
+class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	@sync
@@ -1107,6 +1162,7 @@ class Workbench(WorkbenchData) :
 			sheet = GraphModel()
 #		print here(), name, sheet
 		self.sheets[name] = sheet
+		sheet.add_listener(self)
 		self.__changed("sheet_added", (sheet, name))
 
 
@@ -1114,6 +1170,7 @@ class Workbench(WorkbenchData) :
 #		if name != None :
 #			sheet, = self.get_sheet_by_name(name)
 		sheet = self.sheets.pop(name)
+		sheet.remove_listener(self)
 		self.__changed("sheet_deleted", (sheet, name))
 		return (sheet, name)
 
@@ -1141,7 +1198,7 @@ class Workbench(WorkbenchData) :
 #			self.build_job(board_type, sheets, meta)#TODO refac build invocation
 
 		except Exception as e :
-			print here(), traceback.format_exc()
+			print(here(), traceback.format_exc())
 			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
 
 
@@ -1157,6 +1214,13 @@ class Workbench(WorkbenchData) :
 
 
 	def build_job(self, board_type, sheets, meta) :
+
+		if board_type is None :
+			self.__messages.put(("status", (("build", False, "board_type_not_set"), {})))
+			return None
+
+		board_info = build.get_board_types()[board_type]
+		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
 		self.__messages.put(("status", (("build", True, "build_started"), {})))
 
@@ -1177,7 +1241,7 @@ class Workbench(WorkbenchData) :
 			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
 		except Exception as e:
-			print here(), traceback.format_exc()
+			print(here(), traceback.format_exc())
 			self.__messages.put(("status", (("build", False, str(e)), {})))
 			return None
 
@@ -1192,9 +1256,6 @@ class Workbench(WorkbenchData) :
 		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
 			all_in_one_arduino_dir=all_in_one_arduino_dir)
 
-		board_info = build.get_board_types()[board_type]
-		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
-
 		source_dirs = set()
 		for l in library.libs :
 			if l.name in libs_used :
@@ -1204,7 +1265,7 @@ class Workbench(WorkbenchData) :
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
 		blob_stream = StringIO()
 
-		term_stream = StringIO()
+#		term_stream = StringIO()
 #		term_stream = sys.stdout
 		term_stream = Workbench.TermStream(self.__messages)
 
@@ -1258,19 +1319,30 @@ class Workbench(WorkbenchData) :
 #		prog_port, blob = None, None
 		board_info = self.__board_types[self.get_board()]
 		prog_mcu = board_info["build.mcu"]
-		self.__jobs.put(("upload", (prog_mcu, self.__blob)))
+		self.__jobs.put(("upload", (prog_mcu, self.get_port(), self.__blob, self.__blob_time)))
 
 
-	def upload_job(self, prog_mcu, blob) :
-		print(here())
-		rc = build.program("avrdude", self.get_port(), "arduino", prog_mcu, None,
+	def upload_job(self, prog_mcu, port, blob, blob_time) :
+		if blob is None :
+			self.__messages.put(("status", (("upload", False, "upload_failed"),
+				{ "other" : { "reason" : "no_blob"}})))
+			return None
+
+		self.__messages.put(("status", (("upload", True, "upload_started"),
+			{ "other" : { "info" : (blob_time, prog_mcu, port) }})))
+
+		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
 			a_hex_blob=blob,
 			verbose=False,
 			dry_run=False)
+
 		if rc[0] :
-			print("programming failed ({0})".format(rc[0]))
+#			print("programming failed ({})".format(rc[0]))
+			self.__messages.put(("status", (("upload", False, "upload_failed"),
+				{ "other" : { "reason" : rc[0] }})))
 		else :
-			print("programming succeeded")
+#			print("programming succeeded")
+			self.__messages.put(("status", (("upload", True, "upload_done"), {})))
 
 
 	state_info = property(lambda self: self.get_state_info())
@@ -1331,9 +1403,11 @@ class Workbench(WorkbenchData) :
 	def rescan_ports(self) :
 		self.set_port_list(build.get_ports())
 
+
 	def __timer_job(self) :
 #TODO TODO TODO
 		pass
+
 
 	def read_messages(self) :
 		messages = []
@@ -1359,6 +1433,7 @@ class Workbench(WorkbenchData) :
 	def get_port_list(self) :
 		return self.__ports
 
+
 	@sync
 	def set_port_list(self, port_list) :
 		if self.__ports != port_list :
@@ -1375,10 +1450,11 @@ class Workbench(WorkbenchData) :
 	def set_board(self, board) :
 		if board in self.__board_types :
 			self.__board = board
+			self.__changed("board_set", (board, ))
 		return self.__board
 
 
-	@sync
+#	@sync
 	def get_board(self) :
 		return self.__board
 
@@ -1387,10 +1463,11 @@ class Workbench(WorkbenchData) :
 	def set_port(self, port) :
 		if port in { p[0] for p in self.__ports } :
 			self.__port = port
+			self.__changed("port_set", (port, ))
 		return self.__port
 
 
-	@sync
+#	@sync
 	def get_port(self) :
 		return self.__port
 
@@ -1398,16 +1475,6 @@ class Workbench(WorkbenchData) :
 	def __changed(self, event, data) :
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
-
-
-#TODO TODO TODO
-	def __sheet_changed_event(self) :
-#		self.__changed = True
-#		self.__set_current_file_name(self.__fname)
-		pass
-
-
-	MULTITHREADED = True
 
 
 	@sync
@@ -1418,6 +1485,35 @@ class Workbench(WorkbenchData) :
 	@sync
 	def blob_time(self) :
 		return self.__blob_time
+
+
+	def __sheet_changed(self, sheet) :
+		self.__changed("sheet_modified", (sheet, ))
+
+
+	def block_added(self, sheet, block) :
+		self.__sheet_changed(sheet)
+
+	def block_removed(self, sheet, block) :
+		self.__sheet_changed(sheet)
+
+	def block_changed(self, sheet, block, event=None) :
+		self.__sheet_changed(sheet)
+
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) :
+		self.__sheet_changed(sheet)
+
+	def connection_removed(self, sheet, sb, st, tb, tt) :
+		self.__sheet_changed(sheet)
+
+	def connection_changed(self, sheet, sb, st, tb, tt) :
+		self.__sheet_changed(sheet)
+
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
+		self.__sheet_changed(sheet)
+
+
+	MULTITHREADED = True
 
 
 #	@catch_all

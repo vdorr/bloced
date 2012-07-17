@@ -1,52 +1,45 @@
 #! /usr/bin/python
 
-from sys import exit, version_info
 from pprint import pprint
 from collections import namedtuple
 from functools import partial
-from itertools import dropwhile, groupby
-#import argparse #TODO use sys instead
-import traceback
+from itertools import groupby, count, islice
+#import argparse
+#import traceback
 import os
-import string
 import pickle
 import fnmatch
+from collections import OrderedDict
+import sys
+import webbrowser
+import time
 
 import pyperclip
 
-import webbrowser
-
 import autoroute
-from dfs import *
+import dfs
 import core
-from serializer import *
-#from implement import implement_dfs, try_mkmac, here
+import serializer
 from utils import here
 import mathutils
-import build
 
-if version_info.major == 3 :
-	from tkinter import * #TODO this is not good
-	from tkinter import font as tkFont #XXX ?!?!?!?
+if sys.version_info.major == 3 :
+	import tkinter as tk
+	from tkinter import font as tkFont
 	import tkinter.messagebox as tkMessageBox
 	from tkinter.filedialog import askopenfilename, asksaveasfilename
 	from tkinter import ttk
 	from tkinter.simpledialog import Dialog
 	from configparser import SafeConfigParser
+	from functools import reduce
 else :
-	from Tkinter import * #TODO this is not good
+	import Tkinter as tk
 	import tkFont
 	import tkMessageBox
 	from tkFileDialog import askopenfilename, asksaveasfilename
 	import ttk
 	from tkSimpleDialog import Dialog
 	from ConfigParser import SafeConfigParser
-
-# ------------------------------------------------------------------------------------------------------------
-
-#TODO map from model to presentation: { dfs.JointProto : Joint, BlockModel:
-#TODO somehow implement system of "actions" so its not neccessary to have separate  implementations
-# for menu and shortcut handlers, use functools.partial or so, look at gtk
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -172,8 +165,8 @@ class InputDialog(Dialog) :
 #		self.value = (None, ) * len(self.__items)
 		self.value = None
 		for (text, initial), row in zip(self.__items, count()) :
-			Label(master, text=text+" ").grid(row=row)
-			e1 = Entry(master)
+			tk.Label(master, text=text+" ").grid(row=row)
+			e1 = tk.Entry(master)
 			e1.insert(0, str(initial))
 			e1.grid(row=row, column=1)
 			self.__entries.append(e1)
@@ -189,20 +182,20 @@ class InputDialog(Dialog) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class CustomDialog(Toplevel):
+class CustomDialog(tk.Toplevel):
 
 	"""
 	taken from http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
 	"""
 
 	def __init__(self, parent, title = None) :
-		Toplevel.__init__(self, parent)
+		tk.Toplevel.__init__(self, parent)
 		self.transient(parent)
 		if title:
 			self.title(title)
 		self.parent = parent
 		self.result = None
-		body = Frame(self)
+		body = tk.Frame(self)
 		self.initial_focus = self.body(body)
 		body.pack(padx=5, pady=5)
 		self.buttonbox()
@@ -224,11 +217,11 @@ class CustomDialog(Toplevel):
 	def buttonbox(self) :
 		# add standard button box. override if you don't want the
 		# standard buttons
-		box = Frame(self)
-		w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
-		w.pack(side=LEFT, padx=5, pady=5)
-		w = Button(box, text="Cancel", width=10, command=self.cancel)
-		w.pack(side=LEFT, padx=5, pady=5)
+		box = tk.Frame(self)
+		w = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+		w.pack(side=tk.LEFT, padx=5, pady=5)
+		w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
+		w.pack(side=tk.LEFT, padx=5, pady=5)
 		self.bind("<Return>", self.ok)
 		self.bind("<Escape>", self.cancel)
 		box.pack()
@@ -269,15 +262,15 @@ class TextEditorDialog(CustomDialog) :
 
 
 	def body(self, master) :
-		txt = Text(master, wrap="none")
+		txt = tk.Text(master, wrap="none")
 		self.txt = txt
 		txt.insert("1.0", self.value)
-		self.txt.grid(column=1, row=1, sticky=(W, E, N, S))
-		yscroll = Scrollbar(master, orient=VERTICAL, command=self.txt.yview)
-		yscroll.grid(column=2, row=1, sticky=(N,S))
+		self.txt.grid(column=1, row=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+		yscroll = tk.Scrollbar(master, orient=tk.VERTICAL, command=self.txt.yview)
+		yscroll.grid(column=2, row=1, sticky=(tk.N, tk.S))
 		self.txt.configure(yscrollcommand=yscroll.set)
-		xscroll = Scrollbar(master, orient=HORIZONTAL, command=self.txt.xview)
-		xscroll.grid(column=1, row=2, sticky=(W,E))
+		xscroll = tk.Scrollbar(master, orient=tk.HORIZONTAL, command=self.txt.xview)
+		xscroll.grid(column=1, row=2, sticky=(tk.W, tk.E))
 		self.txt.configure(xscrollcommand=xscroll.set)
 		return txt
 
@@ -325,7 +318,7 @@ if 0 :
 			draw.text((0, 0), text, font=fnt, fill=(0, 0, 0)) #Draw text
 			img = ImageTk.PhotoImage(
 				im if not parent_block.model.orientation[2] % 180 else im.rotate(90, expand=True))
-			i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=NW)
+			i = parent_block.create_image((lbl_x, lbl_y), image=img, anchor=tk.NW)
 			self.__data = (img, text, pos, i)
 			self.canvas_item = i
 			self.text = text
@@ -344,7 +337,7 @@ else :
 				pos = lbl_x, lbl_y
 			else :
 				lbl_x, lbl_y = pos
-			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=NW,
+			i = parent_block.create_text((lbl_x, lbl_y), text=text, anchor=tk.NW,
 				font=font)
 			self.__data = (None, text, pos, i)
 			self.canvas_item = i
@@ -352,7 +345,7 @@ else :
 			self.pos = pos
 
 
-class Block(Canvas, BlockBase) :
+class Block(tk.Canvas, BlockBase) :
 
 
 	def term_onMouseDown(self, e) :
@@ -383,7 +376,6 @@ class Block(Canvas, BlockBase) :
 		self.model.height = h
 
 
-	#TODO class EditableBlock(Block) :
 	def onDblClick(self, e) :
 #		if type(self.model.prototype) in Block.editables :
 #		print here()#, self.model.prototype, self.model.prototype.values
@@ -456,12 +448,12 @@ class Block(Canvas, BlockBase) :
 		self.mouse_down_at = None
 		self.__dbl_click = False
 
-		Canvas.__init__(self, self.editor.canv,
+		tk.Canvas.__init__(self, self.editor.canv,
 			width=self.model.width, height=self.model.height,
 			bg="white", borderwidth=0, highlightthickness=0)
 
 		self.window = self.canvas.create_window(self.model.left, self.model.top,
-			window=self, anchor=NW)
+			window=self, anchor=tk.NW)
 		
 		self.bind("<B1-Motion>", self.onMouseMoveW)
 		self.bind("<ButtonPress-1>", self.onMouseDownW)
@@ -528,7 +520,7 @@ class Block(Canvas, BlockBase) :
 #XXX XXX XXX
 
 			(x, y), (txtx, txty) = self.model.get_term_and_lbl_pos(t, nr, txt_width, txt_height)
-			poly = get_term_poly(
+			poly = dfs.get_term_poly(
 				x,#x-(term_size if t_side == E else 0),
 				y,#y-(term_size if t_side == S else 0),
 				txt_height, self.model.get_term_side(t), t.direction, txt_width)
@@ -536,7 +528,7 @@ class Block(Canvas, BlockBase) :
 			w = self.create_polygon(*poly, fill="white", outline="black", tags=term_tag)
 			self.bind_as_term(w)
 
-			txt = self.create_text(txtx, txty, text=term_label, anchor=NW,
+			txt = self.create_text(txtx, txty, text=term_label, anchor=tk.NW,
 				fill="black", tags=term_tag, font=self.editor.font)
 			self.bind_as_term(txt)
 
@@ -594,7 +586,7 @@ class Joint(Block) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-class BlockEditor(Frame, GraphModelListener) :
+class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 
 	def editing(f):
 		def decorated(*v, **w) :
@@ -714,7 +706,7 @@ class BlockEditor(Frame, GraphModelListener) :
 				self.model.remove_connection(sb, st, tb, tt)
 
 		self.offset = (e.x + xo, e.y + yo)
-		self.line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
+		self.line = self.canv.create_line(0, 0, 0, 0, arrow=tk.LAST, arrowshape=(10, 10, 5))
 
 
 	def blckMouseMove(self, sender, e) :
@@ -793,7 +785,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.model.remove_connection(src_blck, src_term, dst_blck, dst_term)
 			proto = core.JointProto()
 			w, h = proto.default_size
-			joint = BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
+			joint = dfs.BlockModel(proto, self.model, left=dstx-w/2, top=dsty-h/2)
 			self.model.add_block(joint)
 			t_in = [ t for t in joint.terms if t.direction == core.INPUT_TERM ][0]
 			t_out = [ t for t in joint.terms if t.direction == core.OUTPUT_TERM ][0]
@@ -806,7 +798,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	# ----------------------------------------------------------------------------------------------------
 
-	def block_added(self, model) :
+	def block_added(self, sheet, model) :
 	#TODO unify
 #		b = self.m_view_types[model.prototype](self, model)
 		if core.compare_proto_to_type(model.prototype, core.JointProto) :
@@ -821,13 +813,15 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.block_index[model] = b
 		self.window_index[b.window] = b
 
-	def block_removed(self, block) :
+
+	def block_removed(self, sheet, block) :
 		window = self.block_index[block].window
 		self.canv.delete(window)
 		self.block_index.pop(block)
 		self.window_index.pop(window)
 
-	def block_changed(self, block, event=None, reroute=False) :
+
+	def block_changed(self, sheet, block, event=None, reroute=False) :
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]
@@ -850,7 +844,8 @@ class BlockEditor(Frame, GraphModelListener) :
 #			for k, v in self.block_index[block].get_wires() :
 #				self.update_connection(*(k + (True,)))
 
-	def connection_changed(self, sb, st, tb, tt) :
+
+	def connection_changed(self, sheet, sb, st, tb, tt) :
 		line, linecoords = self.connection2line[(sb, st, tb, tt)]
 		meta = self.model.get_connection_meta(sb, st, tb, tt)
 		if "path" in meta :
@@ -858,9 +853,10 @@ class BlockEditor(Frame, GraphModelListener) :
 			self.connection2line[(sb, st, tb, tt)] = (line, path)
 			self.canv.coords(line, *path)
 
-	def connection_added(self, sb, st, tb, tt, deserializing=False) :
+
+	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) :
 		#TODO i/o arrow dir, make it cleaner
-		line = self.canv.create_line(0, 0, 0, 0, arrow=LAST, arrowshape=(10,10,5))
+		line = self.canv.create_line(0, 0, 0, 0, arrow=tk.LAST, arrowshape=(10, 10, 5))
 		self.connection2line[(sb, st, tb, tt)] = (line, [])
 
 		conn_meta = dict(self.model.get_connection_meta(sb, st, tb, tt))
@@ -886,7 +882,8 @@ class BlockEditor(Frame, GraphModelListener) :
 #				for k, v in self.block_index[b].get_wires() :
 #					self.update_connection(*(k + (True,)))
 
-	def connection_removed(self, sb, st, tb, tt) :
+
+	def connection_removed(self, sheet, sb, st, tb, tt) :
 		for block, term in ((sb, st), (tb, tt)) :
 #			if isinstance(block.prototype, core.JointProto) :
 #				block.terms.remove(term)
@@ -905,6 +902,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			if block in self.block_index :
 				for k, v in self.block_index[block].get_wires() :
 					self.update_connection(*(k + (True,)))
+
 
 	# ----------------------------------------------------------------------------------------------------
 	
@@ -928,7 +926,7 @@ class BlockEditor(Frame, GraphModelListener) :
 #		print "update_connection: tt, tn, tA =", tt, tn, tA, (tb.left, tb.width)
 
 		bump = cfg.BLOCK_WIRE_STUB
-		bumps = { N: (0, -bump), S: (0, bump), W: (-bump, 0), E: (bump, 0), C: (0, 0) }
+		bumps = { dfs.N: (0, -bump), dfs.S: (0, bump), dfs.W: (-bump, 0), dfs.E: (bump, 0), dfs.C: (0, 0) }
 
 		bump0x, bump0y = bumps[sb.get_term_side(st)]
 		s = autoroute.pnt(int(s0[0]+bump0x), int(s0[1]+bump0y))
@@ -938,9 +936,9 @@ class BlockEditor(Frame, GraphModelListener) :
 
 		route = None
 		if fullroute :
-			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sb.get_term_side(st) != C
+			r1 = (autoroute.rct(sb.left, sb.top, sb.width, sb.height) if sb.get_term_side(st) != dfs.C
 				else autoroute.rct(sb.left, sb.top, 1, 1))
-			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tb.get_term_side(tt) != C
+			r2 = (autoroute.rct(tb.left, tb.top, tb.width, tb.height) if tb.get_term_side(tt) != dfs.C
 				else autoroute.rct(tb.left, tb.top, 1, 1))
 			bbox = autoroute.choose_bbox(r1, r2,
 				autoroute.rct(*self.canvas_scrollregion), bump + 1)
@@ -990,7 +988,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 			dist = ([ ((i, 2), mathutils.pldist(*(route[i:i+4]+[e.x, e.y]))) for i in indices ] +
 				[ ((i, 1), mathutils.ppdist(*(route[i:i+2]+[e.x, e.y]))-kneebonus) for i in indices ])
-			segment, dist = reduce(lambda a,b: a if a[1] < b[1] else b, dist)
+			segment, dist = reduce(lambda a, b: a if a[1] < b[1] else b, dist)
 
 			self.mdata2 = segment
 
@@ -1124,14 +1122,14 @@ class BlockEditor(Frame, GraphModelListener) :
 		a = 4
 		c = 4
 		b = 0
-		w_lt = Canvas(self)
+		w_lt = tk.Canvas(self)
 #		pad_lt = self.canv.create_window(w_lt, x0-a, y0-a, x0+c, y0+c, fill="black") # left-top
 #		pad_lt = self.canv.create_rectangle(x0-a, y0-a, x0+a, y0+a, fill="black") # left-top
 #		pad_lb = self.canv.create_rectangle(x0-a, y1-a, x0+a, y1+a, fill="black") # left-bottom
 #		pad_rt = self.canv.create_rectangle(x1-a, y0-a, x1+a, y0+a, fill="black") # right-top
 #		pad_rb = self.canv.create_rectangle(x1-a, y1-a, x1+a, y1+a, fill="black") # right-bottom
 #		rct = self.canv.create_rectangle(x0, y0, x1, y1, dash=(2,2), fill=None)
-		rct = self.canv.create_rectangle(x0-b, y0-b, x1+b, y1+b, dash=(2,2), fill=None)
+		rct = self.canv.create_rectangle(x0-b, y0-b, x1+b, y1+b, dash=(2, 2), fill=None)
 		return rct
 
 	def clear_selection(self) :
@@ -1197,7 +1195,7 @@ class BlockEditor(Frame, GraphModelListener) :
 
 	def serialize_selection(self) :
 		if self.selection :
-			data = get_dfs_model_data2(
+			data = serializer.get_dfs_model_data2(
 				[ b.model for b in self.selection.blocks ],
 				{ (b0, t0) : [(b1, t1)] for (b0, t0, b1, t1), _ in self.selection.lines },
 				{ k : self.model.connections_meta[k] for k, _ in self.selection.lines },
@@ -1212,7 +1210,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			return None
 #		print "paste:", types, struct, meta
 #		load_to_dfs_model(self.model, types, struct, meta)
-		bm, lm = load_to_dfs_model(self.model, types, struct, meta,
+		bm, lm = serializer.load_to_dfs_model(self.model, types, struct, meta,
 			self.__workbench_getter().blockfactory, deserializing=True)
 		self.create_selection_from_list([ self.block_index[b] for b in bm ],
 			[ (l, self.connection2line[l]) for l in lm ] )
@@ -1224,7 +1222,7 @@ class BlockEditor(Frame, GraphModelListener) :
 	def paste_block_on_mouse_down(self, e) :
 		if not self.__paste_proto :
 			return None
-		b = BlockModel(self.__paste_proto, self.model, left=e.x, top=e.y)
+		b = dfs.BlockModel(self.__paste_proto, self.model, left=e.x, top=e.y)
 		self.model.add_block(b)
 #		if not bool(e.state & BIT_SHIFT) :
 #			self.end_paste_block()
@@ -1259,7 +1257,7 @@ class BlockEditor(Frame, GraphModelListener) :
 			if self.model :
 				self.model.remove_listener(self)
 			self.model = None
-			self.canv.delete(ALL)
+			self.canv.delete(tk.ALL)
 
 #	def set_changed(self, v) :
 #		print "not implemented: set_changed"
@@ -1302,19 +1300,19 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.ui.editor_popup.tk_popup(e.x_root, e.y_root, 0)
 
 
-	def meta_changed(self, key, key_present, old_value, new_value) :
-		print here(), key, new_value
+	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
+		print(here(), key, new_value)
 		if key == "task_period" :
 			if new_value is None :
 				index = 0
 			else :
-				index = self.period_box_values.values().index(new_value)
+				index = tuple(self.period_box_values.values()).index(new_value)
 			self.period_box.current(index)
 		if key == "sheet_type" :
 			if new_value is None :
 				index = 0
 			else :
-				index = self.sheet_type_box_values.values().index(new_value)
+				index = tuple(self.sheet_type_box_values.values()).index(new_value)
 			self.sheet_type_box.current(index)
 		else :
 			pass
@@ -1325,7 +1323,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		value = self.period_box_values[index]
 #		print here(), a, b, index, value
 		self.model.begin_edit()
-		self.model.set_meta("task_period", value)
+		self.model.set_meta("task_period", value)#TODO named const
 		self.model.end_edit()
 
 
@@ -1334,7 +1332,7 @@ class BlockEditor(Frame, GraphModelListener) :
 		value = self.sheet_type_box_values[index]
 #		print here(), a, b, index, value
 		self.model.begin_edit()
-		self.model.set_meta("sheet_type", value)
+		self.model.set_meta("sheet_type", value)#TODO named const
 		self.model.end_edit()
 
 
@@ -1349,7 +1347,7 @@ class BlockEditor(Frame, GraphModelListener) :
 #		self.font_v = tkFont.nametofont("TkDefaultFont")
 		self.txt_height = self.font.metrics("linespace")
 
-		Frame.__init__(self, parent)
+		tk.Frame.__init__(self, parent)
 
 		self.__paste_proto = None
 		self.__workbench_getter = workbench_getter
@@ -1359,55 +1357,55 @@ class BlockEditor(Frame, GraphModelListener) :
 		self.canvas_scrollregion = (0, 0, cfg.CANVAS_WIDTH, cfg.CANVAS_HEIGHT)
 
 		if 1 :
-			self.attr_frame = Frame(self, height=32, border=5)
-			self.attr_frame.grid(column=0, row=0, sticky=(W, E, N))
-			self.attr_frame.pack(fill=X, expand=False)
+			self.attr_frame = tk.Frame(self, height=32, border=5)
+			self.attr_frame.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N))
+			self.attr_frame.pack(fill=tk.X, expand=False)
 		if 0 :
-			self.sheet_type_lbl = Label(self.attr_frame, text="Sheet Type ");
+			self.sheet_type_lbl = tk.Label(self.attr_frame, text="Sheet Type ")
 			self.sheet_type_lbl.grid(column=0, row=0)
 
-			self.sheet_type_box_value = StringVar()
+			self.sheet_type_box_value = tk.StringVar()
 			self.sheet_type_box = ttk.Combobox(self.attr_frame,
 				textvariable=self.sheet_type_box_value, 
 	                        state="readonly")
 			self.sheet_type_box_values = OrderedDict((i, v) for v, i in zip(("Task", "Macro"), count()))
-			self.sheet_type_box["values"] = self.sheet_type_box_values.values()
+			self.sheet_type_box["values"] = tuple(self.sheet_type_box_values.values())
 			self.sheet_type_box.bind("<<ComboboxSelected>>", self.sheet_type_box_changed)
 			self.sheet_type_box.current(0)
 			self.sheet_type_box.grid(column=1, row=0)
 		if 1 :
-			self.period_lbl = Label(self.attr_frame, text="Period ");
+			self.period_lbl = tk.Label(self.attr_frame, text="Period ")
 			self.period_lbl.grid(column=2, row=0)
 
-			self.period_box_value = StringVar()
+			self.period_box_value = tk.StringVar()
 			self.period_box = ttk.Combobox(self.attr_frame,
 				textvariable=self.period_box_value, 
 	                        state="readonly")
 			self.period_box_values = OrderedDict((i, v) for v, i in zip(("Idle task",
 				"10ms", "20ms", "50ms", "100ms",
 				"200ms", "500ms", "1s", "2s", "5s", "10s"), count()))
-			self.period_box["values"] = self.period_box_values.values()
+			self.period_box["values"] = tuple(self.period_box_values.values())
 			self.period_box.current(0)
 			self.period_box.bind("<<ComboboxSelected>>", self.period_box_changed)
 			self.period_box.grid(column=3, row=0)
 
-		self.canv_frame = Frame(self)
+		self.canv_frame = tk.Frame(self)
 #		self.canv_frame.grid(column=0, row=1, sticky=(W, E, N, S))
-		self.canv_frame.pack(fill=BOTH, expand=True)
+		self.canv_frame.pack(fill=tk.BOTH, expand=True)
 
-		self.canv = Canvas(self.canv_frame, scrollregion=self.canvas_scrollregion,
+		self.canv = tk.Canvas(self.canv_frame, scrollregion=self.canvas_scrollregion,
 			bg="white", highlightthickness=0)
-		self.canv.grid(column=0, row=0, sticky=(W, E, N, S))
+		self.canv.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 		self.canv_frame.columnconfigure(0, weight=1)
 		self.canv_frame.rowconfigure(0, weight=1)
 		self.canv.focus_set()
 
-		yscroll = Scrollbar(self.canv_frame, orient=VERTICAL, command=self.canv.yview)
-		yscroll.grid(column=1, row=0, sticky=(N,S))
+		yscroll = tk.Scrollbar(self.canv_frame, orient=tk.VERTICAL, command=self.canv.yview)
+		yscroll.grid(column=1, row=0, sticky=(tk.N, tk.S))
 		self.canv.configure(yscrollcommand=yscroll.set)
 
-		xscroll = Scrollbar(self.canv_frame, orient=HORIZONTAL, command=self.canv.xview)
-		xscroll.grid(column=0, row=1, sticky=(W,E))
+		xscroll = tk.Scrollbar(self.canv_frame, orient=tk.HORIZONTAL, command=self.canv.xview)
+		xscroll.grid(column=0, row=1, sticky=(tk.W, tk.E))
 		self.canv.configure(xscrollcommand=xscroll.set)
 
 		self.reset_state()
@@ -1573,7 +1571,7 @@ class BlockEditorWindow(object) :
 		else :
 			parent_add = partial(parent.insert, index)
 		if isinstance(item, CascadeMnu) :
-			mnu = Menu(parent)
+			mnu = tk.Menu(parent)
 			self.__menu_items[item] = (parent, index)
 #			print here(), item, parent
 			parent_add("cascade", label=item.text, menu=mnu)
@@ -1585,7 +1583,7 @@ class BlockEditorWindow(object) :
 			if parent in self.__menu_vars :
 				var = self.__menu_vars[parent]
 			else :
-				self.__menu_vars[parent] = var = StringVar()
+				self.__menu_vars[parent] = var = tk.StringVar()
 #			print here(), parent, item.text
 			item_type = "radiobutton" if isinstance(item, RadioMnu) else "checkbutton" #XXX ugly!!!
 			val = item.value if item.value else item.text
@@ -1607,7 +1605,7 @@ class BlockEditorWindow(object) :
 	def add_top_menu(self, text, items=[], root=None) :
 		if root is None :
 			root = self.__menubar
-		mnu = Menu(root)
+		mnu = tk.Menu(root)
 		txt, under = self.__convert_mnu_text(text)
 		root.add_cascade(menu=mnu, label=txt, underline=under)
 		for item, i in zip(items, count()) :
@@ -1620,7 +1618,7 @@ class BlockEditorWindow(object) :
 #		print(here(), new.text, old.text)
 		mnu, index = self.__menu_items.pop(old)
 		if old in self.__menu_vars :
-			print here(), self.__menu_vars.pop(old)
+			print(here(), self.__menu_vars.pop(old))
 #		print(here(), mnu, index, new.text, old.text)
 		mnu.delete(index)
 		self.__add_submenu_item(mnu, new, index=index)
@@ -1647,17 +1645,18 @@ class BlockEditorWindow(object) :
 
 
 	def open_file(self, a=None) :
-		fname = askopenfilename(filetypes=KNOWN_EXTENSIONS)
+		fname = askopenfilename(filetypes=dfs.KNOWN_EXTENSIONS)
 		if fname :
 			self.open_this_file_new(fname)
 
 
 	def save_file_as(self) :
-		return self.save_file(asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
+		return self.save_file(asksaveasfilename(filetypes=dfs.KNOWN_EXTENSIONS))
 
 
 	def save_current_file(self, a=None) :
-		return self.save_file(self.current_filename if self.have_file else asksaveasfilename(filetypes=KNOWN_EXTENSIONS))
+		return self.save_file(self.current_filename if self.have_file
+			else asksaveasfilename(filetypes=dfs.KNOWN_EXTENSIONS))
 
 
 	def new_file(self, a=None) :
@@ -1675,22 +1674,23 @@ class BlockEditorWindow(object) :
 		self.work.clear()
 		try :
 			with open(fname, "rb") as f :
-				unpickle_workbench(f, self.work) 
+				serializer.unpickle_workbench(f, self.work) 
 		except IOError :
 			self.show_warning("Failed to open file '{0}'".format(fname))
 		else :
-			self.__set_current_file_name(fname)
 			self.__changed = False
+			self.__set_current_file_name(fname)
 			self.__update_recent_files(fname)
 			self.__select_board(self.work.get_board())
 			self.__select_port(self.work.get_port())
+			self.__update_status_bar()
 
 
 	def save_file(self, fname) :
 		if fname :
 			try :
 				with open(fname, "wb") as f :
-					pickle_workbench(self.work, f)
+					serializer.pickle_workbench(self.work, f)
 			except IOError :
 				self.show_warning("Failed to open file '{0}'".format(fname))
 			else :
@@ -1706,8 +1706,6 @@ class BlockEditorWindow(object) :
 
 
 	def mnu_mode_run(self, a=None) :
-		if not self.work.have_blob() :
-			self.work.build()
 		self.work.upload()
 
 
@@ -1725,12 +1723,12 @@ class BlockEditorWindow(object) :
 
 
 	def __choose_port(self, *a, **b) :
-		print(here(), self.work.get_port(), " ->", a[0].get())
+#		print(here(), self.work.get_port(), " ->", a[0].get())
 		self.work.set_port(a[0].get())
 
 
 	def __choose_board(self, *a, **b) :
-		print(here(), self.work.get_board(), " ->", a[0].get())
+#		print(here(), self.work.get_board(), " ->", a[0].get())
 		self.work.set_board(a[0].get())
 
 
@@ -1743,20 +1741,30 @@ class BlockEditorWindow(object) :
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
-	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None) :
-		print("workbench changed", job, is_ok, reason)
+	def __workbench_status_changed(self, job, is_ok, reason, term_stream=None, other=None) :
+#		print(here(), "workbench changed", job, is_ok, reason, other)
 		if job == "build" :
-			if reason == "build_started" :
-				msg = "build started ..."
-			else :
-				msg = "build ok" if is_ok else "build failed"
-			self.status_label_right.configure(text=msg)
+#			if reason == "build_started" :
+#				msg = "build started ..."
+#			else :
+#				msg = "build ok" if is_ok else "build failed"
+			pass
+		elif job == "upload" :
+			if reason == "upload_started" :
+				blob_time, prog_mcu, port = other["info"]
+				term_stream = "uploading blob dated {} to {} at {}".format(
+					time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime(blob_time)),
+					prog_mcu, port) + os.linesep
+			elif reason == "upload_failed" :
+				term_stream = "upload failed ({})".format(other["reason"]) + os.linesep
+			elif reason == "upload_done" :
+				term_stream = "upload succeeded" + os.linesep
 
 		if not term_stream is None :
 #			self.term_txt.insert("1.0", "hello")
 #			self.term_txt.insert("1.0", term_stream.getvalue())
-			self.term_txt.insert(END, term_stream)
-			self.term_txt.yview(END)
+			self.term_txt.insert(tk.END, term_stream)
+			self.term_txt.yview(tk.END)
 
 #		self.status_label_left.configure(text=columns[-1])
 
@@ -1778,7 +1786,7 @@ class BlockEditorWindow(object) :
 
 	def add_sheet(self, sheet, name) :
 		bloced = BlockEditor(self, self.tabs, self.__workbench_getter)
-		bloced.grid(column=0, row=1, sticky=(W, E, N, S))
+		bloced.grid(column=0, row=1, sticky=(tk.W, tk.E, tk.N, tk.S))
 		bloced.columnconfigure(0, weight=1)
 		bloced.rowconfigure(0, weight=1)
 #		print here(), name, sheet
@@ -1795,20 +1803,37 @@ class BlockEditorWindow(object) :
 		self.__select_sheet(name)
 
 
+	def __update_status_bar(self) :
+		board = self.work.get_board()
+		port = self.work.get_port()
+		target = "{}@{}".format(
+			"(board not set)" if board is None else self.work.get_board_types()[board]["name"],
+			"(port not set)" if port is None else port)
+		self.status_label_right.configure(text=target)
+#		self.status_label_left.configure(text="?")
+
+
 	def __change_callback(self, w, event, data) :
-		print(here(), w, event, data)
+#		print(here(), event)
 		sheet_name = None
-		changed = False
+		changed = True
 		if event == "sheet_added" :
 			sheet, sheet_name = data #?
 			self.add_sheet(sheet, sheet_name)
-			changed = True
+#			changed = True
 		elif event == "sheet_deleted" :
 			sheet, sheet_name = data #?
 			self.delete_sheet(sheet, sheet_name)
-			changed = True
-#		if changed :
-#			self.__changed_event()
+#			changed = True
+		elif event == "sheet_modified" :
+			pass #maybe show star on tab?
+		elif event in ("board_set","port_set") :
+			self.__update_status_bar()
+		else :
+			print(here(), "unhandled workbench event:", event)
+			changed = False
+		if changed :
+			self.__changed_event()
 		if not sheet_name is None :
 			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
 				self.__list_local_block()
@@ -1877,7 +1902,7 @@ class BlockEditorWindow(object) :
 		title = os.path.splitext(os.path.basename(filename))[0]
 		try :
 			with open(filename, "rb") as f :
-				m = unpickle_dfs_model(f, lib=self.work.blockfactory)
+				m = serializer.unpickle_dfs_model(f, lib=self.work.blockfactory)
 			self.work.add_sheet(sheet=m, name=title)
 		except IOError :
 			self.show_warning("Failed to import file '{0}'".format(filename))
@@ -1885,7 +1910,7 @@ class BlockEditorWindow(object) :
 
 	def __mnu_import_sheet(self, a=None) :
 		print(here())
-		fname = askopenfilename(filetypes=IMPORT_EXTENSIONS)
+		fname = askopenfilename(filetypes=dfs.IMPORT_EXTENSIONS)
 		if fname :
 			self.__import_sheet(fname)
 
@@ -1924,10 +1949,15 @@ class BlockEditorWindow(object) :
 		#don't recurse
 		for root, dirs, files in islice(tree, 1) : #tree if recurse else islice(tree, 1) :
 			l += [ os.path.join(workdir, root, fn) for fn in files ]
-		_, ext = WORKBENCH_EXTENSION
+		_, ext = dfs.WORKBENCH_EXTENSION
 		result = fnmatch.filter(l, ext)
 		return result
 
+
+	def __list_libraries(self) :
+#TODO		print(here(), tuple(self.work.blockfactory.get_lib_files()))
+		return []
+	
 
 	def __select_board(self, board) :
 #		xxx = self.__menu_items[self.__board_menu.items[0]]
@@ -2029,13 +2059,14 @@ class BlockEditorWindow(object) :
 
 #		self.bloced.changed_event = self.__changed_event
 
-		self.__menubar = Menu(self.root)
+		self.__menubar = tk.Menu(self.root)
 		self.root["menu"] = self.__menubar
 
 		self.__recent_menu = None
 		self.__recent_menu = self.__list_recent_files(self.__settings.recent_files)
 
 		examples = self.__list_examples()
+		libraries = self.__list_libraries()
 
 		self.add_top_menu("&File", [
 			CmdMnu("&New", "Ctrl+N", self.new_file),
@@ -2045,6 +2076,8 @@ class BlockEditorWindow(object) :
 			SepMnu(),
 			CascadeMnu("Examples",
 				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in examples ]),
+#			CascadeMnu("Libraries",
+#				[ CmdMnu(os.path.basename(f), None, partial(self.__open_example, f)) for f in libraries ]),
 			SepMnu(),
 			self.__recent_menu,
 #			SepMnu(),
@@ -2065,7 +2098,7 @@ class BlockEditorWindow(object) :
 			mnu_redo,
 			SepMnu(),
 			mnu_cut, #CmdMnu("Cu&t", "Ctrl+X", self.mnu_edit_cut),
-			mnu_cut, #CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
+			mnu_copy, #CmdMnu("&Copy", "Ctrl+C", self.mnu_edit_copy),
 			mnu_paste, #CmdMnu("&Paste", "Ctrl+V", self.mnu_edit_paste),
 			mnu_delete, #CmdMnu("&Delete", "Delete", self.mnu_edit_delete),
 			SepMnu(),
@@ -2087,7 +2120,7 @@ class BlockEditorWindow(object) :
 			SepMnu(), mnu_undo, mnu_redo,
 			SepMnu(), mnu_cut, mnu_copy, mnu_paste, mnu_delete,
 			SepMnu(), mnu_select_all ]
-		self.editor_popup = self.add_top_menu("", items=editor_menu, root=Menu(self.root))
+		self.editor_popup = self.add_top_menu("", items=editor_menu, root=tk.Menu(self.root))
 
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
@@ -2188,7 +2221,9 @@ class BlockEditorWindow(object) :
 
 
 	def __load_default_config(self, config) :
-		config.add_section("Path")
+		try :
+			config.add_section("Path")
+		except : pass
 		config.set("Path", "all_in_one_arduino_dir", "")
 
 
@@ -2211,7 +2246,6 @@ class BlockEditorWindow(object) :
 			self.__load_default_config(self.config)
 			try :
 				with open(config_file, "w") as cf :
-					print here()
 					self.config.write(cf)
 			except :
 				print(here(), "error while writing '" + config_file + "'")
@@ -2225,7 +2259,7 @@ class BlockEditorWindow(object) :
 		self.__fname = None
 		self.__changed = False
 
-		self.work = Workbench(
+		self.work = dfs.Workbench(
 			lib_dir=os.path.join(os.getcwd(), "library"),
 			config=self.config,
 			passive=False,
@@ -2240,7 +2274,7 @@ class BlockEditorWindow(object) :
 		font_settings_t = namedtuple("font_settings", ("family", "size"))
 		self.font_settings = font_settings_t("sans", 8)
 
-		self.root = Tk()
+		self.root = tk.Tk()
 
 		if 0 :
 			self.root.option_add("*Font", self.font_settings)
@@ -2253,7 +2287,7 @@ class BlockEditorWindow(object) :
 #		print tkFont.families()
 
 		self.root.title(cfg.APP_NAME)
-		self.root.option_add("*tearOff", FALSE)
+		self.root.option_add("*tearOff", tk.FALSE)
 		self.root.columnconfigure(0, weight=1)
 		self.root.rowconfigure(0, weight=1)
 
@@ -2263,7 +2297,7 @@ class BlockEditorWindow(object) :
 #		mainframe.rowconfigure(1, weight=1)
 
 		self.tabs = ttk.Notebook(self.root)
-		self.tabs.grid(column=0, row=0, sticky=(N, W, E, S))
+		self.tabs.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
 		self.tabs.columnconfigure(0, weight=1)
 		self.tabs.rowconfigure(1, weight=1)
 		self.tabs.enable_traversal()
@@ -2271,7 +2305,7 @@ class BlockEditorWindow(object) :
 
 		if 0 :
 			self.tree = ttk.Treeview(self.root)
-			self.tree.grid(column=1, row=0, rowspan=2, sticky=(N, W, E, S))
+			self.tree.grid(column=1, row=0, rowspan=2, sticky=(tk.N, tk.W, tk.E, tk.S))
 			self.tree.insert('', 'end', 'widgets', text='Widget Tour')
 			self.tree.insert('', 0, 'gallery', text='Applications')
 			node_id = self.tree.insert('', 'end', text='Tutorial')
@@ -2279,39 +2313,40 @@ class BlockEditorWindow(object) :
 			self.tree.insert(node_id, 'end', text='Tree')
 
 
-		self.term_frame = Frame(self.root)
-		self.term_frame.grid(column=0, row=1, sticky=(N, W, E, S))
+		self.term_frame = tk.Frame(self.root)
+		self.term_frame.grid(column=0, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
 
-		self.term = Frame(self.term_frame)
+		self.term = tk.Frame(self.term_frame)
 
-		self.term_txt = Text(self.term, wrap="none", height=5)
+		self.term_txt = tk.Text(self.term, wrap="none", height=5)
 #		self.term_txt.insert("1.0", "hello")
-		self.term_txt.pack(fill=BOTH, expand=1, side=TOP)
+		self.term_txt.pack(fill=tk.BOTH, expand=1, side=tk.TOP)
 
-		self.term.grid(column=0, row=0, sticky=(W, E, N, S))
+		self.term.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
 		self.term_frame.columnconfigure(0, weight=1)
 		self.term_frame.rowconfigure(0, weight=1)
 
-		self.term_yscroll = Scrollbar(self.term_frame, orient=VERTICAL, command=self.term_txt.yview)
-		self.term_xscroll = Scrollbar(self.term_frame, orient=HORIZONTAL, command=self.term_txt.xview)
-		self.term_yscroll.grid(column=1, row=0, sticky=(N,S))
-		self.term_xscroll.grid(column=0, row=1, sticky=(W,E))
+		self.term_yscroll = tk.Scrollbar(self.term_frame, orient=tk.VERTICAL, command=self.term_txt.yview)
+		self.term_xscroll = tk.Scrollbar(self.term_frame, orient=tk.HORIZONTAL, command=self.term_txt.xview)
+		self.term_yscroll.grid(column=1, row=0, sticky=(tk.N, tk.S))
+		self.term_xscroll.grid(column=0, row=1, sticky=(tk.W, tk.E))
 		self.term_txt.configure(yscrollcommand=self.term_yscroll.set)
 		self.term_txt.configure(xscrollcommand=self.term_xscroll.set)
 
 
 
-		self.statusbar = Frame(self.root, height=32)
-		self.statusbar.grid(column=0, row=2, columnspan=2, sticky=(N, W, E, S))
+		self.statusbar = tk.Frame(self.root, height=32)
+		self.statusbar.grid(column=0, row=2, columnspan=2, sticky=(tk.N, tk.W, tk.E, tk.S))
 		self.statusbar.columnconfigure(0, weight=1)
 		self.statusbar.columnconfigure(1, weight=1)
 
-		self.status_label_left = Label(self.statusbar, text="left", relief=SUNKEN)
-		self.status_label_left.grid(column=0, row=0, sticky=(N, W, S))
+		self.status_label_left = tk.Label(self.statusbar, text="", relief=tk.SUNKEN)
+		self.status_label_left.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.S))
 
-		self.status_label_right = Label(self.statusbar, text="right", relief=SUNKEN)
-		self.status_label_right.grid(column=1, row=0, sticky=(N, E, S))
+		self.status_label_right = tk.Label(self.statusbar, text="", relief=tk.SUNKEN)
+		self.status_label_right.grid(column=1, row=0, sticky=(tk.N, tk.E, tk.S))
+		self.__update_status_bar()
 
 		self.setup_menus()
 
@@ -2337,7 +2372,7 @@ class BlockEditorWindow(object) :
 
 # ------------------------------------------------------------------------------------------------------------
 
-if __name__ == "__main__" :
+def main() :
 #	be = BlockEditorWindow()
 #	if len(sys.argv) == 2 :
 #		be.open_this_file_new(os.path.abspath(os.path.join(os.path.curdir, sys.argv[1])))
@@ -2354,6 +2389,10 @@ if __name__ == "__main__" :
 #		w.work._Workbench__set_should_finish()
 #TODO kill threads!!!
 		raise
+
+
+if __name__ == "__main__" :
+	main()
 
 # ------------------------------------------------------------------------------------------------------------
 

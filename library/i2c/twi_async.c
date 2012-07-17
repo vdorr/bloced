@@ -15,14 +15,22 @@
   You should have received a copy of the GNU Lesser General Public
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+  Modified 2012 by Todd Krein (todd@krein.org) to implement repeated starts
+
+  heavily modified by vdorr 2012
+
 */
 
-/*#include <math.h>*/
+#include <math.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <compat/twi.h>
+
+#define true 1
+#define false 0
 
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
@@ -32,18 +40,19 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
-/*#include "pins_arduino.h"*/
-#include "twi.h"
+#include "twi_async.h"
 
 static volatile uint8_t twi_state;
-static uint8_t twi_slarw;
+static volatile uint8_t twi_slarw;
+static volatile uint8_t twi_sendStop;			// should the transaction end with a stop
+static volatile uint8_t twi_inRepStart;			// in the middle of a repeated start
 
 static void (*twi_onSlaveTransmit)(void);
 static void (*twi_onSlaveReceive)(uint8_t*, int);
 
 static uint8_t twi_masterBuffer[TWI_BUFFER_LENGTH];
 static volatile uint8_t twi_masterBufferIndex;
-static uint8_t twi_masterBufferLength;
+static volatile uint8_t twi_masterBufferLength;
 
 static uint8_t twi_txBuffer[TWI_BUFFER_LENGTH];
 static volatile uint8_t twi_txBufferIndex;
@@ -54,16 +63,37 @@ static volatile uint8_t twi_rxBufferIndex;
 
 static volatile uint8_t twi_error;
 
+#if 0
+uint8_t twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t sendStop)
+{
+	uint8_t state = 0;
+	uint8_t rc;
+	while (twi_readFrom_async(&state, address, data, length, sendStop, &rc));
+	return rc;
+}
+
+uint8_t twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t sendStop)
+{
+	uint8_t state = 0;
+	uint8_t rc;
+	while (twi_writeTo_async(&state,address, data, length, wait, sendStop, &rc));
+	return rc;
+}
+#endif
+
 /* 
  * Function twi_init
  * Desc     readys twi pins and sets twi bitrate
  * Input    none
  * Output   none
  */
-int twi_init()
+void twi_init(void)
 {
   // initialize state
   twi_state = TWI_READY;
+  twi_sendStop = true;		// default value
+  twi_inRepStart = false;
+  
 
   // initialize twi prescaler and bit rate
   cbi(TWSR, TWPS0);
@@ -73,12 +103,10 @@ int twi_init()
   /* twi bit rate formula from atmega128 manual pg 204
   SCL Frequency = CPU Clock Frequency / (16 + (2 * TWBR))
   note: TWBR should be 10 or higher for master mode
-  It is 72 for a 16mhz Wiring board with 100kHz TWI */
+  It is 72 for a 16MHz Wiring board with 100kHz TWI */
 
   // enable twi module, acks, and twi interrupt
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
-
-  return 0;
 }
 
 /* 
@@ -87,11 +115,10 @@ int twi_init()
  * Input    none
  * Output   none
  */
-int twi_setAddress(uint8_t address)
+void twi_setAddress(uint8_t address)
 {
   // set twi slave address (skip over TWGCE bit)
   TWAR = address << 1;
-  return 0;
 }
 
 /* 
@@ -101,22 +128,31 @@ int twi_setAddress(uint8_t address)
  * Input    address: 7bit i2c device address
  *          data: pointer to byte array
  *          length: number of bytes to read into array
+ *          sendStop: Boolean indicating whether to send a stop at the end
  * Output   number of bytes read
  */
-int twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t* length_out)
+
+
+int twi_readFrom_async(uint8_t* state, uint8_t address, uint8_t* data, uint8_t length, uint8_t sendStop, uint8_t* rc)
 {
   uint8_t i;
-
+switch (*state)
+{
+case 0:
   // ensure data will fit into buffer
   if(TWI_BUFFER_LENGTH < length){
-    return -1;//XXX error
+*rc = 0;
+    return 0;//XXX done
   }
 
+*state = 1;
+case 1:
   // wait until twi is ready, become master receiver
-  if(TWI_READY != twi_state){
-    return 0;//XXX busy
+  while(TWI_READY != twi_state){
+    return 1;//XXX busy 
   }
   twi_state = TWI_MRX;
+  twi_sendStop = sendStop;
   // reset error state (0xFF.. no error occured)
   twi_error = 0xFF;
 
@@ -133,24 +169,39 @@ int twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t* length
   twi_slarw = TW_READ;
   twi_slarw |= address << 1;
 
-  // send start condition
-  TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
-
+  if (true == twi_inRepStart) {
+    // if we're in the repeated start state, then we've already sent the start,
+    // (@@@ we hope), and the TWI statemachine is just waiting for the address byte.
+    // We need to remove ourselves from the repeated start state before we enable interrupts,
+    // since the ISR is ASYNC, and we could get confused if we hit the ISR before cleaning
+    // up. Also, don't enable the START interrupt. There may be one pending from the 
+    // repeated start that we sent outselves, and that would really confuse things.
+    twi_inRepStart = false;			// remember, we're dealing with an ASYNC ISR
+    TWDR = twi_slarw;
+    TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE);	// enable INTs, but not START
+  }
+  else
+    // send start condition
+    TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
+*state = 2;
+case 2 :
   // wait for read operation to complete
-  if(TWI_MRX == twi_state){
-    return 0;//XXX busy
+  while(TWI_MRX == twi_state){
+    return 1;//XXX busy
   }
 
-  if (twi_masterBufferIndex < length){
+  if (twi_masterBufferIndex < length)
     length = twi_masterBufferIndex;
-  }
 
   // copy twi buffer to data
   for(i = 0; i < length; ++i){
     data[i] = twi_masterBuffer[i];
   }
 	
-  *length_out = length;
+  *rc = length;
+*state = 0;
+return 0;//XXX done
+}
 }
 
 /* 
@@ -161,27 +212,32 @@ int twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t* length
  *          data: pointer to byte array
  *          length: number of bytes in array
  *          wait: boolean indicating to wait for write or not
+ *          sendStop: boolean indicating whether or not to send a stop at the end
  * Output   0 .. success
  *          1 .. length to long for buffer
  *          2 .. address send, NACK received
  *          3 .. data send, NACK received
  *          4 .. other twi error (lost bus arbitration, bus error, ..)
  */
-int twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t* rc)
+int twi_writeTo_async(uint8_t* state, uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t sendStop, uint8_t* rc)
 {
   uint8_t i;
-
+switch (*state)
+{
+case 0:
   // ensure data will fit into buffer
   if(TWI_BUFFER_LENGTH < length){
     *rc = 1;
-    return -1;//XXX error
+    return 0;//XXX done
   }
-
+*state = 1;
+case 1:
   // wait until twi is ready, become master transmitter
-  if(TWI_READY != twi_state){
-    return 0;//XXX busy
+  while(TWI_READY != twi_state){
+    return 1;//XXX busy
   }
   twi_state = TWI_MTX;
+  twi_sendStop = sendStop;
   // reset error state (0xFF.. no error occured)
   twi_error = 0xFF;
 
@@ -198,27 +254,43 @@ int twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, ui
   twi_slarw = TW_WRITE;
   twi_slarw |= address << 1;
   
-  // send start condition
-  TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
+  // if we're in a repeated start, then we've already sent the START
+  // in the ISR. Don't do it again.
+  //
+  if (true == twi_inRepStart) {
+    // if we're in the repeated start state, then we've already sent the start,
+    // (@@@ we hope), and the TWI statemachine is just waiting for the address byte.
+    // We need to remove ourselves from the repeated start state before we enable interrupts,
+    // since the ISR is ASYNC, and we could get confused if we hit the ISR before cleaning
+    // up. Also, don't enable the START interrupt. There may be one pending from the 
+    // repeated start that we sent outselves, and that would really confuse things.
+    twi_inRepStart = false;			// remember, we're dealing with an ASYNC ISR
+    TWDR = twi_slarw;				
+    TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE);	// enable INTs, but not START
+  }
+  else
+    // send start condition
+    TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE) | _BV(TWSTA);	// enable INTs
+
+*state = 2;
+case 2:
 
   // wait for write operation to complete
-  if(wait && (TWI_MTX == twi_state)){
-    return 0;//XXX busy
+  while(wait && (TWI_MTX == twi_state)){
+    return 1;//XXX busy
   }
   
-  if (twi_error == 0xFF){
+  if (twi_error == 0xFF)
     *rc = 0;	// success
-  }
-  else if (twi_error == TW_MT_SLA_NACK){
+  else if (twi_error == TW_MT_SLA_NACK)
     *rc = 2;	// error: address send, nack received
-  }
-  else if (twi_error == TW_MT_DATA_NACK){
+  else if (twi_error == TW_MT_DATA_NACK)
     *rc = 3;	// error: data send, nack received
-  }
-  else{
+  else
     *rc = 4;	// other twi error
-  }
-  return 1;//XXX ok
+*state = 0;
+return 0;//XXX done
+}
 }
 
 /* 
@@ -298,21 +370,32 @@ void twi_reply(uint8_t ack)
  * Input    none
  * Output   none
  */
-int twi_stop(void)
+void twi_stop(void)
 {
+	uint8_t state = 0;
+	while (twi_stop_async(&state));
+}
+
+int twi_stop_async(uint8_t *state)
+{
+switch (*state)
+{
+case 0 :
   // send stop condition
   TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTO);
-
-  // wait for stop condition to be exectued on bus
+*state = 1;
+case 1:
+  // wait for stop condition to be executed on bus
   // TWINT is not set after a stop condition!
-  if(TWCR & _BV(TWSTO)){
-    return 0;//XXX busy
+  while(TWCR & _BV(TWSTO)){
+    return 1;//XXX busy
   }
 
   // update twi state
   twi_state = TWI_READY;
-
-  return 1;//XXX done
+*state = 0;
+return 0;
+}
 }
 
 /* 
@@ -350,7 +433,16 @@ ISR(TWI_vect)
         TWDR = twi_masterBuffer[twi_masterBufferIndex++];
         twi_reply(1);
       }else{
-        twi_stop();
+	if (twi_sendStop)
+          twi_stop();
+	else {
+	  twi_inRepStart = true;	// we're gonna send the START
+	  // don't enable the interrupt. We'll generate the start, but we 
+	  // avoid handling the interrupt until we're in the next transaction,
+	  // at the point where we would normally issue the start.
+	  TWCR = _BV(TWINT) | _BV(TWSTA)| _BV(TWEN) ;
+	  twi_state = TWI_READY;
+	}
       }
       break;
     case TW_MT_SLA_NACK:  // address sent, nack received
@@ -381,6 +473,17 @@ ISR(TWI_vect)
     case TW_MR_DATA_NACK: // data received, nack sent
       // put final byte into buffer
       twi_masterBuffer[twi_masterBufferIndex++] = TWDR;
+	if (twi_sendStop)
+          twi_stop();
+	else {
+	  twi_inRepStart = true;	// we're gonna send the START
+	  // don't enable the interrupt. We'll generate the start, but we 
+	  // avoid handling the interrupt until we're in the next transaction,
+	  // at the point where we would normally issue the start.
+	  TWCR = _BV(TWINT) | _BV(TWSTA)| _BV(TWEN) ;
+	  twi_state = TWI_READY;
+	}    
+	break;
     case TW_MR_SLA_NACK: // address sent, nack received
       twi_stop();
       break;

@@ -15,6 +15,9 @@
   You should have received a copy of the GNU Lesser General Public
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+  heavily modified by vdorr 2012
+
 */
 
 #ifndef twi_h
@@ -38,23 +41,21 @@
   #define TWI_SRX   3
   #define TWI_STX   4
   
-int twi_init();
-int twi_setAddress(uint8_t address);
-int twi_readFrom(uint8_t address, uint8_t* data, uint8_t length, uint8_t* length_out);
-int twi_writeTo(uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t* rc);
-int twi_stop(void);
-
-
-//  void twi_init(void);
-//  void twi_setAddress(uint8_t);
-//  uint8_t twi_readFrom(uint8_t, uint8_t*, uint8_t);
-//  uint8_t twi_writeTo(uint8_t, uint8_t*, uint8_t, uint8_t);
+  void twi_init(void);
+  void twi_setAddress(uint8_t);
   uint8_t twi_transmit(const uint8_t*, uint8_t);
   void twi_attachSlaveRxEvent( void (*)(uint8_t*, int) );
   void twi_attachSlaveTxEvent( void (*)(void) );
   void twi_reply(uint8_t);
-//  void twi_stop(void);
   void twi_releaseBus(void);
+
+//void twi_stop(void);
+//uint8_t twi_readFrom(uint8_t, uint8_t*, uint8_t, uint8_t);
+//uint8_t twi_writeTo(uint8_t, uint8_t*, uint8_t, uint8_t, uint8_t);
+
+//int twi_stop_async(uint8_t *state);
+int twi_writeTo_async(uint8_t* state, uint8_t address, uint8_t* data, uint8_t length, uint8_t wait, uint8_t sendStop, uint8_t* rc);
+int twi_readFrom_async(uint8_t* state, uint8_t address, uint8_t* data, uint8_t length, uint8_t sendStop, uint8_t* rc);
 
 #endif
 
