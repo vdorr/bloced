@@ -656,12 +656,15 @@ class GraphModel(object) :
 #			self.__getattribute__("_BlockModel__set_"+k)(v)
 
 
-	def add_block(self, block) :
+	def add_block(self, block, reassign_id_if_needed=True) :
 
-		if block.get_instance_id() is None :
-			new_id = max(self.__block_ids.keys()) + 1 if self.__block_ids else 0
-			assert(not(new_id in self.__block_ids))
-			block.set_instance_id(new_id)
+		block_id = block.get_instance_id()
+
+		if block_id is None or block_id in self.__block_ids :
+			block_id = max(self.__block_ids.keys()) + 1 if self.__block_ids else 0
+			block.set_instance_id(block_id)
+
+		assert(not(block_id in self.__block_ids))
 
 		self.__block_ids[block.get_instance_id()] = block
 
