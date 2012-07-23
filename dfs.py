@@ -179,16 +179,8 @@ class edit(object) :
 
 	def __call__(self, f) :
 		def decorated(*v, **w) :
-#			if self.prop_name is None :
-#				old_meta = v[0].get_meta()
-#			else :
-#				old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			y = f(*v, **w)
-#			if self.prop_name is None :
-#				new_meta = v[0].get_meta()
-#			else :
-#				new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
 			return y
@@ -353,9 +345,6 @@ class BlockModel(BlockModelData) :
 		else :
 			self.__value = (value,)
 
-#	def __get_value(self) :
-#		return self.__value
-
 
 	int_left = property(lambda self: self.__left)
 
@@ -365,19 +354,6 @@ class BlockModel(BlockModelData) :
 
 	value = property(lambda self: self.__value, __set_value)
 
-#	def get_lbl_pos(self) :
-#		flipv, fliph, rot = self.orientation
-#		ors = {
-#			W: 2 if fliph else 0,
-#			N: 3 if flipv else 1,
-#			E: 0 if fliph else 2,
-#			S: 1 if flipv else 3
-#		}
-#		if self.__side != C :
-#			old_or = ors[self.__side]
-#			side = [ W, N, E, S ][ (ors[self.__side] + rot / 90) % 4 ]
-#			return side
-#		return self.__side
 
 	@edit("caption")
 	def __set_caption(self, v) :
@@ -409,25 +385,18 @@ class BlockModel(BlockModelData) :
 			"top" : self.top,
 			"width" : w,
 			"height" : h,
-#			"width" : self.width,
-#			"height" : self.height,
 			"value" : self.value,
 			"orientation" : self.orientation,
 			"term_meta" : self.__term_meta,
 			"instance_id" : self.get_instance_id(),
 		}
-#		if (core.compare_proto_to_type(self.prototype, core.MacroProto) or
-#				core.compare_proto_to_type(self.prototype, core.FunctionProto)) :
 		if not core.is_builtin_block(self.prototype)  :
 			meta["cached_prototype"] = self.prototype.get_block_proto_data()
-#			print here()
-#		print here(), meta
 		return meta
 
 
 	def __set_term_meta(self, meta) :
 		self.__term_meta = meta
-#		print "__set_term_meta:", 
 
 
 	@edit("term_meta")
@@ -574,27 +543,13 @@ class BlockModel(BlockModelData) :
 	def pop_term_meta(self, t, t_nr) :
 		if (t_nr, "index") in self.__term_meta[t.name] :
 			self.__term_meta[t.name].pop((t_nr, "index")) #and also the rest, if ever some rest will be
-#			self.__term_meta.pop((t.name, t_nr, "index")) #and also the rest, if ever some rest will be
-
-#	def __get__connections(self) :
-##		print self.__graph.connections
-#		return None#self.__graph.connections.iteritems()
-
-#	connections = property(__get__connections)
 
 
 	def get_terms_flat(self) :
 		for t in self.terms :
 			if t.variadic :
-#				iterms = sorted(self.get_indexed_terms(t), key=lambda x: x[1])#sort by index
 				for nr, index in sorted(self.get_indexed_terms(t), key=lambda x: x[1]) :
 					yield t, nr
-#				m = self.get_term_multiplicity(t)
-#				if m > 1 :
-#					for nr in range(m) :
-#						yield t, nr
-#				else :
-#					yield t, 0
 			else :
 				yield t, None
 
@@ -643,17 +598,6 @@ class BlockModel(BlockModelData) :
 		return term_label
 
 
-#	def __my_init(self, model, caption, left, top, width, height, terms, values) :
-#		self.__orientation = (0, 0, 0)
-#		self.__caption, self.__left, self.__top, self.__width, self.__height, self.__terms = (
-#			caption, left, top, width, height, terms)
-#		self.__model = model
-#		self.__can_move = True
-#		self.__prototype = None
-#		self.__value = tuple(dv for name, dv in values) if values else None
-#		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in terms if t.variadic }
-
-
 	def __init__(self, prototype, model, instance_id=None, left = 0, top = 0) :
 		"""
 		when there is no parent use for model argument value
@@ -661,10 +605,6 @@ class BlockModel(BlockModelData) :
 		"""
 
 		super(BlockModel, self).__init__(prototype, model)
-
-#		self.__my_init(model, prototype.type_name, left, top,
-#			prototype.default_size[0], prototype.default_size[1],
-#			prototype.terms, prototype.values)
 
 		self.__instance_id = instance_id
 		self.__orientation = (0, 0, 0)
@@ -683,7 +623,7 @@ class BlockModel(BlockModelData) :
 
 	def __repr__(self) :
 		return "%s(%s)" % (self.prototype.type_name, str(self.value))
-#		return hex(id(self)) + " " + 'blck"' + self.__caption + '"'# + str(id(self))
+
 
 # ------------------------------------------------------------------------------------------------------------
 
