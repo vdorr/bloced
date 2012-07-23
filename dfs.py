@@ -172,6 +172,29 @@ def get_term_poly(tx, ty, txt_height, side, direction, txt_width) :
 # ------------------------------------------------------------------------------------------------------------
 
 
+class edit(object) :
+
+	def __init__(self, prop_name=None) :
+		self.prop_name = prop_name
+
+	def __call__(self, f) :
+		def decorated(*v, **w) :
+#			if self.prop_name is None :
+#				old_meta = v[0].get_meta()
+#			else :
+#				old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+			old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+			y = f(*v, **w)
+#			if self.prop_name is None :
+#				new_meta = v[0].get_meta()
+#			else :
+#				new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+			new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+			v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
+			return y
+		return decorated
+
+
 class BlockModelData(object) :
 
 
@@ -305,29 +328,6 @@ class BlockModel(BlockModelData) :
 		else :
 			raise Exception()
 		return pos
-
-
-	class edit(object) :
-	
-		def __init__(self, prop_name=None) :
-			self.prop_name = prop_name
-		
-		def __call__(self, f) :
-			def decorated(*v, **w) :
-#				if self.prop_name is None :
-#					old_meta = v[0].get_meta()
-#				else :
-#					old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-				old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-				y = f(*v, **w)
-#				if self.prop_name is None :
-#					new_meta = v[0].get_meta()
-#				else :
-#					new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-				new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-				v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
-				return y
-			return decorated
 
 
 	def __raise_block_changed(self, e, old_meta, new_meta) :
