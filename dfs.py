@@ -232,30 +232,30 @@ class BlockModel(BlockModelData) :
 		return (1 - t.default_pos) if x or y else t.default_pos
 
 
-	def get_term_and_lbl_pos_NEW(self, t, t_nr, term_width, term_height, center=True) :
-		same_side_terms = tuple(sorted((term for term, _ in self.get_terms_flat() if term.direction == t.direction), key=lambda term: term.default_pos))
-		w, h = self.width, self.height
+#	def get_term_and_lbl_pos_NEW(self, t, t_nr, term_width, term_height, center=True) :
+#		same_side_terms = tuple(sorted((term for term, _ in self.get_terms_flat() if term.direction == t.direction), key=lambda term: term.default_pos))
+#		w, h = self.width, self.height
 
-		side = self.get_term_side(t)
+#		side = self.get_term_side(t)
 
-		if side in (N, S) :
-			a = w
-		elif side in (W, E) :
-			a = h
-		elif side == C :
-			return (w/2, h/2), (0, 0)
-		else :
-			raise Exception()
+#		if side in (N, S) :
+#			a = w
+#		elif side in (W, E) :
+#			a = h
+#		elif side == C :
+#			return (w/2, h/2), (0, 0)
+#		else :
+#			raise Exception()
 
 
-		term_index = self.get_term_index(t, t_nr) if t.variadic else 1
-		side_index = same_side_terms.index(t)
-		(side_index + term_index) * term_height + (len(same_side_terms) / 2) * term_height
+#		term_index = self.get_term_index(t, t_nr) if t.variadic else 1
+#		side_index = same_side_terms.index(t)
+#		(side_index + term_index) * term_height + (len(same_side_terms) / 2) * term_height
 
 
 	def get_term_and_lbl_pos(self, t, t_nr, text_width, txt_height, center=True) :
 
-		self.get_term_and_lbl_pos_NEW(t, t_nr, text_width, txt_height, center=center)
+#		self.get_term_and_lbl_pos_NEW(t, t_nr, text_width, txt_height, center=center)
 
 #		dw, dh = self.__prototype.default_size
 
