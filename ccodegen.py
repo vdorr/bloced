@@ -163,7 +163,8 @@ def __get_initdel_value(code, n, state_var_prefix, del_type, tmp_slot, expr) :
 
 
 def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
-		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited) :
+		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, n, visited,
+		nesting=False) :
 #	print "__post_visit:", n.to_string()
 
 	if core.compare_proto_to_type(n.prototype, core.ConstProto) :
@@ -192,7 +193,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		else :
 			term_type = out_term.type_name
 #		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
-		if len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1):
+		if (len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1)) or not nesting :
 #			print "adding temps:", succs
 			expr_slot_type = term_type
 			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
@@ -220,7 +221,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			assert(m.value != None)
 			assert(len(m.value) == 1)
 			args.append(((in_term, in_t_nr), str(m.value[0])))
-		elif (n, in_term, in_t_nr) in subtrees :
+		elif (n, in_term, in_t_nr) in subtrees and nesting :
 			args.append(((in_term, in_t_nr), subtrees.pop((n, in_term, in_t_nr))))
 		else :
 			slot_type, slot = pop_tmp_ref(tmp, n, in_term, in_t_nr)
@@ -264,7 +265,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 	else :
 		expr = __implement(g, n, tmp_args, args, outs, code)#, types, known_types, pipe_vars)
 
-	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1
+	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1 and nesting
 
 	if is_expr :
 		((out_term, out_t_nr, succs), ) = outputs
