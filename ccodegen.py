@@ -70,7 +70,6 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 	assert(not n.prototype.exe_name is None)
 
 	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
-
 	arg_list = []
 
 	arguments = dict(args_and_terms + outs_and_terms)
@@ -186,37 +185,26 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 	expr_slot_type = None
 
 	for out_term, out_t_nr, succs in outputs :
-#		if out_term.virtual :
-#			continue
 		if out_term.type_name == core.TYPE_INFERRED :
 			term_type = types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name
-#		print "out_term, out_t_nr, succs =", n, out_term, out_term.type_name, out_t_nr, succs
 		if (len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1)) or not nesting :
-#			print "adding temps:", succs
 			expr_slot_type = term_type
 			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
-#TODO if all succs have same type different from out_term, cast now and store as new type
-#if storage permits, however
 			if len(outputs) > 1 :
 				outs.append(((out_term, out_t_nr), "&{}_tmp{}".format(expr_slot_type, expr_slot)))
-		elif len(succs) == 1 and len(outputs) == 1 :
-#			print here(), "passing by", n
-			pass
+		elif len(succs) <= 1 and len(outputs) == 1 :
+			pass # expression-type or simple statement
 		else :
+			assert(len(succs) == 0)
+			assert(len(outputs) > 1)
 			dummies.add(term_type)
 			outs.append(((out_term, out_t_nr), "&{}_dummy".format(term_type)))
 
 	for in_term, in_t_nr, preds in inputs :
-#		print here(), n, preds
 		assert(len(preds)==1)
-
-#		if out_term.virtual :
-#			continue
-
 		((m, m_t, m_t_nr), ) = preds
-#		print "\tgathering:", m, m_t, m_t_nr, "for", (n, in_term, in_t_nr), "subtrees:", subtrees, "tmp:", tmp
 		if core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			assert(m.value != None)
 			assert(len(m.value) == 1)
