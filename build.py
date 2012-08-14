@@ -247,7 +247,7 @@ def get_avr_arduino_paths(all_in_one_arduino_dir=None) :
 		on windows, path to arduino installation directory
 	"""
 	system = platform.system()
-	if system == "Windows" :
+	if system == "Windows" or (system == "Linux" and not all_in_one_arduino_dir is None) :
 		libc_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "avr")
 		tools_dir = os.path.join(all_in_one_arduino_dir, "hardware", "tools", "avr", "bin")
 		target_files_dir = os.path.join(all_in_one_arduino_dir, "hardware", "arduino")
