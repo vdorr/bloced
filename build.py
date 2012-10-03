@@ -376,6 +376,9 @@ def build(board, workdir,
 		os.path.join(libc_dir, "util"),
 		os.path.join(libc_dir, "compat")))
 	defs = { "F_CPU" : f_cpu }
+
+	print board_idirs+tuple(idirs)
+
 	rc = gcc_compile(redir_streams, tuple(sources), os.path.join(workdir, a_out),
 		mcu, optimization,
 		tools_dir=tools_dir,
@@ -679,11 +682,12 @@ def main() :
 		rc = build(args.brd, work_dir,
 			wdir_recurse = True,
 			aux_src_dirs=(
+				("/usr/share/arduino/libraries/Wire", True),#recurse
 				(os.path.join(target_files_dir, "cores", "arduino"), False),
 				(os.path.join(target_files_dir, "variants", variant), False),
 #				(os.path.join(install_path, "library", "arduino"), False),
 			) + tuple( (path, True) for path in source_dirs ),
-#			aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
+			aux_idirs=[ "/usr/share/arduino/libraries/Wire" ],#os.path.join(install_path, "target", "arduino", "include") ],
 			boards_txt=boards_txt,
 			libc_dir=libc_dir,
 #			board_db={},
