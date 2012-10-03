@@ -175,7 +175,7 @@ def __end_marker(n, code, markers) :
 
 def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
 		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, markers, n, visited,
-		nesting=False) :
+		nesting=True) :
 #	print "__post_visit:", n.to_string()
 
 	if core.compare_proto_to_type(n.prototype, core.ConstProto) :
