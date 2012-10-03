@@ -1196,6 +1196,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		print(source)
 
 		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
+		if not all_in_one_arduino_dir :
+			all_in_one_arduino_dir = None
 		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
 			all_in_one_arduino_dir=all_in_one_arduino_dir)
 
