@@ -1480,7 +1480,12 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 		self.config = config
-		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir") if config else ""
+		if config :
+			all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
+			if not all_in_one_arduino_dir :
+				all_in_one_arduino_dir = None
+		else :
+			all_in_one_arduino_dir = None
 
 		self.__board = None
 		self.__port = None
