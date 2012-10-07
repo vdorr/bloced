@@ -566,6 +566,8 @@ class BlockModel(BlockModelData) :
 			newtxt = self.__lbl_fmt[cls].format(self.stringified_value(self.value))
 		else :
 			newtxt = self.caption
+		if 0 :
+			newtxt = newtxt + ":" + str(self.get_instance_id())
 		return newtxt
 
 

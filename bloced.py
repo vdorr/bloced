@@ -71,7 +71,7 @@ class Configuration(object):
 	SAVE_BEFORE_CLOSE = "Save changes before closing?"
 	UNSAVED_DATA_WILL_BE_LOST = "Unsaved data will be lost"
 	APP_INFO = os.linesep.join((APP_NAME, "graphical programming toy"))
-	HELP_URL = "http://www.tinfoilhat.cz"
+	HELP_URL = ""
 	POLL_WORKERS_PERIOD = 200
 	SHEET_NAME_SEED = "Sheet{0}"
 
@@ -2156,13 +2156,14 @@ class BlockEditorWindow(object) :
 			CmdMnu("Align lefts", None, partial(self.__layout_align, "lefts")),
 			CmdMnu("Align rights", None, partial(self.__layout_align, "rights")),
 			CmdMnu("Align centers", None, partial(self.__layout_align, "centers")),
+			SepMnu(),
 			CmdMnu("Align tops", None, partial(self.__layout_align, "tops")),
 			CmdMnu("Align middles", None, partial(self.__layout_align, "middles")),
 			CmdMnu("Align bottoms", None, partial(self.__layout_align, "bottoms")),
 			])
 
 		self.add_top_menu("&Help", [
-			CmdMnu("&Content...", "F1", lambda *a: webbrowser.open(cfg.HELP_URL)),
+			CmdMnu("&Content...", "F1", None),#lambda *a: webbrowser.open(cfg.HELP_URL)),
 			SepMnu(),
 			CmdMnu("&About...", None, lambda *a: tkMessageBox.showinfo(cfg.APP_NAME, cfg.APP_INFO)) ])
 
