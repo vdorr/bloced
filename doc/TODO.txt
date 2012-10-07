@@ -50,7 +50,7 @@ store wire data for undo when changing block
 DONE - undo add wire
 make graphic function (terms, labels) less crazy
 refactor variadic term placement
-somehow handle canvas size
+somehow handle canvas size setup
 get rid of unnecessary undo logs (click on block, every move when moving with mouse)
 DONE - workbench change detection
 kill TERM_SIZE, MIN_BLOCK_WIDTH, MIN_BLOCK_HEIGHT and so on
@@ -60,3 +60,9 @@ loop detection
 type truncation detection (especially with Delay)
 DONE - examples_tests.py
 remember last directory in open dialog and so on
+resizable output console
+block prototype change detection and resolving
+fix switch from periodic to idle task
+library setup sheet
+library periodic sheet
+macro visibility qualifier
