@@ -1177,10 +1177,11 @@ def parse_task_period(s) :
 		return int(p[0:-2])
 	elif p.endswith("s") :
 		return 1000 * int(p[0:-1])
-	elif p == "idle" :
-		return "idle"
+#	elif p == "idle" :
+#		return "idle"
 	else :
-		return None
+		return "idle"
+#		return None
 
 
 def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) :

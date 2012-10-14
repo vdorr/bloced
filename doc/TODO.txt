@@ -63,6 +63,6 @@ remember last directory in open dialog and so on
 resizable output console
 block prototype change detection and resolving
 fix switch from periodic to idle task
-library setup sheet
+library @setup sheet
 library periodic sheet
 macro visibility qualifier
