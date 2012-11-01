@@ -663,12 +663,14 @@ def __where_to_go(neighbourhood, sinks_to_sources, undirected) :
 
 def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 		sort_successors, visited, sinks_to_sources, undir,
-		term_list=None, follow_visited=False) :
+		term_list=None,
+		follow_visited=False) :
 
 #	terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
 #	pre_visit(root, visited, terms)
 #	stack = [ (root, None, terms.__iter__()) ]
 
+#TODO pass location id from __dft_alt_term_sorter to callbacks
 	if term_list == None :
 		terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
 	else :
@@ -702,25 +704,40 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 
 
 def dft(g, v,
-		pre_visit = lambda *a, **b: None,
-		pre_dive = lambda *a, **b: None,
-		post_dive = lambda *a, **b: None,
-		post_visit = lambda *a, **b: None,
-		sort_successors = lambda *a, **b: None,
+		pre_visit=lambda *a, **b: None,
+		pre_dive=lambda *a, **b: None,
+		post_dive=lambda *a, **b: None,
+		post_visit=lambda *a, **b: None,
+		sort_successors=lambda *a, **b: None,
 		sinks_to_sources=True,
 		undirected=False,
 		visited=None,
 		term=None,
 		follow_visited=False) :
+	"""non-recursive implementation of depth-first traversal of graph
+	g -- graph to traverse, graph structure is:
+		{
+			blockA :
+				(p=[ (blockA->term, blockA->term->term_number,
+					[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
+				 s=[ ]), ...
+		}
+	v -- vertex (block) to start traversal
+	Keyword arguments:
+	pre_visit -- pre_visit(m, visited, terms)
+	pre_dive -- pre_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
+		returns None or tuple (do_dive, ), do not follow edge if do_dive is False
+	post_dive -- post_dive(n, nt, nt_nr, m, mt, mt_nr, visited)
+	post_visit -- post_visit(n, visited)
+	sort_successors -- ?!?!?!?
+	sinks_to_sources -- direction of traversal, True for direction sinks to sources, False for sources to sinks
+	undirected -- if True treat graph as undirected (sinks_to_sources is ignored)
+	visited -- dictionary of allready visited vertices, might be None, usable to stop traversal at specific vertices
+	term -- start traversal at specific terminal of block v, ignoring other terminals of v
+	follow_visited -- if True do not check if vertices were allready visited, usable for cycle detection
+
 	"""
-	graph structure:
-	{
-		blockA :
-			(p=[ (blockA->term, blockA->term->term_number,
-				[ (blockB, blockB->term, blockB->term->term_number ] ), ... ],
-			 s=[ ]), ...
-	}
-	"""
+#TODO assert term belongs to v
 	if visited is None :
 		visited = {}
 	visited[v] = True
@@ -738,12 +755,12 @@ def dft(g, v,
 # ------------------------------------------------------------------------------------------------------------
 
 def dft_alt(g,
-		pre_visit = lambda *a, **b: None,
-		pre_dive = lambda *a, **b: None,
-		post_dive = lambda *a, **b: None,
-		post_visit = lambda *a, **b: None,
-		pre_tree = lambda *a, **b: None,
-		post_tree = lambda *a, **b: None,
+		pre_visit=lambda *a, **b: None,
+		pre_dive=lambda *a, **b: None,
+		post_dive=lambda *a, **b: None,
+		post_visit=lambda *a, **b: None,
+		pre_tree=lambda *a, **b: None,
+		post_tree=lambda *a, **b: None,
 		roots_sorter=dft_alt_roots_sorter,
 		sinks_to_sources=True,
 		follow_visited=False) :
