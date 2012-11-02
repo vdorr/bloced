@@ -597,6 +597,7 @@ def dft_alt_roots_sorter(g, roots) :
 
 def __dft_alt_term_sorter(g, block, preds) :
 	for t, t_nr, neighbours in preds :
+		lid = None
 		if len(neighbours) > 1 :
 #TODO TODO TODO
 #			print("__dft_alt_term_sorter:", neighbours, "sort needed")
@@ -608,8 +609,8 @@ def __dft_alt_term_sorter(g, block, preds) :
 
 #		neighbours_list = neighbours
 
-		for b, mt, nr in neighbours : #XXX
-			yield t, t_nr, b, mt, nr
+		for b, mt, nr in neighbours_list : # neighbours : #XXX
+			yield lid, (t, t_nr, b, mt, nr)
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -672,10 +673,10 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 
 #TODO pass location id from __dft_alt_term_sorter to callbacks
 	if term_list == None :
-		terms = list(__dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)))
+		terms = [ trm for _, trm in __dft_alt_term_sorter(g, root, __where_to_go(g[root], sinks_to_sources, undir)) ]
 	else :
-		terms = list(__dft_alt_term_sorter(g, root,
-			[ (term_list[0], term_list[1], []) ]))
+		terms = [ trm for _, trm in __dft_alt_term_sorter(g, root,
+			[ (term_list[0], term_list[1], []) ]) ]
 #		terms = [ term_list ]
 	pre_visit(root, visited, terms)
 	stack = [ (root, None, terms.__iter__()) ]
@@ -694,7 +695,7 @@ def __dft_alt_nr_tree(g, root, pre_visit, pre_dive, post_dive, post_visit,
 			do_dive = dive is None or (len(dive) > 0 and dive[0] != True)
 			if (follow_visited or not m in visited) and do_dive :
 				visited[m] = True
-				terms = list(__dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)))
+				terms = [ trm for _, trm in __dft_alt_term_sorter(g, m, __where_to_go(g[m], sinks_to_sources, undir)) ]
 #				print "\t", here(), m
 				pre_visit(m, visited, terms)
 				stack.append((m, None, terms.__iter__()))
