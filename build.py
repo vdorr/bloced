@@ -72,11 +72,14 @@ __re_src = __re_from_glob_list(__SRC_EXTS)
 __re_hdr = __re_from_glob_list(__HDR_EXTS)
 
 
-def list_resources(workdir, recurse, ignore=lambda fn: False,
-		re_src=__re_src, re_hdr=__re_hdr) :
+def list_resources(workdir, recurse,
+		ignore=lambda fn: False,
+		re_src=__re_src,
+		re_hdr=__re_hdr,
+		followlinks=True) :
 	sources = []
 	include_dirs = []
-	tree = os.walk(workdir)
+	tree = os.walk(workdir, followlinks=followlinks)
 	src_total, idir_total = 0, 0
 	for root, dirs, files in tree if recurse else islice(tree, 1) :
 		src_files = [ os.path.join(workdir, root, fn) for fn in files if re_src.match(fn) ]
@@ -658,7 +661,7 @@ def main() :
 	parser.add_argument("--port", metavar="port", type=str, nargs=1,
 		default="/dev/ttyACM0", help="Programmer Port")
 	parser.add_argument("--ignore", metavar="ignore", type=str, nargs=1,
-		default="amkignore", help="Ignore File Path")
+		default="amkignore", help="IgnoreFile Path")
 #	parser.add_argument("--out", metavar="out", type=str, nargs=1,
 #		default="a.out", help="Output File")
 	args = parser.parse_args()
