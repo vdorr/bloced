@@ -74,3 +74,6 @@ menu "Export picture"
 joint deletion handling (join line when deleting joint with single input and output)
 tabbed notebook tab menu + window menu
 stored vs. library prototype comparison (via prototype hash)
+block context menu
+macro block context menu "Update prototype"
+oscilloscope
