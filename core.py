@@ -420,6 +420,13 @@ class GlobalReadProto(BlockPrototype):
 			values=[("Name", None), ("Sync", None)])
 
 
+class BufferProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "Buffer", [ Out(0, "addr", dfs.E, 0.5) ],
+			default_size=(96,28), category="Special",
+			values=[("Size", 0)])
+
+
 class FunctionCallProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "FunctionCall", [],
@@ -1335,6 +1342,7 @@ def builtin_blocks() :
 		PipeEndProto(),
 		MuxProto(),
 		TextAreaProto(),
+		BufferProto(),
 
 		BinaryBooleanOp("xor", "Logic", commutative=True),
 		BinaryBooleanOp("or", "Logic", commutative=True),
