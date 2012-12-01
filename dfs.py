@@ -580,6 +580,8 @@ class BlockModel(BlockModelData) :
 			core.get_proto_name(core.TapEndProto()) : "TapEnd({0})",
 			core.get_proto_name(core.InputProto()) : "Input({0})",
 			core.get_proto_name(core.OutputProto()) : "Output({0})",
+			core.get_proto_name(core.VariadicInProto()) : "VariadicIn({0})",
+			core.get_proto_name(core.VariadicOutProto()) : "VariadicOut({0})",
 			core.get_proto_name(core.JointProto()) : "",
 			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
 			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",

@@ -138,6 +138,7 @@ class TermModel(object) :
 			commutative = self.commutative,
 			virtual = self.virtual)
 
+
 	def __init__(self, arg_index, name, side, pos, direction, variadic, commutative,
 			type_name=None, virtual=False) :
 		self.__name = name
@@ -150,9 +151,11 @@ class TermModel(object) :
 		self.__commutative = commutative
 		self.__virtual = virtual
 
+
 	def __repr__(self) :
 		return "." + self.__name
 #		return hex(id(self)) + " " + {INPUT_TERM:"in",OUTPUT_TERM:"out"}[self.direction] + ":" + self.name
+
 
 	def __lt__(self, b) :
 		return id(self) < id(b)
@@ -164,6 +167,7 @@ def term_model_from_term_data(td) :
 
 
 class In(TermModel) :
+
 	def __init__(self, arg_index, name, side, pos,
 			type_name=TYPE_INFERRED,
 			variadic=False,
@@ -173,6 +177,7 @@ class In(TermModel) :
 
 
 class Out(TermModel) :
+
 	def __init__(self, arg_index, name, side, pos,
 			type_name=TYPE_INFERRED,
 			variadic=False,
@@ -182,12 +187,14 @@ class Out(TermModel) :
 
 
 class VirtualIn(TermModel) :
+
 	def __init__(self, name) :
 		TermModel.__init__(self, None, name, None, None, INPUT_TERM, False, False,
 			virtual=True)
 
 
 class VirtualOut(TermModel) :
+
 	def __init__(self, name) :
 		TermModel.__init__(self, None, name, None, None, OUTPUT_TERM, False, False,
 			virtual=True)
@@ -365,6 +372,20 @@ class InputProto(BlockPrototype):
 class OutputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Output", [ In(0, "y", dfs.W, 0.5) ],
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
+
+class VariadicInProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "VariadicIn", [ Out(0, "x", dfs.E, 0.5) ],
+			default_size=(96,28), category="Special",
+			values=[("Name", None)])
+
+
+class VariadicOutProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "VariadicOut", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
@@ -761,8 +782,9 @@ def try_mkmac(model) :
 #	outputs = [ b for b in model.blocks if isinstance(b.prototype, OutputProto) ]
 
 	terms = [ __mc_term_info(model, b)
-		for b in model.blocks if b.prototype.__class__ in (InputProto, OutputProto) ]
-#	print("try_mkmac:", terms)
+		for b in model.blocks if b.prototype.__class__ in
+			(InputProto, OutputProto, VariadicInProto, VariadicOutProto) ]
+#	print here(), terms
 
 	def __sizes(rct0, rct1) :
 		(l0, t0, r0, b0), (l1, t1, r1, b1) = rct0, rct1
@@ -891,10 +913,12 @@ def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 
 #		print(here(), term_name, side, pos)
 
-	terms_in = [ (t.value[0], INPUT_TERM, False, False, TYPE_INFERRED, pos, side)
-		for t, side, pos in terms if t.prototype.__class__ == InputProto ]
-	terms_out = [ (t.value[0], OUTPUT_TERM, False, False, TYPE_INFERRED, pos, side)
-		for t, side, pos in terms if t.prototype.__class__ == OutputProto ]
+	terms_in = [ (t.value[0], INPUT_TERM, t.prototype.__class__ == VariadicInProto, False, TYPE_INFERRED, pos, side)
+		for t, side, pos in terms if t.prototype.__class__ in (InputProto, VariadicInProto) ]
+	terms_out = [ (t.value[0], OUTPUT_TERM, t.prototype.__class__ == VariadicOutProto, False, TYPE_INFERRED, pos, side)
+		for t, side, pos in terms if t.prototype.__class__ in (OutputProto, VariadicOutProto) ]
+
+	print here(), block_name, terms_out
 
 	inputs = [ In(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
@@ -1247,6 +1271,8 @@ def prototype_sanity_check(proto) :
 	weird_term_dir = tuple(t for t in proto.terms if not t.direction in (INPUT_TERM, OUTPUT_TERM))
 	if weird_term_dir :
 		errors.append(("unknown_term_direction", weird_term_dir))
+#term name entered
+#TODO!!!
 #term name uniqness
 	unique_terms = set()
 	colliding_terms = set()
@@ -1263,6 +1289,8 @@ def prototype_sanity_check(proto) :
 #has category or library
 	if proto.category and not proto.library :
 		errors.append(("no_cat_nor_lib", None))
+#varidic term block is connected to variadic term
+#TODO!!!
 
 	return (False, tuple(errors)) if errors else (True, None)
 
@@ -1302,6 +1330,8 @@ def builtin_blocks() :
 		SysRqProto(),
 		InputProto(),
 		OutputProto(),
+		VariadicInProto(),
+		VariadicOutProto(),
 		SBP("Sink", "Special", [ In(-1, "", dfs.W, .5, type_name=TYPE_INFERRED) ], pure=True),
 		PipeProto(),
 		PipeEndProto(),
