@@ -82,8 +82,8 @@ E = "e"
 TERM_SIZE = 11
 
 #for macroes and foreign functions
-MIN_BLOCK_WIDTH = 64
-MIN_BLOCK_HEIGHT = 48
+MIN_BLOCK_WIDTH = 96
+MIN_BLOCK_HEIGHT = 64
 
 # ------------------------------------------------------------------------------------------------------------
 
