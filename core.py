@@ -918,8 +918,6 @@ def __create_sheet_wrapper(lib_name, block_name, sheet, prototype_type) :
 	terms_out = [ (t.value[0], OUTPUT_TERM, t.prototype.__class__ == VariadicOutProto, False, TYPE_INFERRED, pos, side)
 		for t, side, pos in terms if t.prototype.__class__ in (OutputProto, VariadicOutProto) ]
 
-	print here(), block_name, terms_out
-
 	inputs = [ In(-i, name, side, pos,
 			type_name=type_name, variadic=variadic, commutative=commutative)
 		for (name, direction, variadic, commutative, type_name, pos, side), i
