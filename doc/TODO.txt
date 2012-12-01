@@ -67,3 +67,10 @@ library @setup sheet
 library periodic sheet
 macro visibility qualifier
 revisit C module import conventions & cleanup
+library with block for building macroes
+variadic macro terminals
+menu "Generate code"
+menu "Export picture"
+joint deletion handling (join line when deleting joint with single input and output)
+tabbed notebook tab menu + window menu
+stored vs. library prototype comparison (via prototype hash)
