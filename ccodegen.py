@@ -175,7 +175,8 @@ def __end_marker(n, code, markers) :
 
 def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
 		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, markers, n, visited,
-		nesting=True) :
+		nesting=True,
+		generate_markers=False) :
 #	print "__post_visit:", n.to_string()
 
 	if core.compare_proto_to_type(n.prototype, core.ConstProto) :
@@ -235,7 +236,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		assert(n==del_in)
 #		is_initdel = core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto)
 		if not del_out in evaluated :# or is_initdel :
-			__begin_marker(n, code, markers)
+			if generate_markers :
+				__begin_marker(n, code, markers)
 #			print here(), del_in.terms
 			del_type = types[del_out, del_out.terms[0], 0]
 			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
@@ -245,7 +247,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
 			else :
 				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
-			__end_marker(n, code, markers)
+			if generate_markers :
+				__end_marker(n, code, markers)
 		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0][1])
 
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
@@ -259,9 +262,11 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 				assert(len(args)==1 and len(outs)==0)
 				del_type = types[del_out, del_out.terms[0], 0]
 				slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
-				__begin_marker(n, code, markers)
+				if generate_markers :
+					__begin_marker(n, code, markers)
 				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
-				__end_marker(n, code, markers)
+				if generate_markers :
+					__end_marker(n, code, markers)
 				slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
 				expr = "{0}_tmp{1}".format(slot_type, slot)
 			else :
@@ -277,7 +282,8 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		assert(len(outputs)==1 and len(outputs[0][2])==1)
 		subtrees[outputs[0][2][0]] = expr
 	else :
-		__begin_marker(n, code, markers)
+		if generate_markers :
+			__begin_marker(n, code, markers)
 		if len(outputs) == 0 :
 			code.append(expr + ";")
 		elif len(outputs) == 1 :
@@ -287,12 +293,17 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 #			print here(), n, out_term, term_type, "slot=", slot
 #			pprint(tmp)
 			if expr_slot_type is None :
+#				code.append("{};".format(expr))
+#				if n.prototype.__class__ in (core.CFunctionProto, core.FunctionCallProto) :
+#					code.append("(void){};".format(expr))
+#				print here(), n, expr, len(outputs), outputs[0], nesting, n.prototype.__class__ 
 				code.append("(void){};".format(expr))
 			else :
 				code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
 			code.append(expr + ";")
-		__end_marker(n, code, markers)
+		if generate_markers :
+			__end_marker(n, code, markers)
 
 	evaluated[n] = True
 
