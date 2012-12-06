@@ -93,11 +93,14 @@ def __dag_sanity_check(g, stop_on_first=True) :
 
 def __neighbourhood_safe_replace(neighbourhood, term, term_nr, old_tuple, new_tuple) :
 	"""
+	replace old_tuple in neighbourhood by new_tuple or add new_tuple if old_tuple is None
+	do nothing if new_tuple is allready in neighbourhood
+	neighbourhood - p or s member of adjs_t
 	new/old_tuple = (block, block_term, block_term_number)
 	"""
 #	print "__neighbourhood_safe_replace:", neighbourhood, term, term_nr
 	(neighbours, ) = [ succs for t, nr, succs in neighbourhood if t == term and nr == term_nr ]
-	if old_tuple != None and old_tuple in neighbours :
+	if old_tuple != None :# and old_tuple in neighbours :
 		neighbours.remove(old_tuple)
 	if new_tuple != None and not new_tuple in neighbours :
 		neighbours.append(new_tuple)
@@ -175,7 +178,8 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 				b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), None)# now remove connection to n
 			for b, t, nr in succs :
 				assert(t.direction == core.INPUT_TERM)
-				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, None, (b, t, nr))
+#				__neighbourhood_safe_replace(b_pred_succ, t_pred, t_pred_nr, (n, in_t, in_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].p, t, nr, None, (b_pred, t_pred, t_pred_nr))
 
 	for out_t, out_t_nr, values in s :
@@ -188,7 +192,8 @@ def remove_block_and_patch(g, n, subgraph, map_in, map_out) :
 				b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), None) # remove connection to n
 			for b, t, nr in preds :
 				assert(t.direction == core.OUTPUT_TERM)
-				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
+				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, None, (b, t, nr))
+#				__neighbourhood_safe_replace(b_succ_pred, t_succ, t_succ_nr, (n, out_t, out_t_nr), (b, t, nr))
 				__neighbourhood_safe_replace(g[b].s, t, nr, None, (b_succ, t_succ, t_succ_nr))
 
 	return None
@@ -977,11 +982,73 @@ def replace_pipes(g, g_protos, pipe_replacement) :
 # ------------------------------------------------------------------------------------------------------------
 
 
+def __ex_mac_select_io_blocks(gm) :
+	inputs = {}
+	outputs = {}
+	for b, (p, s) in gm.items() :
+		if core.compare_proto_to_type(b.prototype, core.InputProto, core.VariadicInProto) :
+			assert(len(s) == 1)#single term
+			succ = s[0][2]
+			variadic = core.compare_proto_to_type(b.prototype, core.VariadicInProto)
+			if variadic :
+				assert(len(s[0][2]) == 1)#single successor
+				assert(succ[0][1].variadic)# core.Variadic*Proto is connect to variadic term
+			inputs[b.value[0]] = (b, succ, variadic)
+		elif core.compare_proto_to_type(b.prototype, core.OutputProto, core.VariadicOutProto) :
+			assert(len(p) == 1)#single term
+			assert(len(p[0][2]) == 1)#single predecessor
+			pred = p[0][2]
+			variadic = core.compare_proto_to_type(b.prototype, core.VariadicOutProto)
+			if variadic :
+				assert(pred[0][1].variadic)# core.Variadic*Proto is connect to variadic term
+			outputs[b.value[0]] = (b, pred, variadic)
+	return inputs, outputs
+
+
+def __ex_mac_create_mapping(macro_neighbourhood, io_block_map) :
+	mapping = {}
+	for macro_t, macro_t_nr, _ in macro_neighbourhood :
+		mapping[macro_t, macro_t_nr] = tuple((b, t, nr) for b, t, nr in io_block_map[macro_t.name][1])
+	return mapping
+
+
+def __neighbourhood_insert_numbered_terms(g, n, p_or_s, term, term_nr, term_list) :
+	"""
+	p_or_s - 0 for predecessors, 1 for successors
+	return ofsett to first term_nr in term_list
+	"""
+	assert(0 <= p_or_s <= 1)
+	assert(term.variadic)
+
+	neighbourhood = g[n][p_or_s]
+
+	start, = (i for (t, t_nr, _), i in zip(neighbourhood, count()) if t == term and t_nr == term_nr)
+
+	renumbered_term_list = [ (term, i + term_nr, v) for v, i in zip(term_list, count()) ]
+
+	neighbourhood[start:start + 1] = renumbered_term_list
+
+	offset = len(renumbered_term_list)
+	rest = start + 1 + offset
+
+	for x, i in zip(term_list, count()) :
+		n.set_term_index(term, i, i)
+	n.set_term_index(term, len(term_list), len(term_list))
+
+	neighbourhood[rest:] = [ (t, i + t_nr, adj) for (t, t_nr, adj), i in zip(neighbourhood[rest:], count()) ]#TODO test this
+
+	other_side = 0 if p_or_s else 1
+
+	for t, t_nr, adjn in neighbourhood[start:] :
+		for a_b, a_t, a_t_r in adjn :
+			__neighbourhood_safe_replace(g[a_b][other_side], a_t, a_t_r, (n, term, term_nr), (n, t, t_nr))
+
+	return start
+
+
 def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 	name = n.prototype.exe_name
 	full_name = n.prototype.library + "." + name
-
-#	print here(), full_name
 
 	sheet = None
 	if n.prototype.library == "<local>" :
@@ -995,7 +1062,7 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 	if sheet is None :
 		raise Exception("failed to expand macro '" + full_name + "'")
 
-	offset = reduce(max, (b.nr for b in g if core.compare_proto_to_type(b.prototype, core.DelayInProto)), 0)#TODO
+	offset = reduce(max, (b.nr for b in g if core.compare_proto_to_type(b.prototype, core.DelayInProto)), 0)#TODO do not traverse g every time!!!
 	gm, delays = make_dag(sheet, None, known_types, do_join_taps=False, delay_numbering_start=offset+1)
 
 #TODO
@@ -1006,23 +1073,41 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 #		block = __instantiate_macro(library, full_name)
 #		cache[full_name] = block
 
-	inputs = { b.value[0] : (b, s[0][2]) for b, (_, s) in gm.items() if core.compare_proto_to_type(b.prototype, core.InputProto) }
-	outputs = { b.value[0] : (b, p[0][2]) for b, (p, _) in gm.items() if core.compare_proto_to_type(b.prototype, core.OutputProto) }
+	inputs, outputs = __ex_mac_select_io_blocks(gm)
 
 	for io_blocks in (inputs, outputs) :
-		for io, _ in io_blocks.values() :
+		for io_name, (io, _, _) in io_blocks.items() :
 			remove_block(gm, io)
 
 	p, s = g[n]
 
-	#XXX to handle variadic terms map p -> inputs
-
-	map_in = { (it, it_nr) : tuple((b, t, nr) for b, t, nr in inputs[it.name][1])
-		for it, it_nr, _ in p }
-	map_out = { (ot, ot_nr) : tuple((b, t, nr) for b, t, nr in outputs[ot.name][1])
-		for ot, ot_nr, _ in s }
+	map_in = __ex_mac_create_mapping(p, inputs)
+	map_out = __ex_mac_create_mapping(s, outputs)
 
 	remove_block_and_patch(g, n, gm, map_in, map_out)
+
+	print here()
+	pprint(g)
+	print here()
+
+	for io_name, (io, adj, variadic) in inputs.items() :
+		if not variadic :
+			continue
+		for block, term, term_nr in adj :
+			term_list, = (l for t, t_nr, l in g[block].p if t == term and t_nr == term_nr)
+			replacement_term_list = [[adj] for adj in term_list]
+#			print here(), io_name, (block, term, term_nr), replacement_term_list
+			__neighbourhood_insert_numbered_terms(g, block, 0, term, term_nr, replacement_term_list)
+
+	for io_name, (io, _, variadic) in outputs.items() :
+		if not variadic :
+			continue
+		for block, term, term_nr in adj :
+			term_list, = (l for t, t_nr, l in g[block].s if t == term and t_nr == term_nr)
+			replacement_term_list = [[adj] for adj in term_list]
+#			print here(), io_name, (block, term, term_nr), replacement_term_list
+			__neighbourhood_insert_numbered_terms(g, block, 1, term, term_nr, replacement_term_list)
+
 
 	return (delays, )
 
