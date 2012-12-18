@@ -79,18 +79,36 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 	outputs_cnt = sum((1 for _ in get_terms_flattened(n, direction=core.OUTPUT_TERM,
 		fill_for_unconnected_var_terms=True)))
 
+	read_variadic_outputs = []
+
 	for (_, variadic), arg_group_it in args_grouped :
 		if variadic :
 			arg_group = tuple((t, a) for (t, t_nr), a in arg_group_it if not t_nr is None)
 			if not arg_group :
 				arg_code = "NULL"
 			else :
-				arg_type = arg_group[0][0].type_name
+				arg_term = arg_group[0][0]
+#				print here(), arg_term
+				arg_type = arg_term.type_name
 				assert(all(t.type_name == arg_type for t, _ in arg_group))
 				array_size = tmp_args[arg_type]
 				array_size = 0 if array_size is None else array_size
-				code.extend("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
-					for (_, a), i in zip(arg_group, count()))
+
+				if arg_term.direction == core.INPUT_TERM :
+					fill_array_code = ("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
+						for (_, a), i in zip(arg_group, count()))
+					code.extend(fill_array_code)
+
+				elif arg_term.direction == core.OUTPUT_TERM :
+					has_variadic_output = True
+#					print here()
+
+					read_variadic_outputs.extend("{2}={0}_tmp_arg[{1}];".format(arg_type, array_size+i, a[1:])#XXX XXX XXX
+						for (_, a), i in zip(arg_group, count()))
+
+				else :
+					assert(False)
+
 				tmp_args[arg_type] = array_size + len(arg_group)
 				arg_code = "&{0}_tmp_arg[{1}]".format(arg_type, array_size)
 			arg_list.append(str(len(arg_group)))
@@ -107,7 +125,14 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
 			tmp_var_args[type_name] = cnt
 
-	return n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
+	call = n.prototype.exe_name + "(" + ", ".join(arg_list) + ");"
+
+	if read_variadic_outputs :
+		code.append(call)
+		code.extend(read_variadic_outputs);
+		return None, True
+	else :
+		return call, False
 
 
 def __implement(g, n, tmp_args, args, outs, code) :
@@ -115,6 +140,7 @@ def __implement(g, n, tmp_args, args, outs, code) :
 	return code to perform block n
 	"""
 	stmt = None
+	emitted = False
 	if n.prototype.type_name in __OPS :
 		assert(len(args) >= 2 or n.prototype.type_name in ("not", "abs"))
 		assert(len([t for t in n.terms if t.direction==core.OUTPUT_TERM]) == 1)
@@ -142,10 +168,10 @@ def __implement(g, n, tmp_args, args, outs, code) :
 		assert(len(out)==1)
 		stmt = "({0})({1})".format(out[0].type_name, args[0][1])
 	else :
-		stmt = __make_call(n, args, outs, tmp_args, code)
+		stmt, emitted = __make_call(n, args, outs, tmp_args, code)
 #		assert(n.prototype.exe_name != None)
 #		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
-	assert(not stmt is None)
+	assert(emitted != (not stmt is None))
 	return stmt
 
 
@@ -301,7 +327,11 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			else :
 				code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
-			code.append(expr + ";")
+			if expr is None :
+				print here()
+				pass
+			else :
+				code.append(expr + ";")
 		if generate_markers :
 			__end_marker(n, code, markers)
 
