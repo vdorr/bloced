@@ -1099,7 +1099,7 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 #			print here(), io_name, (block, term, term_nr), replacement_term_list
 			__neighbourhood_insert_numbered_terms(g, block, 0, term, term_nr, replacement_term_list)
 
-	for io_name, (io, _, variadic) in outputs.items() :
+	for io_name, (io, adj, variadic) in outputs.items() :
 		if not variadic :
 			continue
 		for block, term, term_nr in adj :
