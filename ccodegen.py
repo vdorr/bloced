@@ -103,7 +103,7 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 					has_variadic_output = True
 #					print here()
 
-					read_variadic_outputs.extend("{2}={0}_tmp_arg[{1}];".format(arg_type, array_size+i, a[1:])#XXX XXX XXX
+					read_variadic_outputs.extend("{2}={0}_tmp_arg[{1}];".format(arg_type, array_size+i, a)
 						for (_, a), i in zip(arg_group, count()))
 
 				else :
@@ -118,17 +118,18 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 #			print here(), term_pairs, outputs_cnt
 			assert((outputs_cnt==1 and not t.variadic) if a is None else True)
 			if not a is None :
-				arg_list.append(a)
+				a_prefix = "&" if t.direction == core.OUTPUT_TERM else ""
+				arg_list.append(a_prefix + a)
 
 	for type_name, cnt in tmp_args.items() :
 		array_size = tmp_var_args[type_name]
 		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
 			tmp_var_args[type_name] = cnt
 
-	call = n.prototype.exe_name + "(" + ", ".join(arg_list) + ");"
+	call = n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
 
 	if read_variadic_outputs :
-		code.append(call)
+		code.append(call + ";")
 		code.extend(read_variadic_outputs);
 		return None, True
 	else :
@@ -148,6 +149,7 @@ def __implement(g, n, tmp_args, args, outs, code) :
 	elif core.compare_proto_to_type(n.prototype, core.FunctionCallProto) :
 		func_name = block_value_by_name(n, "Name")
 		assert(func_name)
+#TODO should be handled by __make_call, because insufficient handling of args/outs
 		stmt = func_name + "(" + ", ".join(tuple(a for _, a in (args + outs))) + ")"
 	elif core.compare_proto_to_type(n.prototype, core.GlobalReadProto) :
 		assert(len(args)==0)
@@ -232,14 +234,15 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			expr_slot_type = term_type
 			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
 			if len(outputs) > 1 :
-				outs.append(((out_term, out_t_nr), "&{}_tmp{}".format(expr_slot_type, expr_slot)))
+				outs.append(((out_term, out_t_nr), "{}_tmp{}".format(expr_slot_type, expr_slot)))
 		elif len(succs) <= 1 and len(outputs) == 1 :
 			pass # expression-type or simple statement
 		else :
 			assert(len(succs) == 0)
 			assert(len(outputs) > 1)
+#TODO assert not variadic
 			dummies.add(term_type)
-			outs.append(((out_term, out_t_nr), "&{}_dummy".format(term_type)))
+			outs.append(((out_term, out_t_nr), "{}_dummy".format(term_type)))
 
 	for in_term, in_t_nr, preds in inputs :
 		assert(len(preds)==1)
