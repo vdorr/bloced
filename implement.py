@@ -1086,10 +1086,6 @@ def __expand_macro(g, library, n, known_types, cache, local_block_sheets) :
 
 	remove_block_and_patch(g, n, gm, map_in, map_out)
 
-	print here()
-	pprint(g)
-	print here()
-
 	for io_name, (io, adj, variadic) in inputs.items() :
 		if not variadic :
 			continue

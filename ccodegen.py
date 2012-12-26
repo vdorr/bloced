@@ -169,6 +169,9 @@ def __implement(g, n, tmp_args, args, outs, code) :
 		out = tuple(t for t in n.terms if t.direction==core.OUTPUT_TERM)
 		assert(len(out)==1)
 		stmt = "({0})({1})".format(out[0].type_name, args[0][1])
+	elif core.compare_proto_to_type(n.prototype, core.BufferProto) :
+		assert(False)
+#TODO
 	else :
 		stmt, emitted = __make_call(n, args, outs, tmp_args, code)
 #		assert(n.prototype.exe_name != None)
@@ -250,6 +253,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		if core.compare_proto_to_type(m.prototype, core.ConstProto) :
 			assert(m.value != None)
 			assert(len(m.value) == 1)
+#TODO check const value validity, possible in implement.py
 			args.append(((in_term, in_t_nr), str(m.value[0])))
 		elif (n, in_term, in_t_nr) in subtrees and nesting :
 			args.append(((in_term, in_t_nr), subtrees.pop((n, in_term, in_t_nr))))
@@ -344,6 +348,14 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 # ------------------------------------------------------------------------------------------------------------
 
 
+def __buffers(g) :
+#TODO use location_id sorting
+	buffers = [ (v, int(v.value[0])) for v in g
+		if core.compare_proto_to_type(v.prototype, core.BufferProto) ]
+	buffers.sort(key=lambda v : v[0]) #sort to achieve deterministic code generation
+	return buffers, sum(size for _, size in buffers)
+
+
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
 	"""
 	generate code and variables for single task
@@ -357,14 +369,12 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	evaluated = {}
 	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
 	markers = []
+	buffers, buffers_size = __buffers(g)
 
 	post_visit_callback = partial(__post_visit, g, code, tmp, tmp_args, subtrees,
 		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used, evaluated, markers)
 
-#	pprint(g)
 	dft_alt(g, post_visit=post_visit_callback)
-
-#	pprint(tmp)
 
 	assert(tmp_used_slots(tmp) == 0)
 	assert(len(subtrees) == 0)

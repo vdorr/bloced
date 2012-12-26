@@ -420,11 +420,24 @@ class GlobalReadProto(BlockPrototype):
 			values=[("Name", None), ("Sync", None)])
 
 
+#class BufferProto(BlockPrototype):
+#	def __init__(self) :
+#		BlockPrototype.__init__(self, "Buffer", [
+#			In(-1, "eni", dfs.W, 0.2, type_name=VM_TYPE_BOOL),
+#			In(-2, "rw", dfs.W, 0.4, type_name=VM_TYPE_BOOL),
+#			In(-3, "addr", dfs.W, 0.6, type_name=VM_TYPE_WORD),
+#			In(-4, "in", dfs.W, 0.8, type_name=TYPE_BYTE),
+#			Out(-1, "eno", dfs.E, 0.2),
+#			Out(-2, "base", dfs.E, 0.4, type_name=VM_TYPE_WORD),
+#			Out(-3, "out", dfs.E, 0.8), ],
+#			default_size=(96,88), category="Special",
+#			values=[("Count", 0)])
 class BufferProto(BlockPrototype):
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Buffer", [ Out(0, "addr", dfs.E, 0.5) ],
-			default_size=(96,28), category="Special",
-			values=[("Size", 0)])
+		BlockPrototype.__init__(self, "Buffer", [
+			Out(0, "addr", dfs.E, 0.5), ],
+			default_size=(96,64), category="Special",
+			values=[("Count", 0)])
 
 
 class FunctionCallProto(BlockPrototype):
