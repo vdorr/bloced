@@ -197,4 +197,65 @@ def main() :
 if __name__ == "__main__" :
 	main()
 
+"""
+#define UART_MUX_CHANNELS  2
+//uint8_t uart_mux_state[UART_MUX_CHANNELS];
+uint8_t uart_mux_current_channel = 0xff;//channels allowd 0..254
 
+int uart_put_byte_escaped(uint8_t channel, uint8_t c)
+{
+  if ( uart_mux_current_channel != channel )
+  {
+    uart_mux_current_channel = channel;
+    Serial.write((uint8_t)0xff);
+    Serial.write((uint8_t)channel);
+  }
+  int bytes_sent = 0;
+  if ( 0xff == c )
+  {
+    Serial.write((uint8_t)0xff);
+    bytes_sent += 1;
+  }
+  Serial.write((uint8_t)c);
+  bytes_sent += 1;
+  return bytes_sent;
+}
+
+int uart_send_from_buffer(uint8_t channel, uint8_t* buffer, unsigned count)
+{
+  int bytes_sent = 0;
+  for ( unsigned i = 0; i < count; i++)
+  {
+    uart_put_byte_escaped(channel, buffer[i]);
+  }
+  return 0;//TODO need proper error handling
+}
+
+int uart_receive_to_buffer(uint8_t channel, uint8_t* buffer, unsigned max_count)
+{
+}
+
+void init_uart_mux()
+{
+  //memset(uart_mux_state, 0, sizeof(uart_mux_state));
+  uart_mux_current_channel = -1;
+}
+
+uint8_t txt0[] = "sdfghjkl";
+uint8_t txt1[] = "mnbvcx";
+
+void loop()
+{
+  uart_send_from_buffer(1,txt0, sizeof(txt0));
+  delay(100);
+  uart_send_from_buffer(0,txt1, sizeof(txt1));
+  delay(100);
+}
+
+void setup()
+{
+  init_uart_mux();
+  txt0[3] = 0xff;
+  Serial.begin(9600);
+}
+"""
