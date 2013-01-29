@@ -6,6 +6,9 @@ import subprocess
 import platform
 import time
 import Queue as queue #TODO check for version
+from utils import here
+#from StringIO import StringIO
+import sys
 
 
 DEMUX_NINTH_BIT = "DEMUX_NINTH_BIT" #XXX could not be used for UNO but would work for Due
@@ -19,18 +22,30 @@ DEMUX_ESCAPE = "DEMUX_ESCAPE"
 __CHANNEL_DEBUG = 0
 __CHANNEL_USER = 1
 
+__ESCAPE_CHAR = "\xff"
 
-def __demux_escape(src) :
+
+def __demux_escape(src, default_channel=0, wait_for_sync=True) :
+
+	channel = None if wait_for_sync else default_channel
+
 	while True :
 #TODO read while data available, base timeout on baudrate
 		c = src.read(1)
-		if c == "?!?!?!" :
+
+		if wait_for_sync and (channel is None) and (c != __ESCAPE_CHAR) :
+			yield True, None, "" #everything ok, just waiting for sync
+
+##		print here(), c
+		if c == __ESCAPE_CHAR :
 			c = src.read(1)
-			if c == "!?!?!?" :
-				c = src.read(1)
-				yield True, __CHANNEL_DEBUG, src.read(ord(c))
-		elif len(c) :
-			yield True, __CHANNEL_USER, c
+			if c != __ESCAPE_CHAR :
+				channel = ord(c)
+				print here(), channel
+				continue
+
+		if len(c) :
+			yield True, channel, c
 		else :
 			yield True, None, "" #everything ok, just got no data
 
@@ -54,7 +69,12 @@ def __escape(data, channel) :
 #TODO commands: disable_escaping, fix_channel, close_channel, open_channel
 
 
-def __loop(board_port, user_port, dbg_queue, demux_func) :
+def __loop(board_port, user_port, dbg_queue, demux_func, wait_for_sync=True) :
+	"""
+wait_for_sync - if True, drop all data that arrive before first control symbol
+	"""
+
+	port_reader = demux_func(board_port)
 
 	while True :
 
@@ -63,7 +83,7 @@ def __loop(board_port, user_port, dbg_queue, demux_func) :
 
 		timeout = time.time() + 0.1
 
-		for status, channel, board_data in demux_func(board_port) :
+		for status, channel, board_data in port_reader :
 
 			if not board_data or timeout < time.time() :
 				break
@@ -72,10 +92,13 @@ def __loop(board_port, user_port, dbg_queue, demux_func) :
 				return None
 
 			if channel == __CHANNEL_DEBUG :
-				dbg_queue.put(("board_data", board_data, ))
+				#dbg_queue.put(("board_data", board_data, ))
+				print here(), board_data
 			elif channel == __CHANNEL_USER :
-				user_port.write(board_data)
+				print here(), board_data
+				#user_port.write(board_data)
 			else :
+				print here()
 				pass
 
 		timeout = time.time() + 0.1
@@ -83,11 +106,13 @@ def __loop(board_port, user_port, dbg_queue, demux_func) :
 		while timeout > time.time() :
 			user_data = user_port.read(1)
 			if user_data :
-				board_port.write(__escape(board_port, __CHANNEL_USER))
+#				board_port.write(__escape(board_port, __CHANNEL_USER))
+				pass
 
 
 def create_vsp() :
 #TODO socat, com0com, TCP
+#TODO on Linux create symlink in /dev/ to /tmp/ during install
 	system = platform.system()
 	if system == "Windows" :
 		pass
@@ -96,14 +121,25 @@ def create_vsp() :
 	else :
 		raise Exception("unsupported system: '" + system + "'")
 
+#	my_stdout = StringIO()
+
 	try :
 
 #sudo socat -d -d pty,raw,echo=0 pty,raw,echo=0,link=/dev/ttyARDUINO
 
-		p = subprocess.Popen(["socat", ])
-#			stdout=redir_method,
-#			stderr=subprocess.STDOUT,
-#			cwd=os.getcwd() if workdir is None else workdir )
+		p = subprocess.Popen(["socat", "-d", "-d", "pty,raw,echo=0", "pty,raw,echo=0" ],
+			stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT,
+#			cwd=os.getcwd() if workdir is None else workdir
+		)
+
+		s = ""
+		while True :
+			s += p.stdout.read(1)
+			if s[-1] == "\n" :
+				print s
+				s = ""
+
 	except Exception as e:
 		print e
 
@@ -123,22 +159,38 @@ def run_gateway(demux_method, brd_port_name, usr_port_name) :
 #    __init__(port=None, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE,
 #timeout=None, xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
-	board_sp = serial.Serial(port=None, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE,
-		timeout=None, xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
+	board_sp = serial.Serial(port=brd_port_name,
+		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+		timeout=0,
+		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
-	user_sp = serial.Serial(port=None, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE,
-		timeout=None, xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
+	user_sp = serial.Serial(port=usr_port_name,
+		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+		timeout=0,
+		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
 #	vsp_thread = threading.Thread(target=__vsp_proc,
 #		args=[])
 #	vsp_thread.start()
 
-	demux_thread = threading.Thread(target=__demux_proc,
-		args=[])
-	demux_thread.start()
+#	demux_thread = threading.Thread(target=__demux_proc,
+#		args=[])
+#	demux_thread.start()
+
+	dbg_queue = queue.Queue()
+	(demux_func, ) = __DEMUX_FUNCTIONS[demux_method]
+
+	print here()
+	__loop(board_sp, user_sp, dbg_queue, demux_func, wait_for_sync=True)
 
 
 def main() :
+
+	create_vsp()
+	sys.exit()
+
+	run_gateway(DEMUX_ESCAPE, "/dev/ttyACM0", "/dev/pts/9")
+
 	pass
 
 
