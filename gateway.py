@@ -71,7 +71,7 @@ def __escape(data, channel) :
 #TODO commands: disable_escaping, fix_channel, close_channel, open_channel
 
 
-def __loop(board_port, user_port, dbg_queue, demux_func, wait_for_sync=True) :
+def __loop(board_port, user_port, dbg_port, demux_func, wait_for_sync=True) :
 	"""
 wait_for_sync - if True, drop all data that arrive before first control symbol
 	"""
@@ -79,9 +79,6 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 	port_reader = demux_func(board_port)
 
 	while True :
-
-		if not dbg_queue.empty() :
-			msg = dbg_queue.get()
 
 		timeout = time.time() + 0.1
 
@@ -94,23 +91,23 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 				return None
 
 			if channel == __CHANNEL_DEBUG :
-				#dbg_queue.put(("board_data", board_data, ))
-#				print here(), board_data
-				pass
+				dbg_port.write(board_data)
 			elif channel == __CHANNEL_USER :
-#				print here(), board_data
 				user_port.write(board_data)
 			else :
-				print here()
-				pass
+				raise Exception(here() + " invalid channel number")
 
-		timeout = time.time() + 0.1
-
+		timeout = time.time() + 0.05
 		while timeout > time.time() :
 			user_data = user_port.read(1)
-			if user_data :
+			if len(user_data) :
 				board_port.write(__escape(user_data, __CHANNEL_USER))
-				pass
+
+		timeout = time.time() + 0.05
+		while timeout > time.time() :
+			dbg_data = dbg_port.read(1)
+			if len(dbg_data) :
+				board_port.write(__escape(dbg_data, __CHANNEL_DEBUG))
 
 
 def destroy_vsp(instance) :
@@ -119,8 +116,8 @@ def destroy_vsp(instance) :
 		raise Exception("unsupported system: '" + system + "'")#TODO
 	elif system == "Linux" :
 		pass
-#TODO
-	raise Exception("unsupported system: '" + system + "'")
+	else :
+		raise Exception("unsupported system: '" + system + "'")
 
 
 
@@ -169,6 +166,17 @@ def __demux_proc():
 	pass
 
 
+#TODO
+class DebugPort(object) :
+
+	def read(self, n) :
+		return ""
+
+	def write(self, data) :
+#		print data
+		pass
+
+
 def run_gateway(demux_method, brd_port_name, usr_port_name) :
 	#vsp thread
 	#demux thread
@@ -190,15 +198,19 @@ def run_gateway(demux_method, brd_port_name, usr_port_name) :
 #		args=[])
 #	vsp_thread.start()
 
-#	demux_thread = threading.Thread(target=__demux_proc,
-#		args=[])
-#	demux_thread.start()
 
-	dbg_queue = queue.Queue()
+#	dbg_queue = queue.Queue()
 	(demux_func, ) = __DEMUX_FUNCTIONS[demux_method]
 
+	dbg_port = DebugPort()
+
 	print here()
-	__loop(board_sp, user_sp, dbg_queue, demux_func, wait_for_sync=True)
+#	__loop(board_sp, user_sp, dbg_port, demux_func, wait_for_sync=True)
+
+	demux_thread = threading.Thread(target=__loop,
+		args=[board_sp, user_sp, dbg_port, demux_func])
+	demux_thread.start()
+	demux_thread.join()#XXX
 
 
 def main() :
