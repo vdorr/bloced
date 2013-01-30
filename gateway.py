@@ -38,10 +38,12 @@ def __demux_escape(src, default_channel=0, wait_for_sync=True) :
 
 ##		print here(), c
 		if c == __ESCAPE_CHAR :
-			c = src.read(1)
+			c = ""
+			while not len(c) :
+				c = src.read(1)
 			if c != __ESCAPE_CHAR :
 				channel = ord(c)
-				print here(), channel
+#				print here(), channel
 				continue
 
 		if len(c) :
@@ -93,10 +95,11 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 
 			if channel == __CHANNEL_DEBUG :
 				#dbg_queue.put(("board_data", board_data, ))
-				print here(), board_data
+#				print here(), board_data
+				pass
 			elif channel == __CHANNEL_USER :
-				print here(), board_data
-				#user_port.write(board_data)
+#				print here(), board_data
+				user_port.write(board_data)
 			else :
 				print here()
 				pass
@@ -106,8 +109,19 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 		while timeout > time.time() :
 			user_data = user_port.read(1)
 			if user_data :
-#				board_port.write(__escape(board_port, __CHANNEL_USER))
+				board_port.write(__escape(user_data, __CHANNEL_USER))
 				pass
+
+
+def destroy_vsp(instance) :
+	system = platform.system()
+	if system == "Windows" :
+		raise Exception("unsupported system: '" + system + "'")#TODO
+	elif system == "Linux" :
+		pass
+#TODO
+	raise Exception("unsupported system: '" + system + "'")
+
 
 
 def create_vsp() :
@@ -115,33 +129,36 @@ def create_vsp() :
 #TODO on Linux create symlink in /dev/ to /tmp/ during install
 	system = platform.system()
 	if system == "Windows" :
-		pass
+		raise Exception("unsupported system: '" + system + "'")#TODO
 	elif system == "Linux" :
-		pass
-	else :
-		raise Exception("unsupported system: '" + system + "'")
+		return create_socat_pty_vsp_pair()
+	raise Exception("unsupported system: '" + system + "'")
 
-#	my_stdout = StringIO()
 
+def create_socat_pty_vsp_pair() :
 	try :
 
 #sudo socat -d -d pty,raw,echo=0 pty,raw,echo=0,link=/dev/ttyARDUINO
 
 		p = subprocess.Popen(["socat", "-d", "-d", "pty,raw,echo=0", "pty,raw,echo=0" ],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.STDOUT,
-#			cwd=os.getcwd() if workdir is None else workdir
-		)
+			stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 		s = ""
-		while True :
+		ptys = []
+		while len(ptys) != 2 :
 			s += p.stdout.read(1)
 			if s[-1] == "\n" :
-				print s
+				tokens = s.split("PTY is")
+				if len(tokens) == 2 :
+					ptys.append(tokens[1].strip())
 				s = ""
+#		print here(), ptys
 
 	except Exception as e:
-		print e
+#		print e
+		raise
+
+	return p, ptys[0], ptys[1]
 
 
 def __vsp_proc():
@@ -161,12 +178,12 @@ def run_gateway(demux_method, brd_port_name, usr_port_name) :
 
 	board_sp = serial.Serial(port=brd_port_name,
 		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-		timeout=0,
+		timeout=0.01,
 		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
 	user_sp = serial.Serial(port=usr_port_name,
 		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-		timeout=0,
+		timeout=0.01,
 		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
 #	vsp_thread = threading.Thread(target=__vsp_proc,
@@ -186,12 +203,14 @@ def run_gateway(demux_method, brd_port_name, usr_port_name) :
 
 def main() :
 
-	create_vsp()
-	sys.exit()
+	vsp_instance, inner_port_name, outer_port_name = create_vsp() #XXX maybe should return instance to abstract channel type (serial/socket)
+	print here(), inner_port_name, "user port:", outer_port_name
+#	time.sleep(1000)
+#	sys.exit()
 
-	run_gateway(DEMUX_ESCAPE, "/dev/ttyACM0", "/dev/pts/9")
+	run_gateway(DEMUX_ESCAPE, "/dev/ttyACM0", inner_port_name)
 
-	pass
+	destroy_vsp(vsp_instance)
 
 
 if __name__ == "__main__" :
