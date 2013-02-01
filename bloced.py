@@ -1731,6 +1731,11 @@ class BlockEditorWindow(object) :
 #		print(here(), self.work.get_board(), " ->", a[0].get())
 		self.work.set_board(a[0].get())
 
+	def __enable_gateway(self, *a, **b) :
+#TODO
+		(gw_enabled, ) = a[0].get()
+		print here(), "implement me!", gw_enabled
+
 
 	def __tick(self) :
 #		print here()
@@ -2132,9 +2137,14 @@ class BlockEditorWindow(object) :
 		self.__board_menu = CascadeMnu("Board",
 			[ RadioMnu(txt, None, self.__choose_board, value=val) for val, txt in boards ])
 
+		self.__gateway_menu = CascadeMnu("Gateway",
+			[ RadioMnu("Enabled", None, self.__enable_gateway, value=(True, )),
+				RadioMnu("Disabled", None, self.__enable_gateway, value=(False, ))])
+
 		self.__model_menu = self.add_top_menu("&Workbench", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
+			self.__gateway_menu,
 #			CmdMnu("&Stop", "Ctrl+F5", None)
 			SepMnu(),
 			CmdMnu("Add sheet", "Shift+Ctrl+N", self.__mnu_add_sheet),
