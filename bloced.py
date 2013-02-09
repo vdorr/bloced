@@ -1681,9 +1681,7 @@ class BlockEditorWindow(object) :
 			self.__changed = False
 			self.__set_current_file_name(fname)
 			self.__update_recent_files(fname)
-			self.__select_board(self.work.get_board())
-			self.__select_port(self.work.get_port())
-			self.__update_status_bar()
+			self.__update_workbench_info()
 
 
 	def save_file(self, fname) :
@@ -1734,7 +1732,8 @@ class BlockEditorWindow(object) :
 	def __enable_gateway(self, *a, **b) :
 #TODO
 		(gw_enabled, ) = a[0].get()
-		print here(), "implement me!", gw_enabled
+		self.work.set_gateway_enabled(gw_enabled)
+#		print here(), "implement me!", gw_enabled
 
 
 	def __tick(self) :
@@ -1811,9 +1810,12 @@ class BlockEditorWindow(object) :
 	def __update_status_bar(self) :
 		board = self.work.get_board()
 		port = self.work.get_port()
-		target = "{}@{}".format(
+		gw_enabled = self.work.get_gateway_enabled()
+		gw_outer_port = self.work.get_gw_outer_port()
+		target = "{}@{}, {}".format(
 			"(board not set)" if board is None else self.work.get_board_types()[board]["name"],
-			"(port not set)" if port is None else port)
+			"(port not set)" if port is None else port,
+			("gateway interface is {}" if gw_enabled else "gateway is disabled").format(gw_outer_port))
 		self.status_label_right.configure(text=target)
 #		self.status_label_left.configure(text="?")
 
@@ -1832,16 +1834,25 @@ class BlockEditorWindow(object) :
 #			changed = True
 		elif event == "sheet_modified" :
 			pass #maybe show star on tab?
-		elif event in ("board_set","port_set") :
-			self.__update_status_bar()
+		elif event in ("board_set","port_set", "gateway_enable_changed") or \
+				event == "meta_changed" : #XXX
+#			print here(), event
+			self.__update_workbench_info()
 		else :
-			print(here(), "unhandled workbench event:", event)
+			print(here(), "unhandled workbench event:", event, data)
 			changed = False
 		if changed :
 			self.__changed_event()
 		if not sheet_name is None :
 			if core.is_macro_name(sheet_name) or core.is_function_name(sheet_name) :
 				self.__list_local_block()
+
+
+	def __update_workbench_info(self) :
+		self.__update_status_bar()
+		self.__select_board(self.work.get_board())
+		self.__select_port(self.work.get_port())
+		self.__select_gateway(self.work.get_gateway_enabled())
 
 
 	def begin_paste_local_block(self, sheet_name) :
@@ -2056,6 +2067,11 @@ class BlockEditorWindow(object) :
 	def __layout_align(self, align) :
 		if self.bloced :
 			self.bloced.layout_align(align)
+
+
+	def __select_gateway(self, en) :
+		var = self.__menu_vars[self.__menu_items[self.__gateway_menu.items[0]][0]]
+		var.set((en, ))
 
 
 	def setup_menus(self) :

@@ -1072,7 +1072,7 @@ class WorkbenchData(object) :
 			do_create_block_factory=True,
 			blockfactory=None) :
 
-		self.PERSISTENT = ( "__port", "__board" )
+		self.PERSISTENT = ( "__port", "__board", "__gateway_enabled" )
 
 		self.blockfactory = blockfactory
 		if do_create_block_factory :
@@ -1422,6 +1422,25 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		return self.__port
 
 
+	def set_gateway_enabled(self, en) :
+		start_gw = en and self.__gateway_enabled != en
+		self.__gateway_enabled = en
+		self.__changed("gateway_enable_changed", (en, )) #TODO implement handler
+		if start_gw :
+			print here() #TODO
+
+
+	def get_gateway_enabled(self) :
+		return bool(self.__gateway_enabled)
+
+
+	def get_gw_outer_port(self) :
+		if self.__gateway_enabled :
+#			self.gw.get_outer_port()
+			return "TODO"
+		return None
+
+
 	def __changed(self, event, data) :
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
@@ -1497,6 +1516,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__board = None
 		self.__port = None
 		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
+		self.__gateway_enabled = False
 
 		self.__blob = None
 		self.__blob_time = None
