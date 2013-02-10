@@ -171,6 +171,7 @@ def build_source(board, source,
 		aux_idirs=tuple(),
 		boards_txt=None,
 		libc_dir=None,
+		defines=None,
 		board_db=None,
 		ignore_file="amkignore",
 		ignore_lines=tuple(),
@@ -215,6 +216,7 @@ def build_source(board, source,
 		prog_driver=prog_driver,
 		prog_adapter=prog_adapter,
 		optimization=optimization,
+		defines=defines,
 		verbose=verbose,
 		skip_programming=skip_programming,
 		dry_run=dry_run,
@@ -281,6 +283,7 @@ def build(board, workdir,
 		prog_driver="avrdude",
 		prog_adapter="arduino",
 		optimization="-Os",
+		defines=None,
 		verbose=False,
 		skip_programming=False,
 		dry_run=False,
@@ -313,9 +316,13 @@ def build(board, workdir,
 		'arduino' for Arduino boards or None for dfu-programmer
 	prog_driver
 		supported options are 'avrdude' and 'dfu-programmer'
+	defines
+		dict of -Defines=\"for gcc\" in form { "efines" : "for gcc" }
 	"""
 
+	defines = {} if defines is None else defines
 	board_info = {} if board_db is None else board_db
+
 	if boards_txt :
 		boards_txt_data = __parse_boards(boards_txt)
 		if not boards_txt_data :
@@ -379,6 +386,7 @@ def build(board, workdir,
 		os.path.join(libc_dir, "util"),
 		os.path.join(libc_dir, "compat")))
 	defs = { "F_CPU" : f_cpu }
+	defs.update(defines)
 
 	print board_idirs+tuple(idirs)
 
