@@ -435,8 +435,32 @@ class GlobalReadProto(BlockPrototype):
 class BufferProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Buffer", [
-			Out(0, "addr", dfs.E, 0.5), ],
-			default_size=(96,64), category="Special",
+				Out(0, "addr", dfs.E, 0.5, type_name=TYPE_INFERRED), ],
+			default_size=(96,64), category="Memory",
+			values=[("Count", 0)])
+
+
+class ReadBufferProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "ReadBuffer", [
+#				In(-1, "eni", dfs.W, 0.25, type_name=VM_TYPE_BOOL),
+				In(-1, "buffer", dfs.W, 0.33, type_name=TYPE_INFERRED),
+				In(-2, "addr", dfs.W, 0.66, type_name=VM_TYPE_WORD),
+#				Out(-1, "eno", dfs.E, 0.33, type_name=VM_TYPE_BOOL),
+				Out(-1, "val", dfs.E, 0.33, type_name=VM_TYPE_CHAR), ],
+			default_size=(96,64), category="Memory",
+			values=[("Count", 0)])
+
+
+class WriteBufferProto(BlockPrototype):
+	def __init__(self) :
+		BlockPrototype.__init__(self, "WriteBuffer", [
+			In(-1, "eni", dfs.W, 0.2, type_name=VM_TYPE_BOOL),
+			In(-2, "buffer", dfs.W, 0.4, type_name=TYPE_INFERRED),
+			In(-3, "addr", dfs.W, 0.6, type_name=VM_TYPE_WORD),
+			In(-4, "val", dfs.W, 0.8, type_name=VM_TYPE_CHAR),
+			Out(-1, "eno", dfs.E, 0.2, type_name=VM_TYPE_BOOL), ],
+			default_size=(96,80), category="Memory",
 			values=[("Count", 0)])
 
 
@@ -1355,7 +1379,10 @@ def builtin_blocks() :
 		PipeEndProto(),
 		MuxProto(),
 		TextAreaProto(),
+
 		BufferProto(),
+		ReadBufferProto(),
+		WriteBufferProto(),
 
 		BinaryBooleanOp("xor", "Logic", commutative=True),
 		BinaryBooleanOp("or", "Logic", commutative=True),

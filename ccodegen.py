@@ -8,7 +8,7 @@ from itertools import groupby
 from implement import block_value_by_name, add_tmp_ref, pop_tmp_ref, \
 	temp_init, dft_alt, tmp_used_slots, parse_literal, tmp_max_slots_used, get_terms_flattened
 from utils import here
-
+import collections
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ def __arg_grouper(term_pairs, arguments) :
 		key=lambda i: (i[0][0].name, i[0][0].variadic))
 
 
-def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
+def __make_call(cntxt, n, args_and_terms, outs_and_terms) :
 	"""
 	generate code for function call
 	"""
@@ -97,12 +97,9 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 				if arg_term.direction == core.INPUT_TERM :
 					fill_array_code = ("{0}_tmp_arg[{1}]={2};".format(arg_type, array_size+i, a)
 						for (_, a), i in zip(arg_group, count()))
-					code.extend(fill_array_code)
+					cntxt.code.extend(fill_array_code)
 
 				elif arg_term.direction == core.OUTPUT_TERM :
-					has_variadic_output = True
-#					print here()
-
 					read_variadic_outputs.extend("{2}={0}_tmp_arg[{1}];".format(arg_type, array_size+i, a)
 						for (_, a), i in zip(arg_group, count()))
 
@@ -122,21 +119,25 @@ def __make_call(n, args_and_terms, outs_and_terms, tmp_var_args, code) :
 				arg_list.append(a_prefix + a)
 
 	for type_name, cnt in tmp_args.items() :
-		array_size = tmp_var_args[type_name]
+		array_size = cntxt.tmp_args[type_name]
 		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
-			tmp_var_args[type_name] = cnt
+			cntxt.tmp_args[type_name] = cnt
 
 	call = n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
 
 	if read_variadic_outputs :
-		code.append(call + ";")
-		code.extend(read_variadic_outputs);
+		cntxt.code.append(call + ";")
+		cntxt.code.extend(read_variadic_outputs)
 		return None, True
 	else :
 		return call, False
 
 
-def __implement(g, n, tmp_args, args, outs, code) :
+def __arg_dict(args) :
+	return { (t.name, t_nr) : value for (t, t_nr), value in args }
+
+
+def __implement(g, n, cntxt, args, outs) :
 	"""
 	return code to perform block n
 	"""
@@ -170,10 +171,28 @@ def __implement(g, n, tmp_args, args, outs, code) :
 		assert(len(out)==1)
 		stmt = "({0})({1})".format(out[0].type_name, args[0][1])
 	elif core.compare_proto_to_type(n.prototype, core.BufferProto) :
-		assert(False)
-#TODO
+		assert(len(args)==0)
+#		print here(), outs
+#		assert(len(outs)==1)
+#		print here(), cntxt.task_name cntxt.buffers[n]
+		stmt = "&{0}_buffers[{1}]".format(
+			cntxt.task_name, cntxt.buffers[n])
+#		print here(), stmt
+	elif core.compare_proto_to_type(n.prototype, core.ReadBufferProto) :
+		arg_dict = __arg_dict(args)
+		stmt = "({0})[{1}]".format(arg_dict["buffer", 0], arg_dict["addr", 0])
+	elif core.compare_proto_to_type(n.prototype, core.WriteBufferProto) :
+#TODO assert args and outs
+		arg_dict = __arg_dict(args)
+		cntxt.code.append("if ({0}) {{".format(arg_dict["eni", 0]))
+		cntxt.code.append("({0})[{1}]={2};".format(arg_dict["buffer", 0],
+			arg_dict["addr", 0], arg_dict["val", 0]))
+		cntxt.code.append("}")
+#		stmt = "({0})[{1}]".format(arg_dict["buffer", 0], arg_dict["addr", 0])
+		stmt = "1" #.eno allways on
+#		assert(False)
 	else :
-		stmt, emitted = __make_call(n, args, outs, tmp_args, code)
+		stmt, emitted = __make_call(cntxt, n, args, outs)
 #		assert(n.prototype.exe_name != None)
 #		return n.prototype.exe_name + "(" + ", ".join(args + outs) + ")"
 	assert(emitted != (not stmt is None))
@@ -204,8 +223,7 @@ def __end_marker(n, code, markers) :
 	code.append("}} /* end mark {} */".format(len(markers)))
 
 
-def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types,
-		dummies, state_var_prefix, pipe_vars, libs_used, evaluated, markers, n, visited,
+def __post_visit(g, cntxt, n, visited,
 		nesting=True,
 		generate_markers=False) :
 #	print "__post_visit:", n.to_string()
@@ -214,7 +232,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 		return None # handled elsewhere
 
 	if n.prototype.library :
-		libs_used.add(n.prototype.library)
+		cntxt.libs_used.add(n.prototype.library)
 
 	inputs_all, outputs_all = g[n]
 	inputs = [ (t, nr, ngh) for t, nr, ngh in inputs_all if not t.virtual ]
@@ -223,19 +241,19 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 	args = []
 	outs = []
 
-#	print here(), n, tmp, subtrees
+#	print here(), n, cntxt.tmp, cntxt.subtrees
 #	print here(), n, outputs
 
 	expr_slot_type = None
 
 	for out_term, out_t_nr, succs in outputs :
 		if out_term.type_name == core.TYPE_INFERRED :
-			term_type = types[n, out_term, out_t_nr]
+			term_type = cntxt.types[n, out_term, out_t_nr]
 		else :
 			term_type = out_term.type_name
 		if (len(succs) > 1 or (len(outputs) > 1 and len(succs) == 1)) or not nesting :
 			expr_slot_type = term_type
-			expr_slot = add_tmp_ref(tmp, succs, slot_type=term_type)
+			expr_slot = add_tmp_ref(cntxt.tmp, succs, slot_type=term_type)
 			if len(outputs) > 1 :
 				outs.append(((out_term, out_t_nr), "{}_tmp{}".format(expr_slot_type, expr_slot)))
 		elif len(succs) <= 1 and len(outputs) == 1 :
@@ -244,7 +262,7 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			assert(len(succs) == 0)
 			assert(len(outputs) > 1)
 #TODO assert not variadic
-			dummies.add(term_type)
+			cntxt.dummies.add(term_type)
 			outs.append(((out_term, out_t_nr), "{}_dummy".format(term_type)))
 
 	for in_term, in_t_nr, preds in inputs :
@@ -255,105 +273,121 @@ def __post_visit(g, code, tmp, tmp_args, subtrees, expd_dels, types, known_types
 			assert(len(m.value) == 1)
 #TODO check const value validity, possible in implement.py
 			args.append(((in_term, in_t_nr), str(m.value[0])))
-		elif (n, in_term, in_t_nr) in subtrees and nesting :
-			args.append(((in_term, in_t_nr), subtrees.pop((n, in_term, in_t_nr))))
+		elif (n, in_term, in_t_nr) in cntxt.subtrees and nesting :
+			args.append(((in_term, in_t_nr), cntxt.subtrees.pop((n, in_term, in_t_nr))))
 		else :
-			slot_type, slot = pop_tmp_ref(tmp, n, in_term, in_t_nr)
+			slot_type, slot = pop_tmp_ref(cntxt.tmp, n, in_term, in_t_nr)
 			if slot != None:
 				args.append(((in_term, in_t_nr), "{0}_tmp{1}".format(slot_type, slot)))
 			else :
 				assert(False)
 
 	if core.compare_proto_to_type(n.prototype, core.DelayInProto) :
-		del_in, del_out = expd_dels[n.delay]
+		del_in, del_out = cntxt.expd_dels[n.delay]
 		assert(n==del_in)
 #		is_initdel = core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto)
-		if not del_out in evaluated :# or is_initdel :
+		if not del_out in cntxt.evaluated :# or is_initdel :
 			if generate_markers :
-				__begin_marker(n, code, markers)
+				__begin_marker(n, cntxt.code, cntxt.markers)
 #			print here(), del_in.terms
-			del_type = types[del_out, del_out.terms[0], 0]
-			slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
+			del_type = cntxt.types[del_out, del_out.terms[0], 0]
+			slot = add_tmp_ref(cntxt.tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
 			if core.compare_proto_to_type(del_out.prototype, core.InitDelayOutProto) :# is_initdel :
 #				print here(), args
 				assert(len(args)==1 and len(outs)==0)
-				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
+				__get_initdel_value(cntxt.code, n, cntxt.state_var_prefix, del_type, slot, args[0][1])
 			else :
-				code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, state_var_prefix, n.nr))
+				cntxt.code.append("{0}_tmp{1} = {2}del{3};".format(del_type, slot, cntxt.state_var_prefix, n.nr))
 			if generate_markers :
-				__end_marker(n, code, markers)
-		expr = "{0}del{1}={2}".format(state_var_prefix, n.nr, args[0][1])
+				__end_marker(n, cntxt.code, cntxt.markers)
+		expr = "{0}del{1}={2}".format(cntxt.state_var_prefix, n.nr, args[0][1])
 
 	elif core.compare_proto_to_type(n.prototype, core.DelayOutProto, core.InitDelayOutProto) :
-		del_in, del_out = expd_dels[n.delay]
+		del_in, del_out = cntxt.expd_dels[n.delay]
 		assert(n==del_out)
-		if del_in in evaluated : #visited :
-			slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+		if del_in in cntxt.evaluated : #visited :
+			slot_type, slot = pop_tmp_ref(cntxt.tmp, del_in, del_in.terms[0], 0)
 			expr = "{0}_tmp{1}".format(slot_type, slot)
 		else :
 			if core.compare_proto_to_type(n.prototype, core.InitDelayOutProto) :
 				assert(len(args)==1 and len(outs)==0)
-				del_type = types[del_out, del_out.terms[0], 0]
-				slot = add_tmp_ref(tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
+				del_type = cntxt.types[del_out, del_out.terms[0], 0]
+				slot = add_tmp_ref(cntxt.tmp, [ (del_in, del_in.terms[0], 0) ], slot_type=del_type)
 				if generate_markers :
-					__begin_marker(n, code, markers)
-				__get_initdel_value(code, n, state_var_prefix, del_type, slot, args[0][1])
+					__begin_marker(n, cntxt.code, cntxt.markers)
+				__get_initdel_value(cntxt.code, n, cntxt.state_var_prefix, del_type, slot, args[0][1])
 				if generate_markers :
-					__end_marker(n, code, markers)
-				slot_type, slot = pop_tmp_ref(tmp, del_in, del_in.terms[0], 0)
+					__end_marker(n, cntxt.code, cntxt.markers)
+				slot_type, slot = pop_tmp_ref(cntxt.tmp, del_in, del_in.terms[0], 0)
 				expr = "{0}_tmp{1}".format(slot_type, slot)
 			else :
-				expr = "{0}del{1}".format(state_var_prefix, n.nr)
+				expr = "{0}del{1}".format(cntxt.state_var_prefix, n.nr)
 	else :
-		expr = __implement(g, n, tmp_args, args, outs, code)#, types, known_types, pipe_vars)
+		expr = __implement(g, n, cntxt, args, outs)#, types, cntxt.known_types, cntxt.pipe_vars)
 
 	is_expr = len(outputs) == 1 and len(outputs[0][2]) == 1 and nesting
 
 	if is_expr :
 		((out_term, out_t_nr, succs), ) = outputs
-		subtrees[succs[0]] = expr
+		cntxt.subtrees[succs[0]] = expr
 		assert(len(outputs)==1 and len(outputs[0][2])==1)
-		subtrees[outputs[0][2][0]] = expr
+		cntxt.subtrees[outputs[0][2][0]] = expr
 	else :
 		if generate_markers :
-			__begin_marker(n, code, markers)
+			__begin_marker(n, cntxt.code, cntxt.markers)
 		if len(outputs) == 0 :
-			code.append(expr + ";")
+			cntxt.code.append(expr + ";")
 		elif len(outputs) == 1 :
 #			(out_term,) = [ trm for trm in n.terms if trm.direction == core.OUTPUT_TERM ]
-#			term_type = types[ n, out_term, 0 ]
-#			slot = add_tmp_ref(tmp, outputs[0][2], slot_type=term_type)
+#			term_type = cntxt.types[ n, out_term, 0 ]
+#			slot = add_tmp_ref(cntxt.tmp, outputs[0][2], slot_type=term_type)
 #			print here(), n, out_term, term_type, "slot=", slot
-#			pprint(tmp)
+#			pprint(cntxt.tmp)
 			if expr_slot_type is None :
-#				code.append("{};".format(expr))
+#				cntxt.code.append("{};".format(expr))
 #				if n.prototype.__class__ in (core.CFunctionProto, core.FunctionCallProto) :
-#					code.append("(void){};".format(expr))
+#					cntxt.code.append("(void){};".format(expr))
 #				print here(), n, expr, len(outputs), outputs[0], nesting, n.prototype.__class__ 
-				code.append("(void){};".format(expr))
+				cntxt.code.append("(void){};".format(expr))
 			else :
-				code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
+				cntxt.code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
 			if expr is None :
 				print here()
-				pass
 			else :
-				code.append(expr + ";")
+				cntxt.code.append(expr + ";")
 		if generate_markers :
-			__end_marker(n, code, markers)
+			__end_marker(n, cntxt.code, cntxt.markers)
 
-	evaluated[n] = True
+	cntxt.evaluated[n] = True
 
 
 # ------------------------------------------------------------------------------------------------------------
 
 
 def __buffers(g) :
+	"""
+	return list of tuples (buffer, offset in combined buffer array) and total size of all buffers in g
+	"""
 #TODO use location_id sorting
 	buffers = [ (v, int(v.value[0])) for v in g
 		if core.compare_proto_to_type(v.prototype, core.BufferProto) ]
 	buffers.sort(key=lambda v : v[0]) #sort to achieve deterministic code generation
-	return buffers, sum(size for _, size in buffers)
+	buffer_info = []
+	total_size = 0
+	for v, size in buffers :
+		buffer_info.append((v, total_size))
+		total_size += size
+	return buffer_info, total_size
+
+
+cg_context_t = collections.namedtuple("cg_context", ("code", "tmp", "tmp_args", "subtrees",
+	"expd_dels", "types", "known_types", "dummies", "state_var_prefix",
+	"pipe_vars", "libs_used", "evaluated", "markers", "buffers", "task_name"))
+
+
+cg_output_t = collections.namedtuple("cg_output", ("code", "types", "tmp", "tmp_args", "expd_dels",
+	"pipe_vars", "dummies", "meta", "known_types", "vars_other", "buffers_size"))
 
 
 def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
@@ -371,8 +405,11 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 	markers = []
 	buffers, buffers_size = __buffers(g)
 
-	post_visit_callback = partial(__post_visit, g, code, tmp, tmp_args, subtrees,
-		expd_dels, types, known_types, dummies, state_var_prefix, pipe_vars, libs_used, evaluated, markers)
+	cntxt = cg_context_t(code, tmp, tmp_args, subtrees,
+		expd_dels, types, known_types, dummies, state_var_prefix,
+		pipe_vars, libs_used, evaluated, markers, dict(buffers), task_name)
+
+	post_visit_callback = partial(__post_visit, g, cntxt)
 
 	dft_alt(g, post_visit=post_visit_callback)
 
@@ -381,7 +418,8 @@ def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_n
 
 	vars_other = tuple()
 
-	return task_name, (code, types, tmp, tmp_args, expd_dels, pipe_vars, dummies, meta, known_types, vars_other)
+	return task_name, cg_output_t(code, types, tmp, tmp_args, expd_dels,
+		pipe_vars, dummies, meta, known_types, vars_other, buffers_size)
 
 
 def churn_task_code(task_name, cg_out) :
@@ -390,7 +428,9 @@ def churn_task_code(task_name, cg_out) :
 	"""
 #TODO list known meta values
 
-	code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types, vars_other = cg_out
+#TODO acces cg_out members via names
+	(code, types, tmp, tmp_args, expd_dels, global_vars,
+		dummies, meta, known_types, vars_other, buffers_size) = cg_out
 
 #	meta["endless_loop_wrap"] = False
 #	meta["function_attributes"] = "inline"
@@ -458,9 +498,12 @@ def churn_task_code(task_name, cg_out) :
 		loop_code + linesep +
 		"}")
 
-	lifted_vars = tuple(state_vars) if lift_state_vars else tuple()
+	lifted_vars = list(state_vars) if lift_state_vars else []
+	if buffers_size > 0 : #TODO should be handled according to state_vars_storage
+		lifted_vars.append("\tstatic {0} {1}_buffers[{2}];{3}".format(
+			core.VM_TYPE_CHAR, task_name, buffers_size, linesep))
 
-	return decl + ";", output, lifted_vars
+	return decl + ";", output, tuple(lifted_vars)
 
 #void loop()
 #{
@@ -503,7 +546,7 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
-def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type=core.VM_TYPE_WORD) :
+def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type=core.VM_TYPE_DWORD) :
 	"""
 	generate code for simple cooperative periodic task switching
 	"""
@@ -529,16 +572,16 @@ def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type
 	code.append("do {")
 	for tsk_name in sorted(idle_group) :
 		code.append("\t{}();".format(tsk_name))
-	code.append("\tnow = {}();".format(time_function))
-	code.append("} while ( (now - next_scheduled_run) < 0 );")
+	code.append("\tnow = ({}){}();".format(tmr_data_type, time_function))
+	code.append("} while ( now < next_scheduled_run );")
 
 	code.append("next_scheduled_run = now + {};".format(tmr_max))
 
 	for period, tasks in sorted(groups.items(), key=lambda i: i[0]) :
 		tmr_var_name = "next_{}_run".format(period)
-		code.append("if ( (now - {}) >= 0 ) {{".format(tmr_var_name))
+		code.append("if ( now >= {} ) {{".format(tmr_var_name))
 		code.append("\t{} = now + {};".format(tmr_var_name, period))
-		code.append("\tif ( {} <= next_scheduled_run ) {{".format(tmr_var_name))
+		code.append("\tif ( {} < next_scheduled_run ) {{".format(tmr_var_name))
 		code.append("\t\tnext_scheduled_run = {};".format(tmr_var_name))
 		code.append("\t}")
 		for tsk_name in sorted(tasks) :
@@ -551,7 +594,9 @@ def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type
 	vars_other = tuple() #XXX XXX XXX
 
 	#code, types, tmp, tmp_args, expd_dels, global_vars, dummies, meta, known_types
-	return code, {}, {}, {}, {}, [], [], meta, {}, vars_other
+	return cg_output_t(code=code, meta=meta, vars_other=vars_other,
+		types={}, pipe_vars=None, known_types=None, buffers_size=0,
+		tmp={}, tmp_args={}, expd_dels={}, dummies=[])
 
 
 def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
@@ -568,7 +613,7 @@ def churn_code(meta, global_vars, cg_out_list, include_files, tsk_groups, f) :
 	periodic_sched = "periodic_sched" in meta and meta["periodic_sched"]
 
 	if periodic_sched :
-		ps_cg_out = __churn_periodic_sched(tsk_groups, "millis", meta,
+		ps_cg_out = __churn_periodic_sched(tsk_groups, "time_ms", meta,
 			tmr_data_type=core.VM_TYPE_WORD)
 		tsk_cg_out.append(("loop", ps_cg_out))
 #		print here(), churn_task_code("loop", ps_cg_out)
