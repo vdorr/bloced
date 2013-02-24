@@ -4,6 +4,7 @@ serialiazable model of graph, part of editor bussiness logic, definitions for pr
 """
 
 from sys import version_info
+
 if version_info.major == 3 :
 	from functools import reduce
 	from io import StringIO
@@ -11,7 +12,7 @@ if version_info.major == 3 :
 else :
 	from Queue import Queue, Empty as QueueEmpty
 	from StringIO import StringIO
-	from Queue import Queue, Empty as QueueEmpty
+
 from threading import Thread, Lock
 import time
 import sys
@@ -29,6 +30,8 @@ import implement
 import serializer
 from utils import here
 import mathutils
+import gateway
+
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -1219,8 +1222,13 @@ class Workbench(WorkbenchData, GraphModelListener) :
 #		term_stream = sys.stdout
 		term_stream = Workbench.TermStream(self.__messages)
 
+		defines = {}
+
+		if self.__gateway_enabled :
+			defines["DBG_ENABLE_GATEWAY"] = 1
 
 		try :
+#TODO implement in chain.py
 			rc, = build.build_source(board_type, source,
 				aux_src_dirs=(
 					(os.path.join(target_files_dir, "cores", "arduino"), False),
@@ -1238,6 +1246,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	#			prog_driver="avrdude", # or "dfu-programmer"
 	#			prog_adapter="arduino", #None for dfu-programmer
 				optimization="-Os",
+				defines=defines,
 				verbose=False,
 				skip_programming=True,#False,
 	#			dry_run=False,
@@ -1269,6 +1278,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 #		prog_port, blob = None, None
 		board_info = self.__board_types[self.get_board()]
 		prog_mcu = board_info["build.mcu"]
+#TODO acquire blob after job is taken from queue, so that freshly build blob is used
 		self.__jobs.put(("upload", (prog_mcu, self.get_port(), self.__blob, self.__blob_time)))
 
 
@@ -1278,9 +1288,13 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				{ "other" : { "reason" : "no_blob"}})))
 			return None
 
+		if self.__gateway_enabled :
+			self.__gateway.detach()
+
 		self.__messages.put(("status", (("upload", True, "upload_started"),
 			{ "other" : { "info" : (blob_time, prog_mcu, port) }})))
 
+		#TODO implement in chain.py
 		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
 			a_hex_blob=blob,
 			verbose=False,
@@ -1293,6 +1307,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		else :
 #			print("programming succeeded")
 			self.__messages.put(("status", (("upload", True, "upload_done"), {})))
+
+		if self.__gateway_enabled :
+			self.__gateway.attach()
 
 
 	state_info = property(lambda self: self.get_state_info())
@@ -1312,12 +1329,22 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__should_finish = True
 
 
+	def __poll_gateway(self) :
+		if self.__gateway.poll_events() :
+			print here()
+			self.__messages.put(("status", (("gateway", True, "status"),
+				{ "other" : None})))
+
+
 	@catch_all
 	def __timer_thread(self) :
 #		port_check = time.time()
 		while not self.__get_should_finish() :
 
 			tm = time.time()
+
+			if self.__gateway_enabled and not self.__gateway is None : #TODO make __gateway_enabled reflect existance of instance
+				self.__poll_gateway()
 
 			jobs = []
 			try :
@@ -1413,6 +1440,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def set_port(self, port) :
 		if port in { p[0] for p in self.__ports } :
 			self.__port = port
+			if self.__gateway_enabled :
+				self.__gateway.attach_to(self.__port)#TODO gateway port could differ from programming port
 			self.__changed("port_set", (port, ))
 		return self.__port
 
@@ -1423,11 +1452,21 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def set_gateway_enabled(self, en) :
-		start_gw = en and self.__gateway_enabled != en
+		start_gw = bool(en) and bool(self.__gateway_enabled) != bool(en)
+		stop_gw = (not bool(en)) and bool(self.__gateway_enabled) != bool(en)
 		self.__gateway_enabled = en
-		self.__changed("gateway_enable_changed", (en, )) #TODO implement handler
 		if start_gw :
-			print here() #TODO
+			assert(self.__gateway is None)
+			print here()
+			self.__gateway = gateway.Gateway()
+			self.__gateway.configure_user_port("VSP_AUTO", None, None)
+			self.__gateway.attach_to(self.__port)
+		elif stop_gw :
+			assert(not self.__gateway is None)
+			print here()
+			self.__gateway.destroy()
+			self.__gateway = None
+		self.__changed("gateway_enable_changed", (en, )) #TODO implement handler
 
 
 	def get_gateway_enabled(self) :
@@ -1436,9 +1475,14 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def get_gw_outer_port(self) :
 		if self.__gateway_enabled :
-#			self.gw.get_outer_port()
-			return "TODO"
+			return self.__gateway.get_user_port()
 		return None
+
+
+	def get_gw_board_port_ready(self) :
+		if self.__gateway_enabled :
+			return self.__gateway.get_board_port_ready()
+		return False
 
 
 	def __changed(self, event, data) :
@@ -1517,6 +1561,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__port = None
 		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 		self.__gateway_enabled = False
+		self.__gateway = None
 
 		self.__blob = None
 		self.__blob_time = None
@@ -1547,6 +1592,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def finish(self) :
+		if not self.__gateway is None :
+			self.__gateway.destroy()
+			self.__gateway = None
 		self.__set_should_finish()
 		if Workbench.MULTITHREADED :
 			self.tmr.join()

@@ -1729,11 +1729,11 @@ class BlockEditorWindow(object) :
 #		print(here(), self.work.get_board(), " ->", a[0].get())
 		self.work.set_board(a[0].get())
 
+
 	def __enable_gateway(self, *a, **b) :
-#TODO
 		(gw_enabled, ) = a[0].get()
-		self.work.set_gateway_enabled(gw_enabled)
-#		print here(), "implement me!", gw_enabled
+		assert(gw_enabled in "01")
+		self.work.set_gateway_enabled(gw_enabled == "1")
 
 
 	def __tick(self) :
@@ -1763,6 +1763,9 @@ class BlockEditorWindow(object) :
 				term_stream = "upload failed ({})".format(other["reason"]) + os.linesep
 			elif reason == "upload_done" :
 				term_stream = "upload succeeded" + os.linesep
+		elif job == "gateway" :
+			print here()
+			self.__update_workbench_info()
 
 		if not term_stream is None :
 #			self.term_txt.insert("1.0", "hello")
@@ -1809,13 +1812,20 @@ class BlockEditorWindow(object) :
 
 	def __update_status_bar(self) :
 		board = self.work.get_board()
-		port = self.work.get_port()
+		configured_port = self.work.get_port()
 		gw_enabled = self.work.get_gateway_enabled()
 		gw_outer_port = self.work.get_gw_outer_port()
+		gw_brd_port_ready = self.work.get_gw_board_port_ready()
+
+		board_port = configured_port
+		if gw_enabled and not configured_port is None :
+			board_port += " (present)" if gw_brd_port_ready else " (missing)"
+
 		target = "{}@{}, {}".format(
 			"(board not set)" if board is None else self.work.get_board_types()[board]["name"],
-			"(port not set)" if port is None else port,
+			"(port not set)" if configured_port is None else board_port,
 			("gateway interface is {}" if gw_enabled else "gateway is disabled").format(gw_outer_port))
+
 		self.status_label_right.configure(text=target)
 #		self.status_label_left.configure(text="?")
 
