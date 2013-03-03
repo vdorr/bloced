@@ -388,7 +388,7 @@ def build(board, workdir,
 	defs = { "F_CPU" : f_cpu }
 	defs.update(defines)
 
-	print board_idirs+tuple(idirs)
+	print(board_idirs+tuple(idirs))
 
 	rc = gcc_compile(redir_streams, tuple(sources), os.path.join(workdir, a_out),
 		mcu, optimization,

@@ -353,7 +353,7 @@ def __post_visit(g, cntxt, n, visited,
 				cntxt.code.append("{0}_tmp{1} = {2};".format(expr_slot_type, expr_slot, expr))
 		else :
 			if expr is None :
-				print here()
+				print(here())
 			else :
 				cntxt.code.append(expr + ";")
 		if generate_markers :

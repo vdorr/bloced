@@ -84,16 +84,16 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 					baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,
 					stopbits=serial.STOPBITS_ONE, timeout=0.01, xonxoff=False,
 					rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
-				print here()
+				print(here())
 			except serial.SerialException :
 				board_port = None
 				if not control_queue.empty() :
 					(cmd, ) = control_queue.get_nowait()
 					if cmd == "detach" :
-						print here()
+						print(here())
 						return None
 					else :
-						print here(), '"', cmd, '"', "UNKNOWN COMMAND"
+						print(here(), '"', cmd, '"', "UNKNOWN COMMAND")
 				time.sleep(0.5)
 
 		try :
@@ -101,12 +101,12 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 			rc = __inner_loop(board_port, user_port, dbg_port, demux_func, control_queue,
 				status_queue, wait_for_sync=wait_for_sync)
 			if rc == "detach" :
-				print here()
+				print(here())
 				return None
 		except serial.SerialException as e : #Exception as e :
 #TODO distinguish termination command and loss of port
 #			status_queue.put(("serial_exception", e, ))
-			print here(), e
+			print(here(), e)
 #			raise e
 
 		status_queue.put(("demux_exit", ))
@@ -124,7 +124,7 @@ def __inner_loop(board_port, user_port, dbg_port, demux_func, control_queue,
 			if cmd == "detach" :
 				return "detach"
 			else :
-				print here(), '"', cmd, '"', "UNKNOWN COMMAND"
+				print(here(), '"', cmd, '"', "UNKNOWN COMMAND")
 
 		timeout = time.time() + 0.1
 
@@ -161,7 +161,7 @@ def destroy_vsp(instance) :
 	if system == "Windows" :
 		raise Exception("unsupported system: '" + system + "'")#TODO
 	elif system == "Linux" :
-		print here(), "killing socat"
+		print(here(), "killing socat")
 		instance.kill()
 	else :
 		raise Exception("unsupported system: '" + system + "'")
@@ -216,7 +216,7 @@ def create_socat_pty_vsp_pair() :
 #		print here(), ptys
 
 	except Exception as e:
-		print here(), e
+		print(here(), e)
 		raise
 
 	return p, ptys[0], ptys[1]
@@ -280,7 +280,7 @@ class Gateway(object) :
 
 
 	def destroy(self) :
-		print here()
+		print(here())
 		self.detach()
 		if not self.__vsp_instance is None :
 			self.__vsp_instance.close()
@@ -288,9 +288,9 @@ class Gateway(object) :
 
 
 	def detach(self) :
-		print here()
+		print(here())
 		if self.__demux_thread is None :
-			print here()
+			print(here())
 			return None
 		self.__control_queue.put(("detach", ))
 		self.__demux_thread.join()
@@ -325,7 +325,7 @@ class Gateway(object) :
 
 
 	def attach_to(self, board_port) :
-		print here(), board_port
+		print(here(), board_port)
 		need_reattach = self.__board_port != board_port
 		self.__board_port = board_port
 		if need_reattach :
@@ -342,12 +342,12 @@ class Gateway(object) :
 		need_new_vsp = self.__user_port != new_config
 		self.__user_port = new_config
 		if need_new_vsp :
-			print here(), new_config
+			print(here(), new_config)
 			if not self.__vsp_instance is None :
 				self.__vsp_instance.close()
 				self.__vsp_instance = None
 			self.__vsp_instance = create_vsp()
-			print here()
+			print(here())
 #			self.__dummy_events = [ "vsp_created" ]
 			self.__has_events = True
 
@@ -403,12 +403,12 @@ class Gateway(object) :
 			elif msg == "demux_entry" :
 				self.__set_board_port_state("attached")
 			else :
-				print here(), data
+				print(here(), data)
 
 
 	def __init__(self) :#, create_own_timer=False) :
 
-		print here(), "gw instance created"
+		print(here(), "gw instance created")
 
 #		if create_own_timer :
 #			assert(False)

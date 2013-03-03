@@ -1764,7 +1764,7 @@ class BlockEditorWindow(object) :
 			elif reason == "upload_done" :
 				term_stream = "upload succeeded" + os.linesep
 		elif job == "gateway" :
-			print here()
+			print(here())
 			self.__update_workbench_info()
 
 		if not term_stream is None :

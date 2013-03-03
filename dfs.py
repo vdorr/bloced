@@ -1331,7 +1331,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def __poll_gateway(self) :
 		if self.__gateway.poll_events() :
-			print here()
+			print(here())
 			self.__messages.put(("status", (("gateway", True, "status"),
 				{ "other" : None})))
 
@@ -1457,13 +1457,13 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__gateway_enabled = en
 		if start_gw :
 			assert(self.__gateway is None)
-			print here()
+			print(here())
 			self.__gateway = gateway.Gateway()
 			self.__gateway.configure_user_port("VSP_AUTO", None, None)
 			self.__gateway.attach_to(self.__port)
 		elif stop_gw :
 			assert(not self.__gateway is None)
-			print here()
+			print(here())
 			self.__gateway.destroy()
 			self.__gateway = None
 		self.__changed("gateway_enable_changed", (en, )) #TODO implement handler
