@@ -22,7 +22,7 @@ else :
 
 #TODO fetch type informations from some "machine support package"
 
-type_t = namedtuple("type_t", ("size_in_words", "size_in_bytes", "priority", "arithmetic"))
+type_t = namedtuple("type_t", ("size_in_words", "size_in_bytes", "priority", "arithmetic", "shorthand"))
 
 TYPE_VOID = "void"
 TYPE_INFERRED = "<inferred>"
@@ -37,11 +37,12 @@ VM_TYPE_BOOL = "vm_bool_t"
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
-	VM_TYPE_BOOL : type_t(None, None, 0, False),
-	VM_TYPE_CHAR : type_t(1, 1, 0, True), #TODO
-	VM_TYPE_WORD : type_t(1, 2, 1, True),
-	VM_TYPE_DWORD : type_t(2, 4, 2, True),
-	VM_TYPE_FLOAT : type_t(2, 4, 3, True),
+	VM_TYPE_BOOL : type_t(None, None, 0, False, "bool"),
+	VM_TYPE_CHAR : type_t(1, 1, 0, True, "char"), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1, True, "word"),
+	VM_TYPE_DWORD : type_t(2, 4, 2, True, "dword"),
+	VM_TYPE_FLOAT : type_t(2, 4, 3, True, "float"),
+#TODO 64bit qword
 }
 
 # ------------------------------------------------------------------------------------------------------------
@@ -279,6 +280,7 @@ class BlockPrototype(object) :
 # ------------------------------------------------------------------------------------------------------------
 
 class JointProto(BlockPrototype):
+	"""junction of multiple wires"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Joint",
 			[ Out(0, "y", dfs.C, 0, variadic=True), In(0, "x", dfs.C, 0) ],
@@ -286,6 +288,7 @@ class JointProto(BlockPrototype):
 
 
 class ConstProto(BlockPrototype):
+	"""type-agnostic literal value"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Const",
 			[ Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
@@ -294,6 +297,7 @@ class ConstProto(BlockPrototype):
 
 
 class DelayProto(BlockPrototype):
+	"""outputs input value from previous iteration, could participate in graph cycle"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
@@ -301,16 +305,19 @@ class DelayProto(BlockPrototype):
 
 
 class DelayInProto(BlockPrototype):
+	"""(for internal use only)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "DelayIn", [ In(0, "x", dfs.W, 0.5) ])
 
 
 class DelayOutProto(BlockPrototype):
+	"""(for internal use only)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "DelayOut", [ Out(0, "y", dfs.E, 0.5) ])
 
 
 class InitDelayProto(BlockPrototype):
+	"""same as DelayProto but with input for initial value"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "InitDelay",
 			[ In(0, "x", dfs.W, 0.33), In(0, "init", dfs.W, 0.66), Out(0, "y", dfs.E, 0.5) ],
@@ -318,15 +325,17 @@ class InitDelayProto(BlockPrototype):
 
 
 class InitDelayOutProto(BlockPrototype):
+	"""(for internal use only)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "InitDelayOut",
 			[ In(0, "init", dfs.W, 0.5), Out(0, "y", dfs.E, 0.5) ])
 
 
 class ProbeProto(BlockPrototype):
+	"""(for internal use only)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
-			default_size=(96,28), category="Special", exe_name="probe")
+			default_size=(96,64), category="Special", exe_name=None)
 
 
 class TapProto(BlockPrototype):
@@ -350,6 +359,7 @@ class SignalProto(BlockPrototype):
 
 
 class SysRqProto(BlockPrototype):
+	"""(for future use with VM target)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "SysRq",
 			[ In(-1, "en", dfs.W, 0.25),
@@ -363,6 +373,7 @@ class SysRqProto(BlockPrototype):
 
 
 class InputProto(BlockPrototype):
+	"""input of macro block"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Input", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
@@ -370,6 +381,7 @@ class InputProto(BlockPrototype):
 
 
 class OutputProto(BlockPrototype):
+	"""output of macro block"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Output", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
@@ -377,6 +389,7 @@ class OutputProto(BlockPrototype):
 
 
 class VariadicInProto(BlockPrototype):
+	"""variadic input of macro block"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "VariadicIn", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
@@ -384,12 +397,14 @@ class VariadicInProto(BlockPrototype):
 
 
 class VariadicOutProto(BlockPrototype):
+	"""variadic output of macro block"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "VariadicOut", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
 			values=[("Name", None)])
 
 
+#TODO it migh be good idea to give 'Pipe' more sensible name, like 'Link'
 class PipeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Pipe", [ In(0, "x", dfs.W, 0.5) ],
@@ -537,23 +552,26 @@ class UnaryBooleanOp(BlockPrototype) :
 
 
 class CFunctionProto(BlockPrototype):
+	"""(for internal use only)"""
 	pass
 
 
 class MacroProto(BlockPrototype):
+	"""(for internal use only)"""
 	pass
 
 
 class FunctionProto(BlockPrototype):
+	"""(for internal use only)"""
 	pass
 
 
 class TypecastProto(BlockPrototype) :
-	def __init__(self, type_name, category, to_type) :
+	def __init__(self, to_type, category) :
 		BlockPrototype.__init__(self,
-			type_name,
+			KNOWN_TYPES[to_type].shorthand,
 			[ In(0, "a", dfs.W, .5), Out(0, "y", dfs.E, .5, type_name=to_type) ],
-			exe_name=type_name,
+			exe_name=None,
 			category=category,
 			pure=True)
 
@@ -1415,11 +1433,11 @@ def builtin_blocks() :
 		BinaryOp("lte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
 		BinaryOp("gte", "Arithmetic", commutative=False, output_type=VM_TYPE_BOOL),
 
-		TypecastProto("bool", "Type Casting", VM_TYPE_BOOL),
-		TypecastProto("char", "Type Casting", VM_TYPE_CHAR),
-		TypecastProto("word", "Type Casting", VM_TYPE_WORD),
-		TypecastProto("dword", "Type Casting", VM_TYPE_DWORD),
-		TypecastProto("float", "Type Casting", VM_TYPE_FLOAT),
+		TypecastProto(VM_TYPE_BOOL, "Type Casting"),
+		TypecastProto(VM_TYPE_CHAR, "Type Casting"),
+		TypecastProto(VM_TYPE_WORD, "Type Casting"),
+		TypecastProto(VM_TYPE_DWORD, "Type Casting"),
+		TypecastProto(VM_TYPE_FLOAT, "Type Casting"),
 	]
 
 

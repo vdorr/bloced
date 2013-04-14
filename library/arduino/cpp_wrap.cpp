@@ -26,3 +26,37 @@ extern "C" void serial_begin(vm_word_t ch, vm_word_t speed)
 	}
 #endif
 }
+‎#if 0
+extern "C" void probe_bool(vm_word_t probe_id, vm_bool_t value)
+{
+	Serial.print(probe_id, HEX);
+	Serial.print("=");
+	Serial.print(value, HEX);
+	Serial.println(value);
+}
+
+extern "C" void probe_char(vm_word_t probe_id, vm_char_t value)
+{
+	Serial.print(probe_id, HEX);
+	Serial.print("=");
+	Serial.print(value, HEX);
+	Serial.println(value);
+}
+
+extern "C" void probe_word(vm_word_t probe_id, vm_word_t value)
+{
+	Serial.print(probe_id, HEX);
+	Serial.print("=");
+	Serial.print(value, HEX);
+	Serial.println(value);
+}
+
+extern "C" void probe_dword(vm_word_t probe_id, vm_dword_t value)
+{
+	Serial.print(probe_id, HEX);
+	Serial.print("=");
+	Serial.print(value, HEX);
+	Serial.println(value);
+}
+
+#endif

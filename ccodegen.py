@@ -62,12 +62,12 @@ def __arg_grouper(term_pairs, arguments) :
 		key=lambda i: (i[0][0].name, i[0][0].variadic))
 
 
-def __make_call(cntxt, n, args_and_terms, outs_and_terms) :
+def __make_call(cntxt, n, args_and_terms, outs_and_terms, override_exe_name=None) :
 	"""
 	generate code for function call
 	"""
 
-	assert(not n.prototype.exe_name is None)
+	assert((n.prototype.exe_name is None) != (override_exe_name is None))
 
 	tmp_args = { type_name : None for type_name in core.KNOWN_TYPES }
 	arg_list = []
@@ -123,7 +123,8 @@ def __make_call(cntxt, n, args_and_terms, outs_and_terms) :
 		if not cnt is None and (array_size is None or (array_size+cnt) > array_size) :
 			cntxt.tmp_args[type_name] = cnt
 
-	call = n.prototype.exe_name + "(" + ", ".join(arg_list) + ")"
+	exe_name = n.prototype.exe_name if override_exe_name is None else override_exe_name
+	call = exe_name + "(" + ", ".join(arg_list) + ")"
 
 	if read_variadic_outputs :
 		cntxt.code.append(call + ";")
@@ -135,6 +136,16 @@ def __make_call(cntxt, n, args_and_terms, outs_and_terms) :
 
 def __arg_dict(args) :
 	return { (t.name, t_nr) : value for (t, t_nr), value in args }
+
+
+def __make_probe(cntxt, n, args_and_terms, outs_and_terms) :
+	probe_input_type = cntxt.types[((n, ) + args_and_terms[0][0])]
+#	print here(), n.get_instance_id(), probe_input_type
+	print here(), args_and_terms
+	probe_function = "probe_" + cntxt.known_types[probe_input_type].shorthand
+	stmt = probe_function + "("+ str(n.get_instance_id()) + ", " + args_and_terms[0][1] + ");"
+#	cntxt.code.extend(stmt)
+	return stmt, False
 
 
 def __implement(g, n, cntxt, args, outs) :
@@ -191,6 +202,8 @@ def __implement(g, n, cntxt, args, outs) :
 #		stmt = "({0})[{1}]".format(arg_dict["buffer", 0], arg_dict["addr", 0])
 		stmt = "1" #.eno allways on
 #		assert(False)
+	elif core.compare_proto_to_type(n.prototype, core.ProbeProto) :
+		stmt, emitted = __make_probe(cntxt, n, args, outs)
 	else :
 		stmt, emitted = __make_call(cntxt, n, args, outs)
 #		assert(n.prototype.exe_name != None)
@@ -390,7 +403,7 @@ cg_output_t = collections.namedtuple("cg_output", ("code", "types", "tmp", "tmp_
 	"pipe_vars", "dummies", "meta", "known_types", "vars_other", "buffers_size"))
 
 
-def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name = "tsk") :
+def codegen(g, expd_dels, meta, types, known_types, pipe_vars, libs_used, task_name="tsk") :
 	"""
 	generate code and variables for single task
 	"""
