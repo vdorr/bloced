@@ -31,6 +31,7 @@ import serializer
 from utils import here
 import mathutils
 import gateway
+import probe
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1466,7 +1467,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def __start_gw(self) :
 		assert(self.__gateway is None)
 		print(here())
-		self.__gateway = gateway.Gateway()
+		if self.__probe is None :
+			self.__probe = probe.create_probe()
+		self.__gateway = gateway.Gateway(dbg_port_instance=self.__probe)
 		self.__gateway.configure_user_port("VSP_AUTO", None, None)
 		self.__gateway.attach_to(self.__port)
 
@@ -1576,6 +1579,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 		self.__gateway_enabled = False
 		self.__gateway = None
+		self.__probe = None
 
 		self.__blob = None
 		self.__blob_time = None

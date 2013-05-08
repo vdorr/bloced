@@ -360,7 +360,7 @@ class Gateway(object) :
 			timeout=0.01,
 			xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
-		dbg_port = DebugPort()
+		dbg_port = self.__dbg_port_instance
 		demux_func = demux_escape
 
 		self.__demux_thread = threading.Thread(target=loop,
@@ -458,13 +458,14 @@ class Gateway(object) :
 				print(here(), data)
 
 
-	def __init__(self) :#, create_own_timer=False) :
+	def __init__(self, dbg_port_instance=None) :#, create_own_timer=False) :
 
 		print(here(), "gw instance created")
 
 #		if create_own_timer :
 #			assert(False)
 
+		self.__dbg_port_instance = DebugPort() if dbg_port_instance is None else dbg_port_instance
 		self.__board_port = None
 		self.__user_port = None
 		self.__vsp_instance = None
