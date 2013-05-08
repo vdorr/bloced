@@ -5,6 +5,7 @@
 #define __ARDUINO_IOWRAP_H__
 
 #include "vm.h"
+#include "iowrap.h"
 
 /**
 	read digital input
@@ -90,6 +91,36 @@ _VM_EXPORT_ void start_serial(vm_word_t ch, vm_word_t speed);
 _VM_EXPORT_ void seed_rnd(vm_word_t seed);
 
 _VM_EXPORT_ vm_word_t rnd(vm_word_t max);
+
+#define vm_probe_t vm_word_t
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(DBG_ENABLE_GATEWAY) && DBG_ENABLE_GATEWAY >= 1
+void probe_bool(vm_probe_t probe_id, vm_bool_t value);
+void probe_char(vm_probe_t probe_id, vm_char_t value);
+void probe_word(vm_probe_t probe_id, vm_word_t value);
+void probe_dword(vm_probe_t probe_id, vm_dword_t value);
+void probes_init();
+void probes_shutdown();
+void probes_send();
+#else
+#define probe_bool(probe_id, value)
+#define probe_char(probe_id, value)
+#define probe_word(probe_id, value)
+#define probe_dword(probe_id, value)
+#define probes_init()
+#define probes_shutdown()
+#define probes_send()
+#endif /* defined(DBG_ENABLE_GATEWAY) && DBG_ENABLE_GATEWAY >= 1 */
+
+void vm_idle_hook();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
