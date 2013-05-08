@@ -222,15 +222,16 @@ def dag_merge(l) :
 	return g, d
 
 
-def chain_blocks(g, n, m) :
+def chain_blocks(g, *v) :
 	"""
 	creates artificial edge n -> m, so that order of evaluation is guaranteed to be n m
 	motivated by need to express calls in main function, this is probably BAD THING
 	"""
-	n_out = core.VirtualOut("y")
-	m_in = core.VirtualIn("x")
-	g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
-	g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
+	for n, m in zip(v[:-1], v[1:]) :
+		n_out = core.VirtualOut("y")
+		m_in = core.VirtualIn("x")
+		g[n].s.insert(0, ((n_out, 0, [ (m, m_in, 0) ])))
+		g[m].p.insert(0, ((m_in, 0, [ (n, n_out, 0) ])))
 
 
 def replace_block(g, n, m) :
@@ -1245,20 +1246,24 @@ def check_delay_numbering(graph_data) :
 		yield len(del_check)==len({nr for nr, _ in del_check})
 
 
+#XXX prime example of target-specific code in supposedly target-agnostic module
 def simple_entry_point_stub(user_function, call_setup) :
 	"""
 	create graph stub for simple entry point function
 	"""
 	loop_call = create_function_call(user_function)
 	init_call = create_function_call("init")
+	aux_blocks = []
 	main_tsk_g = { loop_call : adjs_t([], []),  init_call : adjs_t([], [])  }
-	first_call = loop_call
 	if call_setup :
 		setup_call = create_function_call("setup")
 		main_tsk_g[setup_call] = adjs_t([], [])
-		chain_blocks(main_tsk_g, setup_call, loop_call)
-		first_call = setup_call
-	chain_blocks(main_tsk_g, init_call, first_call)
+		aux_blocks.append(setup_call)
+	init_probes_call = create_function_call("vm_init_hook")
+	main_tsk_g[init_probes_call] = adjs_t([], [])
+	aux_blocks.append(init_probes_call)
+
+	chain_blocks(main_tsk_g, *[init_call] + aux_blocks + [loop_call])
 
 	main_tsk_meta = { "endless_loop_wrap" : False}
 

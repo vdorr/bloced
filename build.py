@@ -154,7 +154,7 @@ def get_ports(do_test_read=True) :
 
 
 def get_board_types(all_in_one_arduino_dir=None) :
-	_, _, boards_txt, _ = get_avr_arduino_paths(all_in_one_arduino_dir=all_in_one_arduino_dir)
+	_, _, boards_txt, _, _ = get_avr_arduino_paths(all_in_one_arduino_dir=all_in_one_arduino_dir)
 	return __parse_boards(boards_txt)
 
 
@@ -240,7 +240,7 @@ def build_source(board, source,
 
 
 #def get_avr_arduino_enviroment(all_in_one_arduino_dir=None) :
-#	libc_dir, tools_dir, target_files_dir  = get_avr_arduino_paths(
+#	libc_dir, tools_dir, target_files_dir, _  = get_avr_arduino_paths(
 #		all_in_one_arduino_dir=all_in_one_arduino_dir)
 #	return { "libc_dir" : libc_dir, "tools_dir" : tools_dir, "target_files_dir" : target_files_dir }
 
@@ -260,12 +260,13 @@ def get_avr_arduino_paths(all_in_one_arduino_dir=None) :
 	elif system == "Linux" :
 		libc_dir = "/usr/lib/avr"
 		tools_dir = "/usr/bin"
-		target_files_dir = "/usr/share/arduino/hardware/arduino/"
-		boards_txt = "/usr/share/arduino/hardware/arduino/boards.txt"
+		all_in_one_arduino_dir = "/usr/share/arduino/"
+		target_files_dir = all_in_one_arduino_dir + "hardware/arduino/"
+		boards_txt = all_in_one_arduino_dir + "hardware/arduino/boards.txt"
 	else :
 		raise Exception("unsupported system: '" + system + "'")
 
-	return libc_dir, tools_dir, boards_txt, target_files_dir
+	return libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir
 
 
 def build(board, workdir,
@@ -676,7 +677,7 @@ def main() :
 #	print here(), args
 #	sys.exit(0)
 
-	libc_dir, tools_dir, boards_txt, target_files_dir = get_avr_arduino_paths(all_in_one_arduino_dir=None)
+	libc_dir, tools_dir, boards_txt, target_files_dir, _ = get_avr_arduino_paths(all_in_one_arduino_dir=None)
 
 	board_info = get_board_types()[args.brd]
 	variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 

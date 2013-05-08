@@ -46,7 +46,7 @@ def main() :
 	main_lib = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))
 
 #	all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
-	libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths()
+	libc_dir, tools_dir, boards_txt, target_files_dir, _ = build.get_avr_arduino_paths()
 
 	failed = []
 	succeeded = []

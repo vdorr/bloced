@@ -143,7 +143,7 @@ def __make_probe(cntxt, n, args_and_terms, outs_and_terms) :
 #	print here(), n.get_instance_id(), probe_input_type
 	print here(), args_and_terms
 	probe_function = "probe_" + cntxt.known_types[probe_input_type].shorthand
-	stmt = probe_function + "("+ str(n.get_instance_id()) + ", " + args_and_terms[0][1] + ");"
+	stmt = probe_function + "("+ str(n.get_instance_id()) + ", " + args_and_terms[0][1] + ")"
 #	cntxt.code.extend(stmt)
 	return stmt, False
 
@@ -600,6 +600,8 @@ def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type
 		for tsk_name in sorted(tasks) :
 			code.append("\t{}();".format(tsk_name))
 		code.append("}" + "")
+
+	code.append("vm_idle_hook();")#XXX desperately need refactoring
 
 	meta = dict(global_meta)
 	meta["endless_loop_wrap"] = True

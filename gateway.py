@@ -10,6 +10,7 @@ if version_info.major == 3 :
 	import queue
 else :
 	import Queue as queue
+from binascii import hexlify
 
 from utils import here
 #from StringIO import StringIO
@@ -28,26 +29,47 @@ __ESCAPE_CHAR = "\xff"
 
 def demux_escape(src, default_channel=0, wait_for_sync=True) :
 
+#	print here(), default_channel, wait_for_sync, src.inWaiting()
+
 	channel = None if wait_for_sync else default_channel
+
+	rx_cnt = 0
 
 	while True :
 #TODO read while data available, base timeout on baudrate
 		c = src.read(1)
+		rx_cnt += len(c)
+
+#		if 0 and len(c) :
+#			print here(), rx_cnt, hex(ord(c)) if len(c) else "(empty)"
 
 		if wait_for_sync and (channel is None) and (c != __ESCAPE_CHAR) :
+#			print here(), hex(ord(c)) if len(c) else "(empty)"
 			yield True, None, "" #everything ok, just waiting for sync
+			continue
 
 ##		print here(), c
 		if c == __ESCAPE_CHAR :
-			c = ""
-			while not len(c) :
-				c = src.read(1)
-			if c != __ESCAPE_CHAR :
+#			print here()
+			while True :
+				c = ""
+				while not len(c) :
+					c = src.read(1)
+					rx_cnt += len(c)
+#				print here(), hex(ord(c))
+				assert(c != __ESCAPE_CHAR)
 				channel = ord(c)
-#				print here(), channel
-				continue
+#				print here(), rx_cnt, "current channel set to:", channel
+				break
+#				if c != __ESCAPE_CHAR :
+#					channel = ord(c)
+#					print here(), rx_cnt, "current channel set to:", channel
+#					break
+#				else :
+#					continue
 
 		if len(c) :
+#			print here(), rx_cnt, channel, hex(ord(c)) if len(c) else "(empty)"
 			yield True, channel, c
 		else :
 			yield True, None, "" #everything ok, just got no data
@@ -109,6 +131,11 @@ wait_for_sync - if True, drop all data that arrive before first control symbol
 			print(here(), e)
 #			raise e
 
+#			board_port.flush()
+		board_port.close()
+		board_port = None
+		print(here(), "port closed!")
+
 		status_queue.put(("demux_exit", ))
 
 
@@ -136,24 +163,29 @@ def __inner_loop(board_port, user_port, dbg_port, demux_func, control_queue,
 			if not status :
 				return "detach"
 
+#			print here(), status, channel#, board_data
+
 			if channel == __CHANNEL_DEBUG :
 				dbg_port.write(board_data)
 			elif channel == __CHANNEL_USER :
 				user_port.write(board_data)
 			else :
-				raise Exception(here() + " invalid channel number")
+				raise Exception("{} invalid channel number '{}'".format(here(), channel))
 
 		timeout = time.time() + 0.05
 		while timeout > time.time() :
 			user_data = user_port.read(1)
 			if len(user_data) :
+				print here(), "writing to board!"
 				board_port.write(__escape(user_data, __CHANNEL_USER))
 
 		timeout = time.time() + 0.05
 		while timeout > time.time() :
-			dbg_data = dbg_port.read(1)
-			if len(dbg_data) :
-				board_port.write(__escape(dbg_data, __CHANNEL_DEBUG))
+			pass
+#			dbg_data = dbg_port.read(1)
+#			if len(dbg_data) :
+#				print here(), "writing to board!"
+#				board_port.write(__escape(dbg_data, __CHANNEL_DEBUG))
 
 
 def destroy_vsp(instance) :
@@ -165,6 +197,7 @@ def destroy_vsp(instance) :
 		instance.kill()
 	else :
 		raise Exception("unsupported system: '" + system + "'")
+	print(here())
 
 
 class GWVSP(object) :
@@ -229,8 +262,14 @@ class DebugPort(object) :
 		return n*"."
 
 	def write(self, data) :
-#		print data
+		self.rx_cnt += len(data)
+#		print here(), hexlify(data)
+#		if len(data) and self.rx_cnt % 30 == 0 :
+#			print here(), str(self.rx_cnt) + " bytes received"
 		pass
+
+	def __init__(self) :
+		self.rx_cnt = 0
 
 
 #def run_gateway(demux_method, brd_port_name, usr_port_name) :
@@ -292,11 +331,18 @@ class Gateway(object) :
 		if self.__demux_thread is None :
 			print(here())
 			return None
+		print(here())
 		self.__control_queue.put(("detach", ))
-		self.__demux_thread.join()
+		print(here())
+#		while not self.__control_queue.empty() :
+#			self.__control_queue.get_nowait()
+#		print(here())
+		self.__demux_thread.join(10)
+		print(here())
+		if self.__demux_thread.is_alive() :
+			print(here())
+			raise Exception(here() + " failed to kill demux")
 		self.__demux_thread = None
-		while not self.__control_queue.empty() :
-			self.__control_queue.get_nowait()
 
 
 	def attach(self) :
@@ -304,14 +350,13 @@ class Gateway(object) :
 
 
 	def __start_demux(self) :
-
 		assert(self.__demux_thread is None)
-
 		brd_port_name = self.__board_port
 		usr_port_name = self.__get_internal_port()
 
 		user_sp = serial.Serial(port=usr_port_name,
-			baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
+			baudrate=9600,
+			bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
 			timeout=0.01,
 			xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
 
@@ -319,17 +364,24 @@ class Gateway(object) :
 		demux_func = demux_escape
 
 		self.__demux_thread = threading.Thread(target=loop,
+			name="gateway thread {}".format(time.time()),
 			args=[brd_port_name, user_sp, dbg_port, demux_func, self.__control_queue, self.__status_queue])
 
 		self.__demux_thread.start()
 
 
 	def attach_to(self, board_port) :
-		print(here(), board_port)
 		need_reattach = self.__board_port != board_port
+		print(here(), board_port, need_reattach, self.__demux_thread is None)
 		self.__board_port = board_port
-		if need_reattach :
+		if need_reattach or self.__demux_thread is None :
+			if not self.__demux_thread is None :
+				print(here())
+				self.detach()
+				print(here())
+			print(here())
 			self.__start_demux()
+		print(here())
 
 
 	def configure_user_port(self, user_port_type, user_port_path, user_port_settings) :

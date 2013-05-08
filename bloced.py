@@ -13,6 +13,7 @@ from collections import OrderedDict
 import sys
 import webbrowser
 import time
+import threading
 
 import pyperclip
 
@@ -1677,11 +1678,12 @@ class BlockEditorWindow(object) :
 				serializer.unpickle_workbench(f, self.work) 
 		except IOError :
 			self.show_warning("Failed to open file '{0}'".format(fname))
-		else :
-			self.__changed = False
-			self.__set_current_file_name(fname)
-			self.__update_recent_files(fname)
-			self.__update_workbench_info()
+			return None
+		self.work.finalize_load()
+		self.__changed = False
+		self.__set_current_file_name(fname)
+		self.__update_recent_files(fname)
+		self.__update_workbench_info()
 
 
 	def save_file(self, fname) :

@@ -1206,7 +1206,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
 		if not all_in_one_arduino_dir :
 			all_in_one_arduino_dir = None
-		libc_dir, tools_dir, boards_txt, target_files_dir = build.get_avr_arduino_paths(
+		libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir = build.get_avr_arduino_paths(
 			all_in_one_arduino_dir=all_in_one_arduino_dir)
 
 		source_dirs = set()
@@ -1223,7 +1223,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		term_stream = Workbench.TermStream(self.__messages)
 
 		defines = {}
-
+		defines["ARDUINO"] = 100 #FIXME determine "correct" value
 		if self.__gateway_enabled :
 			defines["DBG_ENABLE_GATEWAY"] = 1
 
@@ -1233,7 +1233,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				aux_src_dirs=(
 					(os.path.join(target_files_dir, "cores", "arduino"), False),
 					(os.path.join(target_files_dir, "variants", variant), False),
-	#				(os.path.join(install_path, "library", "arduino"), False),
+#					(os.path.join(install_path, "library", "arduino"), False),
+					(os.path.join(all_in_one_arduino_dir, "libraries"), True),
 				) + tuple( (path, True) for path in source_dirs ),#TODO derive from libraries used
 				aux_idirs=[ os.path.join(install_path, "target", "arduino", "include") ],
 				boards_txt=boards_txt,
@@ -1391,7 +1392,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		try :
 			while not self.__messages.empty() :
 				messages.append(self.__messages.get_nowait())
-				print(here(), messages[-1])
+#				print(here(), messages[-1])
 		except QueueEmpty :
 			pass
 		return messages
@@ -1456,17 +1457,25 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		stop_gw = (not bool(en)) and bool(self.__gateway_enabled) != bool(en)
 		self.__gateway_enabled = en
 		if start_gw :
-			assert(self.__gateway is None)
-			print(here())
-			self.__gateway = gateway.Gateway()
-			self.__gateway.configure_user_port("VSP_AUTO", None, None)
-			self.__gateway.attach_to(self.__port)
+			self.__start_gw()
 		elif stop_gw :
-			assert(not self.__gateway is None)
-			print(here())
-			self.__gateway.destroy()
-			self.__gateway = None
+			self.__stop_gw()
 		self.__changed("gateway_enable_changed", (en, )) #TODO implement handler
+
+
+	def __start_gw(self) :
+		assert(self.__gateway is None)
+		print(here())
+		self.__gateway = gateway.Gateway()
+		self.__gateway.configure_user_port("VSP_AUTO", None, None)
+		self.__gateway.attach_to(self.__port)
+
+
+	def __stop_gw(self) :
+		assert(not self.__gateway is None)
+		print(here())
+		self.__gateway.destroy()
+		self.__gateway = None
 
 
 	def get_gateway_enabled(self) :
@@ -1524,6 +1533,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
 		self.__sheet_changed(sheet)
+
+
+	def finalize_load(self) :
+		if self.__gateway_enabled :
+			self.__start_gw()
 
 
 	MULTITHREADED = True
