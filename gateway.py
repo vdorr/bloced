@@ -75,20 +75,8 @@ def demux_escape(src, default_channel=0, wait_for_sync=True) :
 			yield True, None, "" #everything ok, just got no data
 
 
-#__DEMUX_FUNCTIONS = {
-##	DEMUX_NINTH_BIT : (__demux_ninth_bit, ),
-#	DEMUX_ESCAPE : (__demux_escape, ),
-#}
-
-
 def __escape(data, channel) :
 	return __ESCAPE_CHAR + chr(channel) + data
-
-
-#def __unescape(data) :
-#	return channel, data
-
-#def __wait_for_port_open(brd_port_name) :
 
 
 def loop(brd_port_name, user_port, dbg_port, demux_func, control_queue,
@@ -272,42 +260,6 @@ class DebugPort(object) :
 		self.rx_cnt = 0
 
 
-#def run_gateway(demux_method, brd_port_name, usr_port_name) :
-#	#vsp thread
-#	#demux thread
-##serial.Serial
-##    __init__(port=None, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE,
-##timeout=None, xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
-
-#	board_sp = serial.Serial(port=brd_port_name,
-#		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-#		timeout=0.01,
-#		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
-
-#	user_sp = serial.Serial(port=usr_port_name,
-#		baudrate=9600, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
-#		timeout=0.01,
-#		xonxoff=False, rtscts=False, writeTimeout=None, dsrdtr=False, interCharTimeout=None)
-
-##	vsp_thread = threading.Thread(target=__vsp_proc,
-##		args=[])
-##	vsp_thread.start()
-
-
-#	control_queue = queue.Queue()
-#	(demux_func, ) = __DEMUX_FUNCTIONS[demux_method]
-
-#	dbg_port = DebugPort()
-
-#	print here()
-##	__loop(board_sp, user_sp, dbg_port, demux_func, wait_for_sync=True)
-
-#	demux_thread = threading.Thread(target=__loop,
-#		args=[board_sp, user_sp, dbg_port, demux_func, control_queue])
-#	demux_thread.start()
-#	demux_thread.join()
-
-
 def check_user_port_config(user_port_type, user_port_path, user_port_settings) :
 	type_ok = user_port_type in set(["VSP_AUTO"])#, "UART", "TCP", "UDP", "RFC2217"])
 	path_ok = True #TODO check user_port_path
@@ -476,87 +428,5 @@ class Gateway(object) :
 		self.__control_queue = queue.Queue()
 		self.__status_queue = queue.Queue()
 
-
-
-#def main() :
-
-#	vsp_instance = create_vsp() # maybe should return instance to abstract channel type (serial/socket)
-#	inner_port_name, outer_port_name = vsp_instance.get_port_names()
-
-#	print here(), inner_port_name, "user port:", outer_port_name
-##	time.sleep(1000)
-##	sys.exit()
-
-#	run_gateway(DEMUX_ESCAPE, "/dev/ttyACM0", inner_port_name)
-
-#	destroy_vsp(vsp_instance)
-
-
-#if __name__ == "__main__" :
-#	main()
-#	pass
-
-"""
-#define UART_MUX_CHANNELS  2
-//uint8_t uart_mux_state[UART_MUX_CHANNELS];
-uint8_t uart_mux_current_channel = 0xff;//channels allowd 0..254
-
-int uart_put_byte_escaped(uint8_t channel, uint8_t c)
-{
-  if ( uart_mux_current_channel != channel )
-  {
-    uart_mux_current_channel = channel;
-    Serial.write((uint8_t)0xff);
-    Serial.write((uint8_t)channel);
-  }
-  int bytes_sent = 0;
-  if ( 0xff == c )
-  {
-    Serial.write((uint8_t)0xff);
-    bytes_sent += 1;
-  }
-  Serial.write((uint8_t)c);
-  bytes_sent += 1;
-  return bytes_sent;
-}
-
-int uart_send_from_buffer(uint8_t channel, uint8_t* buffer, unsigned count)
-{
-  int bytes_sent = 0;
-  for ( unsigned i = 0; i < count; i++)
-  {
-    uart_put_byte_escaped(channel, buffer[i]);
-  }
-  return 0;//TODO need proper error handling
-}
-
-int uart_receive_to_buffer(uint8_t channel, uint8_t* buffer, unsigned max_count)
-{
-}
-
-void init_uart_mux()
-{
-  //memset(uart_mux_state, 0, sizeof(uart_mux_state));
-  uart_mux_current_channel = -1;
-}
-
-uint8_t txt0[] = "sdfghjkl";
-uint8_t txt1[] = "mnbvcx";
-
-void loop()
-{
-  uart_send_from_buffer(1,txt0, sizeof(txt0));
-  delay(100);
-  uart_send_from_buffer(0,txt1, sizeof(txt1));
-  delay(100);
-}
-
-void setup()
-{
-  init_uart_mux();
-  txt0[3] = 0xff;
-  Serial.begin(9600);
-}
-"""
 
 
