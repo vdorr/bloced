@@ -1076,7 +1076,8 @@ class WorkbenchData(object) :
 			do_create_block_factory=True,
 			blockfactory=None) :
 
-		self.PERSISTENT = ( "__port", "__board", "__gateway_enabled" )
+		self.PERSISTENT = ( "__port", "__board", "__gateway_enabled",
+			"__baudrate" )
 
 		self.blockfactory = blockfactory
 		if do_create_block_factory :
@@ -1453,6 +1454,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		return self.__port
 
 
+	def set_baudrate(self, value) :
+#TODO do deeper check (and also move to target-specific settings)
+		self.__baudrate = value if 0 < value else self.__baudrate
+		return self.__baudrate
+
+
+	def get_baudrate(self) :
+		return 9600 if self.__baudrate is None else self.__baudrate
+
+
 	def set_gateway_enabled(self, en) :
 		start_gw = bool(en) and bool(self.__gateway_enabled) != bool(en)
 		stop_gw = (not bool(en)) and bool(self.__gateway_enabled) != bool(en)
@@ -1575,7 +1586,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			all_in_one_arduino_dir = None
 
 		self.__board = None
+
+		self.__baudrate = 9600 #TODO should be separated as target-specific settings
 		self.__port = None
+
 		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 		self.__gateway_enabled = False
 		self.__gateway = None

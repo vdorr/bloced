@@ -15,6 +15,8 @@ import webbrowser
 import time
 import threading
 
+import serial
+
 import pyperclip
 
 import autoroute
@@ -1865,6 +1867,7 @@ class BlockEditorWindow(object) :
 		self.__select_board(self.work.get_board())
 		self.__select_port(self.work.get_port())
 		self.__select_gateway(self.work.get_gateway_enabled())
+		self.__select_baudrate(self.work.get_baudrate())
 
 
 	def begin_paste_local_block(self, sheet_name) :
@@ -2086,6 +2089,17 @@ class BlockEditorWindow(object) :
 		var.set((en, ))
 
 
+	def mnu_workbench_baudrate(self, value) :
+		baudrate = int(value.get())
+		print here(), baudrate
+		self.work.set_baudrate(baudrate)
+
+
+	def __select_baudrate(self, baudrate) :
+		var = self.__menu_vars[self.__menu_items[self.__baudrate_menu.items[0]][0]]
+		var.set((baudrate, ))
+
+
 	def setup_menus(self) :
 
 		self.last_block_inserted = None
@@ -2169,6 +2183,10 @@ class BlockEditorWindow(object) :
 			[ RadioMnu("Enabled", None, self.__enable_gateway, value=(True, )),
 				RadioMnu("Disabled", None, self.__enable_gateway, value=(False, ))])
 
+		self.__baudrate_menu = CascadeMnu("Baudrate",
+			[ RadioMnu(str(br), None, self.mnu_workbench_baudrate, value=(br, ))
+				for br in serial.Serial.BAUDRATES ])
+
 		self.__model_menu = self.add_top_menu("&Workbench", [
 			CmdMnu("&Build", "F6", self.mnu_mode_build),
 			CmdMnu("&Run", "F5", self.mnu_mode_run),
@@ -2182,7 +2200,9 @@ class BlockEditorWindow(object) :
 			CmdMnu("Delete sheet", None, self.__mnu_delete_sheet),
 			SepMnu(),
 			self.__board_menu,
+#TODO target properties menu derived from target description would be nice
 			self.__port_menu,
+			self.__baudrate_menu,
 			])
 
 		self.__layout_menu = self.add_top_menu("L&ayout", [
