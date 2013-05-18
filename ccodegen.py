@@ -138,10 +138,11 @@ def __arg_dict(args) :
 	return { (t.name, t_nr) : value for (t, t_nr), value in args }
 
 
+#TODO general purpose overridden function generator
 def __make_probe(cntxt, n, args_and_terms, outs_and_terms) :
 	probe_input_type = cntxt.types[((n, ) + args_and_terms[0][0])]
 #	print here(), n.get_instance_id(), probe_input_type
-	print here(), args_and_terms
+#	print here(), args_and_terms
 	probe_function = "probe_" + cntxt.known_types[probe_input_type].shorthand
 	stmt = probe_function + "("+ str(n.get_instance_id()) + ", " + args_and_terms[0][1] + ")"
 #	cntxt.code.extend(stmt)

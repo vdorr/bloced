@@ -180,6 +180,8 @@ extern "C" void probes_transmit()//TODO add timestamp as argument
 	{
 //		Firmata.sendSysex(0x10, cbuff_count/*XXX*/, (byte*)cbuffer);
 
+//TODO drop Firmata
+//TODO add CRC!!! and maybe request to send channel number
 		Firmata.sendSysex(0x10, cbuff_ptr, (byte*)cbuffer);
 		Firmata.sendSysex(0x11, cbuff_count - cbuff_ptr, (byte*)cbuffer + cbuff_ptr);
 

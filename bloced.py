@@ -824,7 +824,8 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 		self.window_index.pop(window)
 
 
-	def block_changed(self, sheet, block, event=None, reroute=False) :
+	def block_changed(self, sheet, block, event=None, volatile=False, reroute=False) :
+		print here()
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]

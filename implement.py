@@ -1288,6 +1288,31 @@ def parse_task_period(s) :
 #		return None
 
 
+#TODO move to probe.py?
+
+probe_info_t = namedtuple("probe_info", (
+	"block_id", #could be usefull for caching probe informations
+	"block_instance", #could be deprecated in future (without seperate probe blocks)
+	"value_data_type",
+	"probe_id"
+))
+
+
+def create_probe_info(probe_index, inferred_types, v) :
+#	print here(), dir(v.terms[0]), v.terms[0].type_name
+	block_id = v.get_instance_id()
+	probe_id = block_id
+	return probe_info_t(block_id, v, inferred_types[v, v.terms[0], 0], probe_id)
+
+
+def create_probe_index(probe_index, inferred_types, g) :
+#	print here(), inferred_types
+	l = [ create_probe_info(probe_index, inferred_types, v) for v in g.keys()
+		if core.compare_proto_to_type(v.prototype, core.ProbeProto) ]
+#TODO well, elaborate, task period could be good to know
+	return l
+
+
 def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) :
 	"""
 	sheets = { name : sheet, ... }
@@ -1387,10 +1412,18 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 
 	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
 
+	probes = []
+#	pprint(graph_data)
+#TODO do this before codegen and assign smallest possible probe ids
+	for _, g, _, _, types in graph_data :
+		probes += create_probe_index(probes, types, g)
+
+	print(here(), probes)
+
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, tsk_groups, out_fobj)
 
 	#TODO say something about what you've done
-	return libs_used,
+	return libs_used, probes
 
 # ------------------------------------------------------------------------------------------------------------
 

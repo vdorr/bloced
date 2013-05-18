@@ -65,7 +65,7 @@ class GraphModelListener(object) :
 	"""
 	def block_added(self, sheet, block) : pass
 	def block_removed(self, sheet, block) : pass
-	def block_changed(self, sheet, block, event=None) : pass
+	def block_changed(self, sheet, block, event=None, volatile=False) : pass
 	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) : pass
 	def connection_removed(self, sheet, sb, st, tb, tt) : pass
 	def connection_changed(self, sheet, sb, st, tb, tt) : pass #TODO monitoring etc.
@@ -186,6 +186,7 @@ class edit(object) :
 			old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			y = f(*v, **w)
 			new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
+			print here(), {"p":self.prop_name}, old_meta, new_meta
 			v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
 			return y
 		return decorated
@@ -326,10 +327,12 @@ class BlockModel(BlockModelData) :
 		return pos
 
 
-	def __raise_block_changed(self, e, old_meta, new_meta) :
+	def __raise_block_changed(self, e, old_meta, new_meta, volatile=False) :
+		print here()
 		if self.__model == "itentionally left blank" :
 			return None
-		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta)
+		print here()
+		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta, volatile=volatile)
 
 
 #	@edit()
@@ -828,11 +831,13 @@ class GraphModel(object) :
 		for listener in self.__listeners :
 			listener.block_removed(self, block)
 
-	def __on_block_changed(self, block, event, old_meta, new_meta) :
-		assert(not(old_meta is None))
-		self.__history_frame_append("block_meta", (block, old_meta))
+	def __on_block_changed(self, block, event, old_meta, new_meta, volatile=False) :
+		assert(not(old_meta is None) if volatile else True)
+		if not volatile :
+			self.__history_frame_append("block_meta", (block, old_meta))
 		for listener in self.__listeners :
-			listener.block_changed(self, block, event)
+			print here(), listener
+			listener.block_changed(self, block, event, volatile=volatile)
 
 	def __on_connection_added(self, sb, st, tb, tt, deserializing=False) :
 		for listener in self.__listeners :
@@ -1100,9 +1105,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def clear(self) :
+#XXX this method should be replaced by complete replace of Workbench instance
 		for name in list(self.sheets.keys()) :
 			self.delete_sheet(name=name)
 		self.clear_meta()
+		self.clear_state_vars()
 
 
 	def add_sheet(self, sheet=None, name=None) :
@@ -1191,8 +1198,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			serializer.restore_workbench(w_data, w,
 				use_cached_proto=False,
 				library=library)
-			libs_used, = implement.implement_workbench(w, w.sheets, w.get_meta(),
+			libs_used, probes = implement.implement_workbench(w, w.sheets, w.get_meta(),
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
+			self.__last_probes_set = (time.time(), probes)
 		except Exception as e:
 			print(here(), traceback.format_exc())
 			self.__messages.put(("status", (("build", False, str(e)), {})))
@@ -1333,6 +1341,27 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __poll_gateway(self) :
+#			if time.time() - tm < 0.3 :
+##				print(here())
+		if True :
+			if not self.__last_probes_set is None :
+#				self.__messages.put(("probe", (("probe", False, "hello :)"), {})))
+
+#				print here(), self.__last_probes_set
+
+#				pb_block_id, pb_sheet, pb_block = 
+				pb_info = self.__last_probes_set[1][0]
+
+				pb_block = pb_info.block_instance
+				print here(), pb_block
+
+				pb_block._BlockModel__raise_block_changed({"p":"value"},
+					{'value': ('10',)},
+					{'value': (str(int(time.time())%10),)},
+					volatile=True
+				)
+
+#TODO sheet, block = self.__block_id_to_block[block_id]
 		if self.__gateway.poll_events() :
 			print(here())
 			self.__messages.put(("status", (("gateway", True, "status"),
@@ -1370,6 +1399,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 			if time.time() - tm < 0.3 :
 				time.sleep(0.3)
+
 #TODO TODO TODO		self.__timer_job()
 			now = time.time()
 
@@ -1401,13 +1431,19 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def fire_callbacks(self) :
+#		print here()
 		if not Workbench.MULTITHREADED :
 			self.__timer_job()
 		for msg, (aps, akw) in self.read_messages() :
-			if msg in self.__callbacks :
+			if msg == "probe" :
+				print(here(), msg, (aps, akw))
+#TODO sheet, block = self.__block_id_to_block[block_id]
+			elif msg in self.__callbacks :
 				callback = self.__callbacks[msg]
 				if callback :
 					callback(*aps, **akw)
+			else :
+				pass
 
 	@sync
 	def get_port_list(self) :
@@ -1461,7 +1497,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def get_baudrate(self) :
-		return 9600 if self.__baudrate is None else self.__baudrate
+		return 9600 if self.__baudrate is None else self.__baudrate #XXX
 
 
 	def set_gateway_enabled(self, en) :
@@ -1528,13 +1564,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def block_added(self, sheet, block) :
+		self.__add_block_to_index(sheet, block)
 		self.__sheet_changed(sheet)
 
 	def block_removed(self, sheet, block) :
+		self.__remove_block_from_index(sheet, block)
 		self.__sheet_changed(sheet)
 
-	def block_changed(self, sheet, block, event=None) :
-		self.__sheet_changed(sheet)
+	def block_changed(self, sheet, block, event=None, volatile=False) :
+		if not volatile :
+			self.__sheet_changed(sheet)
 
 	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) :
 		self.__sheet_changed(sheet)
@@ -1552,6 +1591,24 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def finalize_load(self) :
 		if self.__gateway_enabled :
 			self.__start_gw()
+
+
+	def __add_block_to_index(self, sheet, block) :
+		block_id = block.get_instance_id()
+#		print here(), block_id, block, sheet
+		self.__block_id_to_block[block_id] = (sheet, block)
+
+
+	def __remove_block_from_index(self, sheet, block) :
+		block_id = block.get_instance_id()
+		print(here(), block_id, block, sheet)
+		self.__block_id_to_block.pop(block_id)
+
+
+	def clear_state_vars(self) :
+#		print here()
+		self.__block_id_to_block = {}
+#TODO add the rest of state vars
 
 
 	MULTITHREADED = True
@@ -1597,6 +1654,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		self.__blob = None
 		self.__blob_time = None
+		self.__last_probes_set = None
 
 		self.__callbacks = {}
 		self.__callbacks["status"] = status_callback
@@ -1604,6 +1662,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__callbacks["monitor"] = monitor_callback
 
 		self.__change_callback = change_callback
+
+		self.__block_id_to_block = {}
 
 		self.__port_check_time = 1.0
 
