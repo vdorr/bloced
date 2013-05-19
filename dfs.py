@@ -68,7 +68,7 @@ class GraphModelListener(object) :
 	def block_changed(self, sheet, block, event=None, volatile=False) : pass
 	def connection_added(self, sheet, sb, st, tb, tt, deserializing=False) : pass
 	def connection_removed(self, sheet, sb, st, tb, tt) : pass
-	def connection_changed(self, sheet, sb, st, tb, tt) : pass #TODO monitoring etc.
+	def connection_changed(self, sheet, sb, st, tb, tt, volatile=False) : pass #TODO monitoring etc.
 	def meta_changed(self, sheet, key, key_present, old_value, new_value) : pass
 
 
@@ -186,7 +186,6 @@ class edit(object) :
 			old_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
 			y = f(*v, **w)
 			new_meta = { self.prop_name : v[0].get_meta()[self.prop_name] }
-			print here(), {"p":self.prop_name}, old_meta, new_meta
 			v[0]._BlockModel__raise_block_changed({"p":self.prop_name}, old_meta, new_meta)
 			return y
 		return decorated
@@ -328,10 +327,8 @@ class BlockModel(BlockModelData) :
 
 
 	def __raise_block_changed(self, e, old_meta, new_meta, volatile=False) :
-		print here()
 		if self.__model == "itentionally left blank" :
 			return None
-		print here()
 		self.__model._GraphModel__on_block_changed(self, e, old_meta, new_meta, volatile=volatile)
 
 
@@ -594,6 +591,7 @@ class BlockModel(BlockModelData) :
 			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
 			core.get_proto_name(core.TextAreaProto()) : "{0}",
 			core.get_proto_name(core.BufferProto()) : "Buffer({0})",
+			core.get_proto_name(core.ProbeProto()) : "Probe({0})",#XXX
 #			"ConstInputProto":"ConstInput({0})",
 		}
 
@@ -728,7 +726,7 @@ class GraphModel(object) :
 			self.__connections_meta[(b0, t0, b1, t1)].update(meta)
 #		print(here(3), "new:", meta)
 		self.__history_frame_append("connection_meta", (b0, t0, b1, t1, old_meta))
-		self.__on_connection_changed(b0, t0, b1, t1)
+		self.__on_connection_changed(b0, t0, b1, t1, volatile=False)
 
 
 	def get_connection_meta(self, b0, t0, b1, t1) :
@@ -823,38 +821,46 @@ class GraphModel(object) :
 
 	# ---------------------------------------------------------------------------------
 
-	def __on_block_added(self, block) :
-		for listener in self.__listeners :
+
+	def __on_block_added(self, block, listeners=None) :
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.block_added(self, block)
 
-	def __on_block_removed(self, block) :
-		for listener in self.__listeners :
+
+	def __on_block_removed(self, block, listeners=None) :
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.block_removed(self, block)
 
-	def __on_block_changed(self, block, event, old_meta, new_meta, volatile=False) :
+
+	def __on_block_changed(self, block, event, old_meta, new_meta, volatile=False, listeners=None) :
 		assert(not(old_meta is None) if volatile else True)
 		if not volatile :
 			self.__history_frame_append("block_meta", (block, old_meta))
-		for listener in self.__listeners :
-			print here(), listener
+		event_extended = dict(event)
+		event_extended["new_meta"] = new_meta
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.block_changed(self, block, event, volatile=volatile)
 
-	def __on_connection_added(self, sb, st, tb, tt, deserializing=False) :
-		for listener in self.__listeners :
+
+	def __on_connection_added(self, sb, st, tb, tt, deserializing=False, listeners=None) :
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.connection_added(self, sb, st, tb, tt, deserializing)
 
-	def __on_connection_removed(self, sb, st, tb, tt) :
-		for listener in self.__listeners :
+
+	def __on_connection_removed(self, sb, st, tb, tt, listeners=None) :
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.connection_removed(self, sb, st, tb, tt)
 
-	def __on_connection_changed(self, sb, st, tb, tt) :
+
+	def __on_connection_changed(self, sb, st, tb, tt, volatile=False, listeners=None) :
 #		raise Exception("not implemented")
-		for listener in self.__listeners :
-			listener.connection_changed(self, sb, st, tb, tt)
+		for listener in self.__listeners : # if listeners is None else listeners :
+			listener.connection_changed(self, sb, st, tb, tt, volatile=volatile)
 #			print(here(), (sb, st, tb, tt))
 
-	def __on_meta_changed(self, key, key_present, old_value, new_value) :
-		for listener in self.__listeners :
+
+	def __on_meta_changed(self, key, key_present, old_value, new_value, listeners=None) :
+		for listener in self.__listeners : # if listeners is None else listeners :
 			listener.meta_changed(self, key, key_present, old_value, new_value)
 
 	# ---------------------------------------------------------------------------------
@@ -952,14 +958,15 @@ class GraphModel(object) :
 
 	# ---------------------------------------------------------------------------------
 
-	def enum(self, deserializing=False) :
+	def enum(self, listeners, deserializing=False) :
 		for block in self.__blocks :
-			self.__on_block_added(block)
+			self.__on_block_added(block, listeners=listeners)
 		for src, targets in self.__connections.items() :
 			for dst in targets :
-			 	self.__on_connection_added(*(src + dst), deserializing=deserializing)
+			 	self.__on_connection_added(*(src + dst),
+					deserializing=deserializing, listeners=listeners)
 		for k, v in self.__meta.items() :
-			self.__on_meta_changed(k, True, None, v)
+			self.__on_meta_changed(k, True, None, v, listeners=listeners)
 
 
 	blocks = property(lambda self: self.__blocks)
@@ -1075,6 +1082,10 @@ class WorkbenchData(object) :
 			name = seed.format(i)
 			i += 1
 		return name
+
+
+	def get_sheet_name(self, sheet) :
+		return { v : k for k, v in self.__sheets.items() }[sheet]
 
 
 	def __init__(self, lib_dir=None,
@@ -1341,20 +1352,13 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __poll_gateway(self) :
-#			if time.time() - tm < 0.3 :
-##				print(here())
-		if True :
+		if 0 == int(time.time()) % 3:
 			if not self.__last_probes_set is None :
 #				self.__messages.put(("probe", (("probe", False, "hello :)"), {})))
-
-#				print here(), self.__last_probes_set
-
-#				pb_block_id, pb_sheet, pb_block = 
 				pb_info = self.__last_probes_set[1][0]
-
-				pb_block = pb_info.block_instance
-				print here(), pb_block
-
+				pb_block_id = pb_info.block_id
+				pb_sheet, pb_block = self.__block_id_to_block[pb_info.task_name, pb_block_id]
+				print here(5), pb_sheet, pb_block
 				pb_block._BlockModel__raise_block_changed({"p":"value"},
 					{'value': ('10',)},
 					{'value': (str(int(time.time())%10),)},
@@ -1581,8 +1585,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def connection_removed(self, sheet, sb, st, tb, tt) :
 		self.__sheet_changed(sheet)
 
-	def connection_changed(self, sheet, sb, st, tb, tt) :
-		self.__sheet_changed(sheet)
+	def connection_changed(self, sheet, sb, st, tb, tt, volatile=False) :
+		if not volatile :
+			self.__sheet_changed(sheet)
 
 	def meta_changed(self, sheet, key, key_present, old_value, new_value) :
 		self.__sheet_changed(sheet)
@@ -1594,15 +1599,19 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __add_block_to_index(self, sheet, block) :
+		sheet_name = self.get_sheet_name(sheet)
 		block_id = block.get_instance_id()
-#		print here(), block_id, block, sheet
-		self.__block_id_to_block[block_id] = (sheet, block)
+#		print here(), block_id, block, id(block), sheet, sheet_name
+		assert(not ((sheet_name, block_id) in self.__block_id_to_block))
+		self.__block_id_to_block[sheet_name, block_id] = (sheet, block)
 
 
 	def __remove_block_from_index(self, sheet, block) :
+		sheet_name = self.get_sheet_name(sheet)
 		block_id = block.get_instance_id()
-		print(here(), block_id, block, sheet)
-		self.__block_id_to_block.pop(block_id)
+#		print(here(), block_id, block, sheet)
+		old = self.__block_id_to_block.pop((sheet_name, block_id))
+		assert(old == (sheet, block))
 
 
 	def clear_state_vars(self) :
@@ -1632,7 +1641,6 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		super(Workbench, self).__init__(lib_dir=lib_dir,
 			do_create_block_factory=do_create_block_factory,
 			blockfactory=blockfactory)
-
 
 		self.config = config
 		if config :

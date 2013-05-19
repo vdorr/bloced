@@ -825,7 +825,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 
 
 	def block_changed(self, sheet, block, event=None, volatile=False, reroute=False) :
-		print here()
+#		print here(), sheet, block, event
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]
@@ -839,6 +839,8 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 					self.update_connection(*(k + (do_reroute,)))
 				if self.selection :
 					self.resize_selection()
+			elif event and event["p"] == "value" and volatile : #TODO and block is probe
+				print here(), "probe arrived!"
 #			elif event and event["p"] == "term_meta" :
 #				print "term_meta changed", event
 		b.update_text()
@@ -849,7 +851,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 #				self.update_connection(*(k + (True,)))
 
 
-	def connection_changed(self, sheet, sb, st, tb, tt) :
+	def connection_changed(self, sheet, sb, st, tb, tt, volatile=False) :
 		line, linecoords = self.connection2line[(sb, st, tb, tt)]
 		meta = self.model.get_connection_meta(sb, st, tb, tt)
 		if "path" in meta :
@@ -1256,7 +1258,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 			self.set_model(None)
 			self.model = model
 			self.model.add_listener(self)
-			self.model.enum(deserializing=deserializing)
+			self.model.enum([self], deserializing=deserializing)
 		else :
 			if self.model :
 				self.model.remove_listener(self)
@@ -2172,6 +2174,8 @@ class BlockEditorWindow(object) :
 
 
 		boards = [ (k, v["name"]) for k, v in self.work.get_board_types().items() ]
+		if not boards :
+			print(here(), "no board types found!")
 
 #		self.__port_menu = CascadeMnu("Serial Port",
 #			[ RadioMnu(p, None, self.__choose_port) for p, desc, nfo in build.get_ports() ])

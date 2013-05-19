@@ -429,4 +429,7 @@ class Gateway(object) :
 		self.__status_queue = queue.Queue()
 
 
+#TODO check socat availability!!!
+
+
 
