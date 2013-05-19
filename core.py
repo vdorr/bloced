@@ -335,7 +335,8 @@ class ProbeProto(BlockPrototype):
 	"""(for internal use only)"""
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
-			default_size=(96,64), category="Special", exe_name=None)
+			default_size=(96,64), category="Special", exe_name=None,
+			values=[("Value", "?")])
 
 
 class TapProto(BlockPrototype):
