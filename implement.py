@@ -1240,7 +1240,7 @@ def check_delay_numbering(graph_data) :
 	"""
 	basic check of delay numbering, like errors when instantiating macroes
 	"""
-	for _, _, dels, _, _ in graph_data :
+	for _, _, _, dels, _, _ in graph_data :
 		del_check = tuple((i.nr, i.nr==o.nr) for d, (i, o) in dels.items())
 		yield all(nr_eq for _, nr_eq in del_check)
 		yield len(del_check)==len({nr for nr, _ in del_check})
@@ -1267,7 +1267,7 @@ def simple_entry_point_stub(user_function, call_setup) :
 
 	main_tsk_meta = { "endless_loop_wrap" : False}
 
-	return "main", main_tsk_g, {}, main_tsk_meta, {}
+	return None, "main", main_tsk_g, {}, main_tsk_meta, {}
 
 
 def parse_task_period(s) :
@@ -1291,23 +1291,23 @@ def parse_task_period(s) :
 #TODO move to probe.py?
 
 probe_info_t = namedtuple("probe_info", (
-	"block_id", #could be usefull for caching probe informations
-	"block_instance", #could be deprecated in future (without seperate probe blocks)
+	"task_name",
+	"block_id",
 	"value_data_type",
 	"probe_id"
 ))
 
 
-def create_probe_info(probe_index, inferred_types, v) :
+def create_probe_info(probe_index, inferred_types, task_name, v) :
 #	print here(), dir(v.terms[0]), v.terms[0].type_name
 	block_id = v.get_instance_id()
 	probe_id = block_id
-	return probe_info_t(block_id, v, inferred_types[v, v.terms[0], 0], probe_id)
+	return probe_info_t(task_name, block_id, inferred_types[v, v.terms[0], 0], probe_id)
 
 
-def create_probe_index(probe_index, inferred_types, g) :
+def create_probe_index(probe_index, inferred_types, task_name, g) :
 #	print here(), inferred_types
-	l = [ create_probe_info(probe_index, inferred_types, v) for v in g.keys()
+	l = [ create_probe_info(probe_index, inferred_types, task_name, v) for v in g.keys()
 		if core.compare_proto_to_type(v.prototype, core.ProbeProto) ]
 #TODO well, elaborate, task period could be good to know
 	return l
@@ -1329,7 +1329,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 
 	g_protos = init_pipe_protos(known_types)
 	pipe_replacement = {}
-	graph_data = []
+	graph_data = [] #TODO use namedtuple
 	block_cache = block_cache_init()
 
 	tsk_setup_meta = { "endless_loop_wrap" : False }#TODO, "function_wrap" : False, "is_entry_point" : False }
@@ -1350,7 +1350,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 			dag = make_dag(s, None, known_types, do_join_taps=False)
 			g_data = process_sheet(dag, tsk_setup_meta, known_types, lib,
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
-			graph_data.append((tsk_name, ) + g_data)
+			graph_data.append((name, tsk_name, ) + g_data)
 		elif core.is_macro_name(name) :
 #			print here(), name
 			pass
@@ -1360,15 +1360,16 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 		else :
 			raise Exception("impossible exception")
 
-	periodic_sched = True
-
-	if not periodic_sched :
-		l = [ make_dag(s, None, known_types, do_join_taps=False)
-			for name, s in sorted(sheets.items(), key=lambda x: x[0])
-			if not name in special ]
-		g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
-		graph_data.append(("loop", ) + g_data)
-	else :
+#	periodic_sched = True
+#	if not periodic_sched : #XXX should be removed
+#		l = [ make_dag(s, None, known_types, do_join_taps=False)
+#			for name, s in sorted(sheets.items(), key=lambda x: x[0])
+#			if not name in special ]
+#		g_data = process_sheet(dag_merge(l), {}, known_types, lib, local_block_sheets, block_cache, g_protos, pipe_replacement)
+#		graph_data.append((None, #FIXME need to identify probes
+#			"loop", ) + g_data)
+#	else :
+	if True :
 		tsk_groups = {}
 		global_meta["periodic_sched"] = True
 		tsk_sheets = ((tsk_name, s)
@@ -1392,7 +1393,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 			meta["state_vars_storage"] = "heap"
 			g_data = process_sheet(dag, meta, known_types, lib,
 				local_block_sheets, block_cache, g_protos, pipe_replacement)
-			graph_data.append((tsk_name, ) + g_data)
+			graph_data.append((tsk_name, tsk_name, ) + g_data)
 
 #	print here(), tsk_groups
 
@@ -1403,7 +1404,7 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 	tsk_cg_out = []
 	libs_used = set()
 	pipe_vars = {}
-	for tsk_name, g, d, meta, types in graph_data :
+	for internal_name, tsk_name, g, d, meta, types in graph_data :
 		replace_pipes(g, g_protos, pipe_replacement)
 		tsk_cg_out.append(codegen.codegen(g, d, meta,
 			types, known_types, pipe_vars, libs_used, task_name=tsk_name))
@@ -1413,12 +1414,11 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 	glob_vars = pipe_replacement_to_glob_vars(pipe_replacement)
 
 	probes = []
-#	pprint(graph_data)
+#	print here(), graph_data
 #TODO do this before codegen and assign smallest possible probe ids
-	for _, g, _, _, types in graph_data :
-		probes += create_probe_index(probes, types, g)
-
-	print(here(), probes)
+	for internal_name, _, g, _, _, types in graph_data :
+		probes += create_probe_index(probes, types, internal_name, g)
+#	print(here(), probes)
 
 	codegen.churn_code(global_meta, glob_vars, tsk_cg_out, include_files, tsk_groups, out_fobj)
 
