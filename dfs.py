@@ -565,35 +565,39 @@ class BlockModel(BlockModelData) :
 
 
 	def get_presentation_text(self) :
-		cls = core.get_proto_name(self.prototype)
-		if cls in self.__lbl_fmt :
-			newtxt = self.__lbl_fmt[cls].format(self.stringified_value(self.value))
-		else :
-			newtxt = self.caption
+		newtxt = self.prototype.label_fmt_string.format(
+			type_name=self.prototype.type_name,
+			Value=self.stringified_value(self.value))
+#		print here(), newtxt
+#		cls = core.get_proto_name(self.prototype)
+#		if cls in self.__lbl_fmt :
+#			newtxt = self.__lbl_fmt[cls].format(self.stringified_value(self.value))
+#		else :
+#			newtxt = self.caption
 		if 0 :
 			newtxt = newtxt + ":" + str(self.get_instance_id())
 		return newtxt
 
 
-	def __init_label_fmt_table(self) :
-#TODO globalize
-		self.__lbl_fmt = {
-			core.get_proto_name(core.ConstProto()) : "{0}",
-			core.get_proto_name(core.DelayProto()) : "Delay({0})",
-			core.get_proto_name(core.TapProto()) : "Tap({0})",
-			core.get_proto_name(core.TapEndProto()) : "TapEnd({0})",
-			core.get_proto_name(core.InputProto()) : "Input({0})",
-			core.get_proto_name(core.OutputProto()) : "Output({0})",
-			core.get_proto_name(core.VariadicInProto()) : "VariadicIn({0})",
-			core.get_proto_name(core.VariadicOutProto()) : "VariadicOut({0})",
-			core.get_proto_name(core.JointProto()) : "",
-			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
-			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
-			core.get_proto_name(core.TextAreaProto()) : "{0}",
-			core.get_proto_name(core.BufferProto()) : "Buffer({0})",
-			core.get_proto_name(core.ProbeProto()) : "Probe({0})",#XXX
-#			"ConstInputProto":"ConstInput({0})",
-		}
+#	def __init_label_fmt_table(self) :
+##TODO globalize
+#		self.__lbl_fmt = {
+#			core.get_proto_name(core.ConstProto()) : "{0}",
+#			core.get_proto_name(core.DelayProto()) : "Delay({0})",
+#			core.get_proto_name(core.TapProto()) : "Tap({0})",
+#			core.get_proto_name(core.TapEndProto()) : "TapEnd({0})",
+#			core.get_proto_name(core.InputProto()) : "Input({0})",
+#			core.get_proto_name(core.OutputProto()) : "Output({0})",
+#			core.get_proto_name(core.VariadicInProto()) : "VariadicIn({0})",
+#			core.get_proto_name(core.VariadicOutProto()) : "VariadicOut({0})",
+#			core.get_proto_name(core.JointProto()) : "",
+#			core.get_proto_name(core.PipeProto()) : "Pipe({0})",
+#			core.get_proto_name(core.PipeEndProto()) : "PipeEnd({0})",
+#			core.get_proto_name(core.TextAreaProto()) : "{0}",
+#			core.get_proto_name(core.BufferProto()) : "Buffer({0})",
+#			core.get_proto_name(core.ProbeProto()) : "Probe({0})",#XXX
+##			"ConstInputProto":"ConstInput({0})",
+#		}
 
 
 	presentation_text = property(get_presentation_text)
@@ -626,9 +630,6 @@ class BlockModel(BlockModelData) :
 		self.__can_move = True
 		self.__value = tuple(dv for name, dv in prototype.values) if prototype.values else None
 		self.__term_meta = { t.name: { "multiplicity" : 1, (0, "index") : 0 } for t in prototype.terms if t.variadic }
-
-
-		self.__init_label_fmt_table()
 
 
 	def __repr__(self) :
@@ -1352,24 +1353,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __poll_gateway(self) :
-		if 0 == int(time.time()) % 3:
-			if not self.__last_probes_set is None :
-#				self.__messages.put(("probe", (("probe", False, "hello :)"), {})))
-				pb_info = self.__last_probes_set[1][0]
-				pb_block_id = pb_info.block_id
-				pb_sheet, pb_block = self.__block_id_to_block[pb_info.task_name, pb_block_id]
-				print here(5), pb_sheet, pb_block
-				pb_block._BlockModel__raise_block_changed({"p":"value"},
-					{'value': ('10',)},
-					{'value': (str(int(time.time())%10),)},
-					volatile=True
-				)
-
-#TODO sheet, block = self.__block_id_to_block[block_id]
 		if self.__gateway.poll_events() :
 			print(here())
-			self.__messages.put(("status", (("gateway", True, "status"),
-				{ "other" : None})))
+#TODO			self.__messages.put(("status", (("gateway", True, "status"),
+#				{ "other" : None})))
 
 
 	@catch_all
@@ -1448,6 +1435,19 @@ class Workbench(WorkbenchData, GraphModelListener) :
 					callback(*aps, **akw)
 			else :
 				pass
+		if 0 == int(time.time()) % 3:
+#TODO get data from queue
+			if not self.__last_probes_set is None :
+#				self.__messages.put(("probe", (("probe", False, "hello :)"), {})))
+				pb_info = self.__last_probes_set[1][0]
+				pb_block_id = pb_info.block_id
+				pb_sheet, pb_block = self.__block_id_to_block[pb_info.task_name, pb_block_id]
+				print here(5), pb_sheet, pb_block
+				pb_block._BlockModel__raise_block_changed({"p":"value"},
+					{'value': ('10',)},
+					{'value': (str(int(time.time())%10),)},
+					volatile=True
+				)
 
 	@sync
 	def get_port_list(self) :

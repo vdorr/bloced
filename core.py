@@ -202,7 +202,7 @@ class VirtualOut(TermModel) :
 
 
 block_proto_t = namedtuple("block_proto_t", ("type_name", "terms", "default_size",
-	"exe_name", "commutative", "pure", "values", "library", "data"))
+	"exe_name", "commutative", "pure", "values", "library", "data", "label_fmt_string"))
 
 
 def block_proto_from_proto_data(bp) :
@@ -241,6 +241,8 @@ class BlockPrototype(object) :
 
 	data = property(lambda self: self.__data)
 
+	label_fmt_string = property(lambda self: self.__label_fmt_string)
+
 
 	def get_block_proto_data(self) :
 		return block_proto_t(
@@ -252,7 +254,8 @@ class BlockPrototype(object) :
 			pure=self.pure,
 			values=self.values,
 			library=self.library,
-			data=None)
+			data=None,
+			label_fmt_string=self.label_fmt_string)
 
 
 	def __init__(self, type_name, terms,
@@ -263,7 +266,8 @@ class BlockPrototype(object) :
 			pure=False,
 			values=None,
 			library=None,
-			data=None) :
+			data=None,
+			label_fmt_string="{type_name}") :
 		self.__category = category
 		self.__type_name = type_name
 		self.__terms = terms
@@ -274,6 +278,7 @@ class BlockPrototype(object) :
 		self.__values = values
 		self.__library = library
 		self.__data = data
+		self.__label_fmt_string = label_fmt_string#TODO globalize
 		assert(prototype_sanity_check(self))#TODO refac
 
 
@@ -284,7 +289,8 @@ class JointProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Joint",
 			[ Out(0, "y", dfs.C, 0, variadic=True), In(0, "x", dfs.C, 0) ],
-			default_size=(8,8), category="Special")
+			default_size=(8,8), category="Special",
+			label_fmt_string="")
 
 
 class ConstProto(BlockPrototype):
@@ -293,15 +299,18 @@ class ConstProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Const",
 			[ Out(0, "y", dfs.E, 0.5, type_name=TYPE_INFERRED) ],
 			default_size=(96,28), category="Special",
-			values=[("Value", None)])
+			values=[("Value", None)],
+			label_fmt_string="{Value}")
 
 
 class DelayProto(BlockPrototype):
 	"""outputs input value from previous iteration, could participate in graph cycle"""
 	def __init__(self) :
-		BlockPrototype.__init__(self, "Delay", [ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
+		BlockPrototype.__init__(self, "Delay",
+			[ In(0, "x", dfs.E, 0.5), Out(0, "y", dfs.W, 0.5) ],
 			category="Special",
-			values=[("Default", None)])
+			values=[("Default", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class DelayInProto(BlockPrototype):
@@ -336,27 +345,30 @@ class ProbeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Probe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,64), category="Special", exe_name=None,
-			values=[("Value", "?")])
+			values=[("Value", "?")],
+			label_fmt_string="{type_name}({Value})")
 
 
 class TapProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Tap", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class TapEndProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "TapEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
-class SignalProto(BlockPrototype):
-	def __init__(self) :
-		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
-			default_size=(48,48), category="Special")
+#class SignalProto(BlockPrototype):
+#	def __init__(self) :
+#		BlockPrototype.__init__(self, "Signal", [ Out(0, "y", dfs.E, 0.5) ],
+#			default_size=(48,48), category="Special")
 
 
 class SysRqProto(BlockPrototype):
@@ -378,7 +390,8 @@ class InputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Input", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class OutputProto(BlockPrototype):
@@ -386,7 +399,8 @@ class OutputProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Output", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class VariadicInProto(BlockPrototype):
@@ -394,7 +408,8 @@ class VariadicInProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "VariadicIn", [ Out(0, "x", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class VariadicOutProto(BlockPrototype):
@@ -402,7 +417,8 @@ class VariadicOutProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "VariadicOut", [ In(0, "y", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 #TODO it migh be good idea to give 'Pipe' more sensible name, like 'Link'
@@ -410,14 +426,16 @@ class PipeProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "Pipe", [ In(0, "x", dfs.W, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None), ("Default", None)])
+			values=[("Name", None), ("Default", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class PipeEndProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "PipeEnd", [ Out(0, "y", dfs.E, 0.5) ],
 			default_size=(96,28), category="Special",
-			values=[("Name", None)])
+			values=[("Name", None)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class GlobalWriteProto(BlockPrototype):
@@ -453,7 +471,8 @@ class BufferProto(BlockPrototype):
 		BlockPrototype.__init__(self, "Buffer", [
 				Out(0, "addr", dfs.E, 0.5, type_name=TYPE_INFERRED), ],
 			default_size=(96,64), category="Memory",
-			values=[("Count", 0)])
+			values=[("Count", 0)],
+			label_fmt_string="{type_name}({Value})")
 
 
 class ReadBufferProto(BlockPrototype):
@@ -581,7 +600,8 @@ class TextAreaProto(BlockPrototype):
 	def __init__(self) :
 		BlockPrototype.__init__(self, "TextArea", [],
 			default_size=(96,28), category="Special",
-			values=[("Text", "")])
+			values=[("Text", "")],
+			label_fmt_string="{Value}")
 
 
 # ----------------------------------------------------------------------------
