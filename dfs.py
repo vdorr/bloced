@@ -839,7 +839,7 @@ class GraphModel(object) :
 		event_extended = dict(event)
 		event_extended["new_meta"] = new_meta
 		for listener in self.__listeners : # if listeners is None else listeners :
-			listener.block_changed(self, block, event, volatile=volatile)
+			listener.block_changed(self, block, event_extended, volatile=volatile)
 
 
 	def __on_connection_added(self, sb, st, tb, tt, deserializing=False, listeners=None) :
