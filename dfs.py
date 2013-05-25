@@ -1352,13 +1352,6 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__should_finish = True
 
 
-	def __poll_gateway(self) :
-		if self.__gateway.poll_events() :
-			print(here())
-#TODO			self.__messages.put(("status", (("gateway", True, "status"),
-#				{ "other" : None})))
-
-
 	@catch_all
 	def __timer_thread(self) :
 #		port_check = time.time()
@@ -1410,6 +1403,13 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		pass
 
 
+	def __poll_gateway(self) :
+		if self.__gateway.poll_events() :
+			print(here())
+#TODO			self.__messages.put(("status", (("gateway", True, "status"),
+#				{ "other" : None})))
+
+
 	def read_messages(self) :
 		messages = []
 		try :
@@ -1423,18 +1423,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def fire_callbacks(self) :
 #		print here()
-		if not Workbench.MULTITHREADED :
-			self.__timer_job()
-		for msg, (aps, akw) in self.read_messages() :
-			if msg == "probe" :
-				print(here(), msg, (aps, akw))
-#TODO sheet, block = self.__block_id_to_block[block_id]
-			elif msg in self.__callbacks :
-				callback = self.__callbacks[msg]
-				if callback :
-					callback(*aps, **akw)
-			else :
-				pass
+
+		self.__poll_gateway()
 		if 0 == int(time.time()) % 3:
 #TODO get data from queue
 			if not self.__last_probes_set is None :
@@ -1448,6 +1438,19 @@ class Workbench(WorkbenchData, GraphModelListener) :
 					{'value': (str(int(time.time())%10),)},
 					volatile=True
 				)
+
+		if not Workbench.MULTITHREADED :
+			self.__timer_job()
+		for msg, (aps, akw) in self.read_messages() :
+			if msg == "probe" :
+				print(here(), msg, (aps, akw))
+#TODO sheet, block = self.__block_id_to_block[block_id]
+			elif msg in self.__callbacks :
+				callback = self.__callbacks[msg]
+				if callback :
+					callback(*aps, **akw)
+			else :
+				pass
 
 	@sync
 	def get_port_list(self) :

@@ -418,8 +418,9 @@ class Block(tk.Canvas, BlockBase) :
 #			borderwidth=0, highlightthickness=0)
 
 
-	def update_text(self) :
-		self.__update_label("caption_lbl", self.__caption_lbl_pos, self.model.presentation_text)
+	def update_text(self, volatile_text=None) :
+		new_text = self.model.presentation_text if volatile_text is None else volatile_text
+		self.__update_label("caption_lbl", self.__caption_lbl_pos, new_text)
 
 
 	def select_next(self) :
@@ -825,25 +826,28 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 
 
 	def block_changed(self, sheet, block, event=None, volatile=False, reroute=False) :
-#		print here(), sheet, block, event
+		print here(), sheet, block, event
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]
+		volatile_text = None
 		if self.manipulating == None : # and not self.move_indication :
 #			traceback.print_stack()
 			if event and event["p"] in [ "left", "top", "width", "height",
-			  "orientation", "term_meta" ] : # and
+					"orientation", "term_meta" ] : # and
 				b.reshape()
 				do_reroute = reroute #or event["p"] == "term_meta"
 				for k, v in b.get_wires() : #XXX move to reshape?
 					self.update_connection(*(k + (do_reroute,)))
 				if self.selection :
 					self.resize_selection()
-			elif event and event["p"] == "value" and volatile : #TODO and block is probe
-				print here(), "probe arrived!"
+			elif (event and event["p"] == "value" and volatile and "new_meta" in event and
+					core.compare_proto_to_type(block.prototype, core.ProbeProto)) :
+				print here(), "probe arrived!", event, block.prototype
+				volatile_text = str(event["new_meta"]["value"][0])
 #			elif event and event["p"] == "term_meta" :
 #				print "term_meta changed", event
-		b.update_text()
+		b.update_text(volatile_text=volatile_text)
 
 #		if block in self.block_index :
 #			print "block_changed: rewiring"
