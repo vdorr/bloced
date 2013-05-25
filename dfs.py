@@ -1171,30 +1171,29 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		except Exception as e :
 			print(here(), traceback.format_exc())
-			self.__messages.put(("status", (("build", False, "compilation_failed"), {}))) #TODO say why
+			self.int_msg_put("status", args=("build", False, "compilation_failed")) #TODO say why
 
 
 	class TermStream(object) :
 
 		def write(self, s) :
-			msg_info = {}
-			msg_info["term_stream"] = s
-			self.__messages.put(("status", (("build", None, "compilation_progress"), msg_info)))
+			self.__workbench.int_msg_put("status", args=("build", None, "compilation_progress"),
+				kwargs={"term_stream" : s})
 
-		def __init__(self, __messages) :
-			self.__messages = __messages
+		def __init__(self, workbench) :
+			self.__workbench = workbench
 
 
 	def build_job(self, board_type, sheets, meta) :
 
 		if board_type is None :
-			self.__messages.put(("status", (("build", False, "board_type_not_set"), {})))
+			self.int_msg_put("status", args=("build", False, "board_type_not_set"))
 			return None
 
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
-		self.__messages.put(("status", (("build", True, "build_started"), {})))
+		self.int_msg_put("status", args=("build", True, "build_started"))
 
 		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
 
@@ -1215,11 +1214,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			self.__last_probes_set = (time.time(), probes)
 		except Exception as e:
 			print(here(), traceback.format_exc())
-			self.__messages.put(("status", (("build", False, str(e)), {})))
+			self.int_msg_put("status", args=("build", False, str(e)))
 			return None
 
 		if out_fobj.tell() < 1 :
-			self.__messages.put(("status", (("build", False, "no_code_generated"), {})))
+			self.int_msg_put("status", args=("build", False, "no_code_generated"))
 			return None
 
 		source = out_fobj.getvalue()
@@ -1242,7 +1241,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 #		term_stream = StringIO()
 #		term_stream = sys.stdout
-		term_stream = Workbench.TermStream(self.__messages)
+		term_stream = Workbench.TermStream(self)
 
 		defines = {}
 		defines["ARDUINO"] = 100 #FIXME determine "correct" value
@@ -1276,7 +1275,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				blob_stream=blob_stream,
 				term=term_stream)
 		except Exception as e :
-			self.__messages.put(("status", (("build", False, "compilation_failed"), {"term_stream":str(e)})))
+			self.int_msg_put("status", args=("build", False, "compilation_failed"),
+				kwargs={"term_stream" : str(e)})
 			return None
 
 		msg_info = {}
@@ -1287,11 +1287,12 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			self.__blob = blob_stream.getvalue()
 			self.__blob_time = time.time()
 		else :
-			self.__messages.put(("status", (("build", False, "compilation_failed"), msg_info)))
+			self.int_msg_put("status", args=("build", False, "compilation_failed"),
+				kwargs=msg_info)
 			return None
 #			return (False, "build_failed")
 
-		self.__messages.put(("status", (("build", True, ""), msg_info)))
+		self.int_msg_put("status", args=("build", True, ""), kwargs=msg_info)
 #		return (True, "ok")
 #		return (True, (blob, ))
 
@@ -1307,15 +1308,15 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def upload_job(self, prog_mcu, port, blob, blob_time) :
 		if blob is None :
-			self.__messages.put(("status", (("upload", False, "upload_failed"),
-				{ "other" : { "reason" : "no_blob"}})))
+			self.int_msg_put("status", args=("upload", False, "upload_failed"),
+				kwargs={ "other" : { "reason" : "no_blob"}})
 			return None
 
 		if self.__gateway_enabled :
 			self.__gateway.detach()
 
-		self.__messages.put(("status", (("upload", True, "upload_started"),
-			{ "other" : { "info" : (blob_time, prog_mcu, port) }})))
+		self.int_msg_put("status", args=("upload", True, "upload_started"),
+			kwargs={ "other" : { "info" : (blob_time, prog_mcu, port) }})
 
 		#TODO implement in chain.py
 		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
@@ -1325,11 +1326,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		if rc[0] :
 #			print("programming failed ({})".format(rc[0]))
-			self.__messages.put(("status", (("upload", False, "upload_failed"),
-				{ "other" : { "reason" : rc[0] }})))
+			self.int_msg_put("status", args=("upload", False, "upload_failed"),
+				kwargs={ "other" : { "reason" : rc[0] }})
 		else :
 #			print("programming succeeded")
-			self.__messages.put(("status", (("upload", True, "upload_done"), {})))
+			self.int_msg_put("status", args=("upload", True, "upload_done"))
 
 		if self.__gateway_enabled :
 			self.__gateway.attach()
@@ -1406,15 +1407,27 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def __poll_gateway(self) :
 		if self.__gateway.poll_events() :
 			print(here())
-#TODO			self.__messages.put(("status", (("gateway", True, "status"),
-#				{ "other" : None})))
+#TODO			self.int_msg_put("status", args=("gateway", True, "status"),
+#				kwargs={ "other" : None})
 
 
-	def read_messages(self) :
+	def int_msg_put(self, msg_group, args=None, kwargs=None) :
+		"""
+		send internal Workbench message
+		"""
+		self.__int_messages.put((msg_group,
+			([] if args is None else args,
+			{} if kwargs is None else kwargs)))
+
+
+	def __int_msg_fetch_all(self) :
+		"""
+		process internal Workbench messages
+		"""
 		messages = []
 		try :
-			while not self.__messages.empty() :
-				messages.append(self.__messages.get_nowait())
+			while not self.__int_messages.empty() :
+				messages.append(self.__int_messages.get_nowait())
 #				print(here(), messages[-1])
 		except QueueEmpty :
 			pass
@@ -1428,7 +1441,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		if 0 == int(time.time()) % 3:
 #TODO get data from queue
 			if not self.__last_probes_set is None :
-#				self.__messages.put(("probe", (("probe", False, "hello :)"), {})))
+#				self.int_msg_put("probe", args=("probe", False, "hello :)"))
 				pb_info = self.__last_probes_set[1][0]
 				pb_block_id = pb_info.block_id
 				pb_sheet, pb_block = self.__block_id_to_block[pb_info.task_name, pb_block_id]
@@ -1441,7 +1454,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		if not Workbench.MULTITHREADED :
 			self.__timer_job()
-		for msg, (aps, akw) in self.read_messages() :
+		for msg, (aps, akw) in self.__int_msg_fetch_all() :
 			if msg == "probe" :
 				print(here(), msg, (aps, akw))
 #TODO sheet, block = self.__block_id_to_block[block_id]
@@ -1461,8 +1474,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def set_port_list(self, port_list) :
 		if self.__ports != port_list :
 			self.__ports = port_list
-			self.__messages.put(("ports", ([], {})))
-#			self.__messages.put(("status", ([("ports rescanned", ":-)")], {})))
+			self.int_msg_put("ports")
+#			self.int_msg_put("status", args=[("ports rescanned", ":-)")])
 
 
 	def get_board_types(self) :
@@ -1681,7 +1694,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__ports = []
 
 		self.__should_finish = False
-		self.__messages = Queue()
+		self.__int_messages = Queue()
 		self.__jobs = Queue()
 #XXX
 		if not passive :

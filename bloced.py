@@ -1748,11 +1748,7 @@ class BlockEditorWindow(object) :
 
 
 	def __tick(self) :
-#		print here()
 		self.work.fire_callbacks()
-#		messages = self.work.read_messages()
-#		if messages :
-#			print(messages)
 		self.root.after(cfg.POLL_WORKERS_PERIOD, self.__tick)
 
 
