@@ -826,7 +826,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 
 
 	def block_changed(self, sheet, block, event=None, volatile=False, reroute=False) :
-		print here(), sheet, block, event
+#		print here(), sheet, block, event
 		if not block in self.block_index :
 			return None
 		b = self.block_index[block]
