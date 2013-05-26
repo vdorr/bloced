@@ -560,6 +560,7 @@ def churn_task_code(task_name, cg_out) :
 #}
 
 
+#TODO jitter measurement instrumentation
 def __churn_periodic_sched(tsk_groups, time_function, global_meta, tmr_data_type=core.VM_TYPE_DWORD) :
 	"""
 	generate code for simple cooperative periodic task switching
