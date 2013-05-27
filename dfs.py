@@ -1199,6 +1199,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		out_fobj = StringIO()
 		try :
+#TODO reduce number of statements within try block
 			w = Workbench(passive=True, do_create_block_factory=False,
 				blockfactory=self.blockfactory)
 			local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
@@ -1216,6 +1217,9 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			print(here(), traceback.format_exc())
 			self.int_msg_put("status", args=("build", False, str(e)))
 			return None
+
+		if not self.__probe is None :
+			self.__probe.set_probe_list(self.__last_probes_set[1])
 
 		if out_fobj.tell() < 1 :
 			self.int_msg_put("status", args=("build", False, "no_code_generated"))
@@ -1415,6 +1419,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		"""
 		send internal Workbench message
 		"""
+		assert(msg_group)
 		self.__int_messages.put((msg_group,
 			([] if args is None else args,
 			{} if kwargs is None else kwargs)))
@@ -1435,17 +1440,27 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def fire_callbacks(self) :
+		"""
+		synchronous invoke of UI callbacks
+		"""
 #		print here()
 
 		self.__poll_gateway()
-		if 0 == int(time.time()) % 3:
+
+		query_time = time.time()
+		new_probe_data = self.__probe.query(None, self.__last_probe_query)
+		self.__last_probe_query = query_time
+		if new_probe_data :
+			print here(), new_probe_data
+
+		if 0 : #0 == int(time.time()) % 3:
 #TODO get data from queue
 			if not self.__last_probes_set is None :
 #				self.int_msg_put("probe", args=("probe", False, "hello :)"))
 				pb_info = self.__last_probes_set[1][0]
 				pb_block_id = pb_info.block_id
 				pb_sheet, pb_block = self.__block_id_to_block[pb_info.task_name, pb_block_id]
-				print here(5), pb_sheet, pb_block
+				print(here(5), pb_sheet, pb_block)
 				pb_block._BlockModel__raise_block_changed({"p":"value"},
 					{'value': ('10',)},
 					{'value': (str(int(time.time())%10),)},
@@ -1536,6 +1551,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		print(here())
 		if self.__probe is None :
 			self.__probe = probe.create_probe()
+		if not self.__last_probes_set is None :
+			self.__probe.set_probe_list(self.__last_probes_set[1])
 		self.__gateway = gateway.Gateway(dbg_port_instance=self.__probe)
 		self.__gateway.configure_user_port("VSP_AUTO", None, None)
 		self.__gateway.attach_to(self.__port)
@@ -1679,6 +1696,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__blob = None
 		self.__blob_time = None
 		self.__last_probes_set = None
+		self.__last_probe_query = 0
 
 		self.__callbacks = {}
 		self.__callbacks["status"] = status_callback

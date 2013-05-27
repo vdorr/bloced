@@ -48,7 +48,7 @@ def demux_escape(src, default_channel=0, wait_for_sync=True) :
 			yield True, None, "" #everything ok, just waiting for sync
 			continue
 
-##		print here(), c
+##		print(here(), c)
 		if c == __ESCAPE_CHAR :
 #			print here()
 			while True :
@@ -59,8 +59,8 @@ def demux_escape(src, default_channel=0, wait_for_sync=True) :
 #				print here(), hex(ord(c))
 				assert(c != __ESCAPE_CHAR)
 				channel = ord(c)
-				c = ""
-#				print here(), rx_cnt, "current channel set to:", channel
+#				c = ""
+				print(here(), rx_cnt, "current channel set to:", channel)
 				break
 #				if c != __ESCAPE_CHAR :
 #					channel = ord(c)
@@ -68,9 +68,8 @@ def demux_escape(src, default_channel=0, wait_for_sync=True) :
 #					break
 #				else :
 #					continue
-
-		if len(c) :
-#			print here(), rx_cnt, channel, hex(ord(c)) if len(c) else "(empty)"
+		elif len(c) :
+#			print(here(), rx_cnt, channel, hex(ord(c)) if len(c) else "(empty)")
 			yield True, channel, c
 		else :
 			yield True, None, "" #everything ok, just got no data
