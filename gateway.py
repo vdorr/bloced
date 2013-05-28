@@ -57,10 +57,10 @@ def demux_escape(src, default_channel=0, wait_for_sync=True) :
 					c = src.read(1)
 					rx_cnt += len(c)
 #				print here(), hex(ord(c))
-				assert(c != __ESCAPE_CHAR)
-				channel = ord(c)
-#				c = ""
-				print(here(), rx_cnt, "current channel set to:", channel)
+				if c != __ESCAPE_CHAR :
+					channel = ord(c)
+					c = ""
+					print(here(), rx_cnt, "current channel set to:", channel)
 				break
 #				if c != __ESCAPE_CHAR :
 #					channel = ord(c)
