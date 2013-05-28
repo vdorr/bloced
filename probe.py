@@ -16,6 +16,32 @@ class DebugPort(object) :
 probe_value_t = namedtuple("probe_value", ("value", "timestamp", "rx_timestamp"))
 
 
+CRC8_TABLE = (
+	0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
+	0x9d, 0xc3, 0x21, 0x7f, 0xfc, 0xa2, 0x40, 0x1e, 0x5f, 0x01, 0xe3, 0xbd, 0x3e, 0x60, 0x82, 0xdc,
+	0x23, 0x7d, 0x9f, 0xc1, 0x42, 0x1c, 0xfe, 0xa0, 0xe1, 0xbf, 0x5d, 0x03, 0x80, 0xde, 0x3c, 0x62,
+	0xbe, 0xe0, 0x02, 0x5c, 0xdf, 0x81, 0x63, 0x3d, 0x7c, 0x22, 0xc0, 0x9e, 0x1d, 0x43, 0xa1, 0xff,
+	0x46, 0x18, 0xfa, 0xa4, 0x27, 0x79, 0x9b, 0xc5, 0x84, 0xda, 0x38, 0x66, 0xe5, 0xbb, 0x59, 0x07,
+	0xdb, 0x85, 0x67, 0x39, 0xba, 0xe4, 0x06, 0x58, 0x19, 0x47, 0xa5, 0xfb, 0x78, 0x26, 0xc4, 0x9a,
+	0x65, 0x3b, 0xd9, 0x87, 0x04, 0x5a, 0xb8, 0xe6, 0xa7, 0xf9, 0x1b, 0x45, 0xc6, 0x98, 0x7a, 0x24,
+	0xf8, 0xa6, 0x44, 0x1a, 0x99, 0xc7, 0x25, 0x7b, 0x3a, 0x64, 0x86, 0xd8, 0x5b, 0x05, 0xe7, 0xb9,
+	0x8c, 0xd2, 0x30, 0x6e, 0xed, 0xb3, 0x51, 0x0f, 0x4e, 0x10, 0xf2, 0xac, 0x2f, 0x71, 0x93, 0xcd,
+	0x11, 0x4f, 0xad, 0xf3, 0x70, 0x2e, 0xcc, 0x92, 0xd3, 0x8d, 0x6f, 0x31, 0xb2, 0xec, 0x0e, 0x50,
+	0xaf, 0xf1, 0x13, 0x4d, 0xce, 0x90, 0x72, 0x2c, 0x6d, 0x33, 0xd1, 0x8f, 0x0c, 0x52, 0xb0, 0xee,
+	0x32, 0x6c, 0x8e, 0xd0, 0x53, 0x0d, 0xef, 0xb1, 0xf0, 0xae, 0x4c, 0x12, 0x91, 0xcf, 0x2d, 0x73,
+	0xca, 0x94, 0x76, 0x28, 0xab, 0xf5, 0x17, 0x49, 0x08, 0x56, 0xb4, 0xea, 0x69, 0x37, 0xd5, 0x8b,
+	0x57, 0x09, 0xeb, 0xb5, 0x36, 0x68, 0x8a, 0xd4, 0x95, 0xcb, 0x29, 0x77, 0xf4, 0xaa, 0x48, 0x16,
+	0xe9, 0xb7, 0x55, 0x0b, 0x88, 0xd6, 0x34, 0x6a, 0x2b, 0x75, 0x97, 0xc9, 0x4a, 0x14, 0xf6, 0xa8,
+	0x74, 0x2a, 0xc8, 0x96, 0x15, 0x4b, 0xa9, 0xf7, 0xb6, 0xe8, 0x0a, 0x54, 0xd7, 0x89, 0x6b, 0x35
+)
+
+
+def crc8(data, crc=0) :
+	for c in data :
+		crc = CRC8_TABLE[crc ^ ord(c)]
+	return crc
+
+
 class ProbeData(object) :
 
 	def __init__(self, probe_info) :
@@ -54,43 +80,30 @@ class ProbeType1(DebugPort) :
 		for c in data :
 			if not self.current_frame :
 				if ord(c) == 0x10 :
-					print here(), "start of frame"
-#					self.frame_crc = self.crc8(c)
+					print(here(), "start of frame")
 					self.current_frame.append(c)
 				else :
-					print here(), "state machine not in sync!"
+					print(here(), "state machine not in sync!")
 					continue #first char must be start of frame
 			elif len(self.current_frame) == 1 :
-#				self.frame_crc = self.crc8(c, crc=self.frame_crc)
 				self.frame_expected_size = ord(c)
 				self.current_frame.append(c)
-				print here(), "expected frame size", self.frame_expected_size
+				print(here(), "expected frame size", self.frame_expected_size)
 			elif len(self.current_frame) <= self.frame_expected_size :
-#				self.frame_crc = self.crc8(c, crc=self.frame_crc)
 				self.current_frame.append(c)
 			else :
-				print here(), "state machine is insane!"
+				print(here(), "state machine is insane!")
 				continue
 
 			if len(self.current_frame) == self.frame_expected_size :
-				print here(), binascii.hexlify("".join(self.current_frame)), "len:", len(self.current_frame), "crc:", self.crc8(self.current_frame)
+				crc = crc8(self.current_frame)
+
+				print(here(), binascii.hexlify("".join(self.current_frame)), "len:", len(self.current_frame), "crc:", crc)
 
 				self.process_probes(self.current_frame[2:-1], time.time())
 
 				self.frame_expected_size = None
 				self.current_frame = []
-
-#			if self.frame_crc == 0 :
-#				pass
-
-#			self.frame_crc = self.crc8(c, crc=self.frame_crc)
-
-
-
-#		if 0 :
-#			print here(), binascii.hexlify(data)
-#			if len(data) and self.rx_cnt % 256 == 0 :
-#				print here(), str(self.rx_cnt) + " bytes received"
 
 
 	def update_probe_value(self, probe, value, timestamp, rx_timestamp) :
@@ -102,7 +115,7 @@ class ProbeType1(DebugPort) :
 
 	def process_probes(self, blob, rx_timestamp) :
 
-		print here(), [(hex(pbid), pb.info.value_data_type) for pbid, pb in self.probes.items()], binascii.hexlify("".join(blob))
+		print(here(), [(hex(pbid), pb.info.value_data_type) for pbid, pb in self.probes.items()], binascii.hexlify("".join(blob)))
 
 		i = 0
 		blob_length = len(blob)
@@ -114,12 +127,12 @@ class ProbeType1(DebugPort) :
 			try :
 				probe = self.probes[probe_id]
 			except KeyError :
-				print here(), "unknown probe id:", probe_id
+				print(here(), "unknown probe id:", probe_id)
 				continue
 				pass #XXX and now what?
 
 			pb_type = core.KNOWN_TYPES[probe.info.value_data_type]
-			print here(), "probe id:", probe_id
+			print(here(), "probe id:", probe_id)
 
 #			pb_type.size_in_bytes
 #			value = struct.unpack()
@@ -151,33 +164,6 @@ class ProbeType1(DebugPort) :
 		query historic values, returns range of values per probe
 		"""
 		pass
-
-
-	def crc8(self, data, crc=0) :
-		for c in data :
-			crc = ProbeType1.CRC8_TABLE[crc ^ ord(c)]
-		return crc
-
-
-	CRC8_TABLE = [
-		0, 94,188,226, 97, 63,221,131,194,156,126, 32,163,253, 31, 65,
-		157,195, 33,127,252,162, 64, 30, 95,  1,227,189, 62, 96,130,220,
-		35,125,159,193, 66, 28,254,160,225,191, 93,  3,128,222, 60, 98,
-		190,224,  2, 92,223,129, 99, 61,124, 34,192,158, 29, 67,161,255,
-		70, 24,250,164, 39,121,155,197,132,218, 56,102,229,187, 89,  7,
-		219,133,103, 57,186,228,  6, 88, 25, 71,165,251,120, 38,196,154,
-		101, 59,217,135,  4, 90,184,230,167,249, 27, 69,198,152,122, 36,
-		248,166, 68, 26,153,199, 37,123, 58,100,134,216, 91,  5,231,185,
-		140,210, 48,110,237,179, 81, 15, 78, 16,242,172, 47,113,147,205,
-		17, 79,173,243,112, 46,204,146,211,141,111, 49,178,236, 14, 80,
-		175,241, 19, 77,206,144,114, 44,109, 51,209,143, 12, 82,176,238,
-		50,108,142,208, 83, 13,239,177,240,174, 76, 18,145,207, 45,115,
-		202,148,118, 40,171,245, 23, 73,  8, 86,180,234,105, 55,213,139,
-		87,  9,235,181, 54,104,138,212,149,203, 41,119,244,170, 72, 22,
-		233,183, 85, 11,136,214, 52,106, 43,117,151,201, 74, 20,246,168,
-		116, 42,200,150, 21, 75,169,247,182,232, 10, 84,215,137,107, 53
-	]
-
 
 	def __init__(self, historic_memory=16) :
 #init struct format table (target endiannity)
