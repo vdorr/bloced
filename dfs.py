@@ -1267,7 +1267,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	#			board_db={},
 				ignore_file=None,#"amkignore",
 	#			ignore_lines=( "*.cpp", "*.hpp", "*" + os.path.sep + "main.cpp", ), #TODO remove this filter with adding cpp support to build.py
-				ignore_lines=( "*" + os.path.sep + "main.cpp", ),
+				ignore_lines=( "*" + os.path.sep + "main.cpp", "*Esplora*", "*WiFi*"),
 	#			prog_port=None,
 	#			prog_driver="avrdude", # or "dfu-programmer"
 	#			prog_adapter="arduino", #None for dfu-programmer
