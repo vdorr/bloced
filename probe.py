@@ -132,7 +132,7 @@ class ProbeType1(DebugPort) :
 				pass #XXX and now what?
 
 			pb_type = core.KNOWN_TYPES[probe.info.value_data_type]
-			print(here(), "probe id:", probe_id)
+			print(here(), "probe id:", probe_id, pb_type.struct_fmt)
 
 #			pb_type.size_in_bytes
 #			value = struct.unpack()

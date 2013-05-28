@@ -22,7 +22,8 @@ else :
 
 #TODO fetch type informations from some "machine support package"
 
-type_t = namedtuple("type_t", ("size_in_words", "size_in_bytes", "priority", "arithmetic", "shorthand"))
+type_t = namedtuple("type_t",
+	("size_in_words", "size_in_bytes", "priority", "arithmetic", "shorthand", "struct_fmt"))
 
 TYPE_VOID = "void"
 TYPE_INFERRED = "<inferred>"
@@ -37,11 +38,11 @@ VM_TYPE_BOOL = "vm_bool_t"
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
-	VM_TYPE_BOOL : type_t(None, None, 0, False, "bool"),
-	VM_TYPE_CHAR : type_t(1, 1, 0, True, "char"), #TODO
-	VM_TYPE_WORD : type_t(1, 2, 1, True, "word"),
-	VM_TYPE_DWORD : type_t(2, 4, 2, True, "dword"),
-	VM_TYPE_FLOAT : type_t(2, 4, 3, True, "float"),
+	VM_TYPE_BOOL : type_t(None, None, 0, False, "bool", "?"),
+	VM_TYPE_CHAR : type_t(1, 1, 0, True, "char", "b"), #TODO
+	VM_TYPE_WORD : type_t(1, 2, 1, True, "word", "h"),
+	VM_TYPE_DWORD : type_t(2, 4, 2, True, "dword", "i"),
+	VM_TYPE_FLOAT : type_t(2, 4, 3, True, "float", "f"),
 #TODO 64bit qword
 }
 
