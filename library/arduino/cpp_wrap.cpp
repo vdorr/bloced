@@ -85,7 +85,10 @@ do { \
 		cbuffer[cbuff_ptr] = ((uint8_t*)&((p).value))[i]; \
 		cbuff_ptr = (cbuff_ptr + 1) & (((cbuff_ptr_t)PROBE_CBUFFER_SIZE) - 1); \
 	} \
-	cbuff_count = (cbuff_count + sizeof((p).value) + 1) & (((cbuff_ptr_t)PROBE_CBUFFER_SIZE) - 1); \
+	cbuff_count = (cbuff_count + sizeof((p).value) + 1); \
+	if ( cbuff_count > PROBE_CBUFFER_SIZE ) { \
+		cbuff_count = PROBE_CBUFFER_SIZE; \
+	} \
 	cbuffer[cbuff_ptr] = p.id; \
 	cbuff_ptr = (cbuff_ptr + 1) & (((cbuff_ptr_t)PROBE_CBUFFER_SIZE) - 1); \
 } while ( 0 )
