@@ -1451,7 +1451,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		new_probe_data = self.__probe.query(None, self.__last_probe_query)
 		self.__last_probe_query = query_time
 		if new_probe_data :
-			print here(), new_probe_data
+			print(here(), new_probe_data)
 
 		if 0 : #0 == int(time.time()) % 3:
 #TODO get data from queue

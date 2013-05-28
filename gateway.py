@@ -164,7 +164,7 @@ def __inner_loop(board_port, user_port, dbg_port, demux_func, control_queue,
 		while timeout > time.time() :
 			user_data = user_port.read(1)
 			if len(user_data) :
-				print here(), "writing to board!"
+				print(here(), "writing to board!")
 				board_port.write(__escape(user_data, __CHANNEL_USER))
 
 		timeout = time.time() + 0.05
@@ -225,7 +225,7 @@ def create_socat_pty_vsp_pair() :
 #sudo socat -d -d pty,raw,echo=0 pty,raw,echo=0,link=/dev/ttyARDUINO
 		p = subprocess.Popen(["socat", "-d", "-d", "pty,raw,echo=0", "pty,raw,echo=0" ],
 			stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-		s = ""
+		s = b""
 		ptys = []
 		while len(ptys) != 2 :
 			s += p.stdout.read(1)

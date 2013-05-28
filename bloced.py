@@ -843,7 +843,7 @@ class BlockEditor(tk.Frame, dfs.GraphModelListener) :
 					self.resize_selection()
 			elif (event and event["p"] == "value" and volatile and "new_meta" in event and
 					core.compare_proto_to_type(block.prototype, core.ProbeProto)) :
-				print here(), "probe arrived!", event, block.prototype
+				print(here(), "probe arrived!", event, block.prototype)
 				volatile_text = str(event["new_meta"]["value"][0])
 #			elif event and event["p"] == "term_meta" :
 #				print "term_meta changed", event
@@ -2094,7 +2094,7 @@ class BlockEditorWindow(object) :
 
 	def mnu_workbench_baudrate(self, value) :
 		baudrate = int(value.get())
-		print here(), baudrate
+#		print(here(), baudrate)
 		self.work.set_baudrate(baudrate)
 
 
