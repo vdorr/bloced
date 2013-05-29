@@ -51,6 +51,7 @@ static uint8_t cbuffer[PROBE_CBUFFER_SIZE];
 typedef uint16_t cbuff_ptr_t;
 static volatile cbuff_ptr_t cbuff_ptr = 0;
 static volatile cbuff_ptr_t cbuff_count = 0;
+static volatile uint8_t seq_num = 0;
 
 #define PROBE_IMPL 2
 
@@ -215,15 +216,24 @@ uint8_t crc8( uint8_t *addr, uint8_t len, uint8_t crc)
 }
 //#endif
 
-void send_cbuffer()
+static void send_cbuffer()
 {
 	uint8_t crc;
 	uint8_t op = 0x10;
-	uint8_t len = cbuff_count+3;//XXX max 256bytes!! 3 is for op, len, crc
+	uint8_t len = cbuff_count+8;//XXX max 256bytes!! 3 is for op, len, crc
 	Serial.write(op);
 	crc = crc8(&op, 1, 0);
 	Serial.write(len);
 	crc = crc8(&len, 1, crc);
+	Serial.write(seq_num);
+	crc = crc8((uint8_t*)&seq_num, 1, crc);
+	seq_num++;
+	uint32_t timestamp = (uint32_t)millis();
+	Serial.write((uint8_t*)&timestamp, 4);
+	crc = crc8((uint8_t*)&timestamp, 4, crc);
+
+
+//TODO timestamp
 
 	for (uint8_t j = 0; j < cbuff_count - cbuff_ptr; j++)
 	{
@@ -250,7 +260,7 @@ void send_cbuffer()
 
 extern "C" void probes_transmit()//TODO add timestamp as argument
 {
-	Serial.write((uint8_t)0xff);
+	Serial.write((uint8_t)0xff);//TODO maybe we don't have to switch channel every time
 	Serial.write((uint8_t)0x00);
 
 	if ( cbuff_count )

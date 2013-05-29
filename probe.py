@@ -70,6 +70,8 @@ class ProbeType1(DebugPort) :
 		accepts data coming from target
 		"""
 
+#TODO TODO TODO must not disrupt gateway by exceptions etc!!!!
+
 		if self.rx_cnt == 0 :
 			self.frame_crc = 0
 			self.frame_expected_size = None
@@ -97,10 +99,17 @@ class ProbeType1(DebugPort) :
 
 			if len(self.current_frame) == self.frame_expected_size :
 				crc = crc8(self.current_frame)
+				seq_num = ord(self.current_frame[2])
+				timestamp, = struct.unpack("<I", "".join(self.current_frame[3:7]))
+#				print here(), binascii.hexlify("".join(self.current_frame[3:7]))
+				print(here(), binascii.hexlify("".join(self.current_frame)),
+					"len:", len(self.current_frame), "seq_num:", seq_num,
+					"timestamp:", 0.001 * timestamp, "crc:", crc)
 
-				print(here(), binascii.hexlify("".join(self.current_frame)), "len:", len(self.current_frame), "crc:", crc)
-
-				self.process_probes(self.current_frame[2:-1], time.time())
+				if crc == 0 :
+					self.process_probes(self.current_frame[7:-1], time.time())
+				else :
+					pass #TODO something
 
 				self.frame_expected_size = None
 				self.current_frame = []
@@ -114,9 +123,8 @@ class ProbeType1(DebugPort) :
 
 
 	def process_probes(self, blob, rx_timestamp) :
-
-		print(here(), [(hex(pbid), pb.info.value_data_type) for pbid, pb in self.probes.items()], binascii.hexlify("".join(blob)))
-
+#		print(here(), [(hex(pbid), pb.info.value_data_type) for pbid, pb in self.probes.items()],
+#			binascii.hexlify("".join(blob)))
 		i = 0
 		blob_length = len(blob)
 		while i < blob_length :
@@ -132,15 +140,18 @@ class ProbeType1(DebugPort) :
 				pass #XXX and now what?
 
 			pb_type = core.KNOWN_TYPES[probe.info.value_data_type]
-			print(here(), "probe id:", probe_id, pb_type.struct_fmt)
+#			print(here(), "probe id:", probe_id, pb_type.struct_fmt)
 
-#			pb_type.size_in_bytes
-#			value = struct.unpack()
+			if (blob_length - i) >= pb_type.size_in_bytes :
+				value_data = "".join(blob[blob_length - i - pb_type.size_in_bytes:blob_length - i])
+#				print(here(), binascii.hexlify(value_data))
+				value, = struct.unpack("<" + pb_type.struct_fmt, value_data)
+				print(here(), "probe id:", probe_id, "value:", value)
+				i += pb_type.size_in_bytes
+			else :
+				break
 #			timestamp = struct.unpack()
-
-##TODO ...
 #			self.update_probe_value(probe, value, timestamp, rx_timestamp)
-			i += pb_type.size_in_bytes
 
 
 	def set_probe_list(self, probe_list) :
