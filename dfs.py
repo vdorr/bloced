@@ -1188,6 +1188,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		if not all_in_one_arduino_dir :
 			all_in_one_arduino_dir = None
 
+		chain.build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_arduino_dir)
+
+		return None
+
 # ---------------------------------------------------------------------
 
 		try :
