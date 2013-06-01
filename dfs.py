@@ -1,4 +1,4 @@
-
+	
 """
 serialiazable model of graph, part of editor bussiness logic, definitions for presentation layer
 """
@@ -1659,8 +1659,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			with open(fname, "rb") as f :
 				serializer.unpickle_workbench(f, self)#XXX beware of corrupting Workbench when load fail
 		except IOError as e :
+			self.cache(None)
 			print(here(), "Failed to open file '{0}'".format(fname))
 			raise e #this kind of failure should be loud
+		self.cache(fname)
 		self.finalize_load()
 		return True
 
@@ -1670,13 +1672,28 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			with open(fname, "wb") as f :
 				serializer.pickle_workbench(self, f)
 		except IOError :
+			self.cache(None)
 			print(here(), "Failed to save file '{0}'".format(fname))
 			raise e #this kind of failure should be loud
+		self.cache(fname)
 		return True
 
 
-	MULTITHREADED = True
+	def cache(self, new_filename) :
 
+		if not Workbench.USE_FILESYSTEM_CACHE :
+			return None
+
+		if not self.__cache is None :
+			self.__cache.detach()
+			self.__cache = None
+
+		if new_filename :
+			self.__cache = serializer.Cache(new_filename) #XXX try?
+
+
+	MULTITHREADED = True
+	USE_FILESYSTEM_CACHE = True
 
 #	@catch_all
 	def __init__(self, lib_dir=None,
@@ -1714,6 +1731,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__gateway_enabled = False
 		self.__gateway = None
 		self.__probe = None
+		self.__cache = None
 
 		self.__blob = None
 		self.__blob_time = None

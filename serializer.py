@@ -10,6 +10,8 @@ import core
 from pprint import pprint
 from utils import here
 from collections import OrderedDict
+import os
+import shutil
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -292,5 +294,55 @@ def unpickle_workbench_data(f) :
 	if not check_w_data_legality((version, meta, resources)) :
 		raise Exception("container_version_mismatch")
 	return version, meta, resources
+
+
+class Cache(object) :
+
+
+	def init(self, force=True) :
+		try :
+			os.mkdir(self.cache_dir_path)
+		except :
+			print(here(), "failed to create {}".format(self.cache_dir_path))
+#		try :
+#			os.mkdir(os.path.join(self.cache_dir_path, "build"))
+#		except :
+#			print(here(), "failed to create {}".format(self.cache_dir_path))
+
+
+	def check(self) :
+		exists = os.path.isdir(self.cache_dir_path)
+#TODO check authenticity
+		return exists
+
+
+	def purge(self) :
+		self.delete()
+		self.init()
+
+
+	def detach(self) :
+		pass
+
+
+	def delete(self) :
+#		shutil.rmtree(self.cache_dir_path)
+		pass
+
+
+	def __init__(self, workbench_file) :
+		wb_path = os.path.abspath(workbench_file)
+		wb_file = os.path.basename(wb_path)
+		wb_dir = os.path.dirname(wb_path)
+		cache_dir_base_name, ext = os.path.splitext(wb_file)
+		cache_dir_name = cache_dir_base_name + "~"
+		self.cache_dir_path = os.path.join(wb_dir, cache_dir_name)
+		print here(), wb_path, self.cache_dir_path
+		if not self.check() :
+			self.init()
+#		self.work_dir = 
+
+
+
 
 
