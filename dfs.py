@@ -7,11 +7,11 @@ from sys import version_info
 
 if version_info.major == 3 :
 	from functools import reduce
-	from io import StringIO
+	import io
 	from queue import Queue, Empty as QueueEmpty
 else :
 	from Queue import Queue, Empty as QueueEmpty
-	from StringIO import StringIO
+	import StringIO as io
 
 from threading import Thread, Lock
 import time
@@ -1037,7 +1037,7 @@ def catch_all(f) :
 		try :
 			ret = f(*a, **b)
 		except Exception as e :
-			print(here(10), e)
+			print(here(10), e, f)
 			os._exit(1)
 		else :
 			return ret
@@ -1160,15 +1160,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def build(self) :
+		term_stream = Workbench.TermStream(self)
+		w_data = serializer.get_workbench_data(self)
 		try :
-			board_type = self.get_board()
-			sheets = self.sheets
-			meta = self.get_meta()
-#XXX XXX XXX clone data before passing to job queue!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			self.__jobs.put(("build", (board_type, sheets, meta)))
-
-#			self.build_job(board_type, sheets, meta)#TODO refac build invocation
-
+			self.__jobs.put(("build", (w_data, term_stream, self.__cache)))
 		except Exception as e :
 			print(here(), traceback.format_exc())
 			self.int_msg_put("status", args=("build", False, "compilation_failed")) #TODO say why
@@ -1184,20 +1179,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			self.__workbench = workbench
 
 
-	def build_job(self, board_type, sheets, meta) :
+	def build_job(self, w_data, term_stream, cache) :
 
-		if board_type is None :
-			self.int_msg_put("status", args=("build", False, "board_type_not_set"))
-			return None
-
-		board_info = build.get_board_types()[board_type]
-		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
-
-		self.int_msg_put("status", args=("build", True, "build_started"))
-
-		w_data = serializer.get_workbench_data(self)#TODO refac build invocation
-
-		out_fobj = StringIO()
 		try :
 #TODO reduce number of statements within try block
 			w = Workbench(passive=True, do_create_block_factory=False,
@@ -1210,13 +1193,32 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			serializer.restore_workbench(w_data, w,
 				use_cached_proto=False,
 				library=library)
-			libs_used, probes = implement.implement_workbench(w, w.sheets, w.get_meta(),
-				ccodegen, core.KNOWN_TYPES, library, out_fobj)
-			self.__last_probes_set = (time.time(), probes)
 		except Exception as e:
 			print(here(), traceback.format_exc())
 			self.int_msg_put("status", args=("build", False, str(e)))
 			return None
+
+		board_type = w.get_board()
+
+		if board_type is None :
+			self.int_msg_put("status", args=("build", False, "board_type_not_set"))
+			return None
+
+		board_info = build.get_board_types()[board_type]
+		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
+
+		self.int_msg_put("status", args=("build", True, "build_started"))
+
+		out_fobj = io.StringIO()
+		try :
+			libs_used, probes = implement.implement_workbench(w, w.sheets, w.get_meta(),
+				ccodegen, core.KNOWN_TYPES, library, out_fobj)
+		except Exception as e:
+			print(here(), traceback.format_exc())
+			self.int_msg_put("status", args=("build", False, str(e)))
+			return None
+
+		self.__last_probes_set = (time.time(), probes)
 
 		if not self.__probe is None :
 			self.__probe.set_probe_list(self.__last_probes_set[1])
@@ -1241,11 +1243,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 					source_dirs.add(os.path.dirname(src_file))
 
 		install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
-		blob_stream = StringIO()
-
-#		term_stream = StringIO()
-#		term_stream = sys.stdout
-		term_stream = Workbench.TermStream(self)
+		blob_stream = io.StringIO()
 
 		defines = {}
 		defines["ARDUINO"] = 100 #FIXME determine "correct" value
@@ -1379,8 +1377,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			for job_type, job_args in jobs :
 				if job_type == "build" :
 					print(here())
-					board_type, sheets, meta = job_args
-					self.build_job(board_type, sheets, meta)#TODO try..except
+					self.build_job(*job_args)#TODO try..except
 				if job_type == "upload" :
 					print(here())
 					self.upload_job(*job_args)
