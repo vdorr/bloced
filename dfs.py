@@ -1445,13 +1445,14 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		"""
 #		print here()
 
-		self.__poll_gateway()
+		if self.__gateway_enabled and not self.__gateway is None : #TODO make __gateway_enabled reflect existance of instance
+			self.__poll_gateway()
 
-		query_time = time.time()
-		new_probe_data = self.__probe.query(None, self.__last_probe_query)
-		self.__last_probe_query = query_time
-		if new_probe_data :
-			print(here(), new_probe_data)
+			query_time = time.time()
+			new_probe_data = self.__probe.query(None, self.__last_probe_query)
+			self.__last_probe_query = query_time
+			if new_probe_data :
+				print(here(), new_probe_data)
 
 		if 0 : #0 == int(time.time()) % 3:
 #TODO get data from queue
@@ -1536,6 +1537,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def set_gateway_enabled(self, en) :
+		assert(en in (True, False))
 		start_gw = bool(en) and bool(self.__gateway_enabled) != bool(en)
 		stop_gw = (not bool(en)) and bool(self.__gateway_enabled) != bool(en)
 		self.__gateway_enabled = en
@@ -1627,7 +1629,10 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def finalize_load(self) :
+#		print(here(), self, self.__gateway_enabled)
 		if self.__gateway_enabled :
+			if not self.__gateway is None :
+				self.__stop_gw()
 			self.__start_gw()
 
 
@@ -1648,9 +1653,23 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def clear_state_vars(self) :
-#		print here()
+		self.__board = None
+
+		self.__baudrate = 9600 #TODO should be separated as target-specific settings
+		self.__port = None
+
+		self.__gateway_enabled = False
+		self.__probe = None
+		self.__cache = None
+
+		self.__blob = None
+		self.__blob_time = None
+		self.__last_probes_set = None
+		self.__last_probe_query = 0
+
 		self.__block_id_to_block = {}
-#TODO add the rest of state vars
+
+#		print(here(), self, self.__gateway_enabled)
 
 
 	def load_file(self, fname) :
@@ -1722,14 +1741,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		else :
 			all_in_one_arduino_dir = None
 
+		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
+
+# state vars -------------------------------------------------------
+
 		self.__board = None
 
 		self.__baudrate = 9600 #TODO should be separated as target-specific settings
 		self.__port = None
 
-		self.__board_types = build.get_board_types(all_in_one_arduino_dir=all_in_one_arduino_dir)
 		self.__gateway_enabled = False
-		self.__gateway = None
 		self.__probe = None
 		self.__cache = None
 
@@ -1738,14 +1759,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__last_probes_set = None
 		self.__last_probe_query = 0
 
+		self.__block_id_to_block = {}
+
+# end state vars ---------------------------------------------------
+
 		self.__callbacks = {}
 		self.__callbacks["status"] = status_callback
 		self.__callbacks["ports"] = ports_callback
 		self.__callbacks["monitor"] = monitor_callback
 
 		self.__change_callback = change_callback
-
-		self.__block_id_to_block = {}
 
 		self.__port_check_time = 1.0
 
@@ -1754,6 +1777,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__should_finish = False
 		self.__int_messages = Queue()
 		self.__jobs = Queue()
+		self.__gateway = None
+
 #XXX
 		if not passive :
 			self.set_port_list(build.get_ports())
