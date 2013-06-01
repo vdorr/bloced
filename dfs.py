@@ -32,6 +32,7 @@ from utils import here
 import mathutils
 import gateway
 import probe
+import chain
 
 
 # ------------------------------------------------------------------------------------------------------------
@@ -1181,10 +1182,18 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def build_job(self, w_data, term_stream, cache) :
 
+		blockfactory = self.blockfactory
+		msgq = self
+		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
+		if not all_in_one_arduino_dir :
+			all_in_one_arduino_dir = None
+
+# ---------------------------------------------------------------------
+
 		try :
 #TODO reduce number of statements within try block
 			w = Workbench(passive=True, do_create_block_factory=False,
-				blockfactory=self.blockfactory)
+				blockfactory=blockfactory)
 			local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
 			local_lib.load_standalone_workbench_lib(None, "<local>",
 				library=w.blockfactory,
@@ -1195,19 +1204,19 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				library=library)
 		except Exception as e:
 			print(here(), traceback.format_exc())
-			self.int_msg_put("status", args=("build", False, str(e)))
+			msgq.int_msg_put("status", args=("build", False, str(e)))
 			return None
 
 		board_type = w.get_board()
 
 		if board_type is None :
-			self.int_msg_put("status", args=("build", False, "board_type_not_set"))
+			msgq.int_msg_put("status", args=("build", False, "board_type_not_set"))
 			return None
 
 		board_info = build.get_board_types()[board_type]
 		variant = board_info["build.variant"] if "build.variant" in board_info else "standard" 
 
-		self.int_msg_put("status", args=("build", True, "build_started"))
+		msgq.int_msg_put("status", args=("build", True, "build_started"))
 
 		out_fobj = io.StringIO()
 		try :
@@ -1215,24 +1224,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				ccodegen, core.KNOWN_TYPES, library, out_fobj)
 		except Exception as e:
 			print(here(), traceback.format_exc())
-			self.int_msg_put("status", args=("build", False, str(e)))
+			msgq.int_msg_put("status", args=("build", False, str(e)))
 			return None
 
-		self.__last_probes_set = (time.time(), probes)
-
-		if not self.__probe is None :
-			self.__probe.set_probe_list(self.__last_probes_set[1])
-
 		if out_fobj.tell() < 1 :
-			self.int_msg_put("status", args=("build", False, "no_code_generated"))
+			msgq.int_msg_put("status", args=("build", False, "no_code_generated"))
 			return None
 
 		source = out_fobj.getvalue()
 		print(source)
 
-		all_in_one_arduino_dir = self.config.get("Path", "all_in_one_arduino_dir")
-		if not all_in_one_arduino_dir :
-			all_in_one_arduino_dir = None
 		libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir = build.get_avr_arduino_paths(
 			all_in_one_arduino_dir=all_in_one_arduino_dir)
 
@@ -1247,7 +1248,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 		defines = {}
 		defines["ARDUINO"] = 100 #FIXME determine "correct" value
-		if self.__gateway_enabled :
+		if w.get_gateway_enabled() :
 			defines["DBG_ENABLE_GATEWAY"] = 1
 
 		try :
@@ -1277,26 +1278,26 @@ class Workbench(WorkbenchData, GraphModelListener) :
 				blob_stream=blob_stream,
 				term=term_stream)
 		except Exception as e :
-			self.int_msg_put("status", args=("build", False, "compilation_failed"),
+			msgq.int_msg_put("status", args=("build", False, "compilation_failed"),
 				kwargs={"term_stream" : str(e)})
 			return None
 
-		msg_info = {}
-#		if term_stream != sys.stdout :
-#			msg_info["term_stream"] = term_stream
+# ---------------------------------------------------------------------
+
+		build_timestamp = time.time()
+
+		self.__last_probes_set = (build_timestamp, probes)
+		if not self.__probe is None :
+			self.__probe.set_probe_list(self.__last_probes_set[1])
 
 		if rc :
 			self.__blob = blob_stream.getvalue()
-			self.__blob_time = time.time()
+			self.__blob_time = build_timestamp
 		else :
-			self.int_msg_put("status", args=("build", False, "compilation_failed"),
-				kwargs=msg_info)
+			self.int_msg_put("status", args=("build", False, "compilation_failed"))
 			return None
-#			return (False, "build_failed")
 
-		self.int_msg_put("status", args=("build", True, ""), kwargs=msg_info)
-#		return (True, "ok")
-#		return (True, (blob, ))
+		self.int_msg_put("status", args=("build", True, ""))
 
 
 #	def upload(board_type, prog_port, blob) :
