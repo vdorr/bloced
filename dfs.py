@@ -1653,6 +1653,28 @@ class Workbench(WorkbenchData, GraphModelListener) :
 #TODO add the rest of state vars
 
 
+	def load_file(self, fname) :
+		self.clear()
+		try :
+			with open(fname, "rb") as f :
+				serializer.unpickle_workbench(f, self)#XXX beware of corrupting Workbench when load fail
+		except IOError as e :
+			print(here(), "Failed to open file '{0}'".format(fname))
+			raise e #this kind of failure should be loud
+		self.finalize_load()
+		return True
+
+
+	def save_file(self, fname) :
+		try :
+			with open(fname, "wb") as f :
+				serializer.pickle_workbench(self, f)
+		except IOError :
+			print(here(), "Failed to save file '{0}'".format(fname))
+			raise e #this kind of failure should be loud
+		return True
+
+
 	MULTITHREADED = True
 
 

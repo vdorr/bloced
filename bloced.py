@@ -1681,33 +1681,37 @@ class BlockEditorWindow(object) :
 	def open_this_file_new(self, fname) :
 		if not self.confirm_complete_clear() :
 			return None
-		self.work.clear()
+		exception = ok = False
 		try :
-			with open(fname, "rb") as f :
-				serializer.unpickle_workbench(f, self.work) 
-		except IOError :
+			ok = self.work.load_file(fname)
+		except IOError as e :
+			exception = e
+		if ok and not exception :
+			self.__changed = False #XXX set from callback
+			self.__set_current_file_name(fname) #XXX set from callback
+			self.__update_recent_files(fname) #XXX set from callback
+			self.__update_workbench_info() #XXX set from callback
+		else :
+			print(here(), ok, exception)
 			self.show_warning("Failed to open file '{0}'".format(fname))
-			return None
-		self.work.finalize_load()
-		self.__changed = False
-		self.__set_current_file_name(fname)
-		self.__update_recent_files(fname)
-		self.__update_workbench_info()
+		return ok
 
 
 	def save_file(self, fname) :
-		if fname :
-			try :
-				with open(fname, "wb") as f :
-					serializer.pickle_workbench(self.work, f)
-			except IOError :
-				self.show_warning("Failed to open file '{0}'".format(fname))
-			else :
-				self.__changed = False
-				self.__set_current_file_name(fname)
-				self.__update_recent_files(fname)
-				return True
-		return False
+		if not fname :
+			return None
+		exception = ok = False
+		try :
+			ok = self.work.save_file(fname)
+		except IOError :
+			exception = e
+		if ok and not exception :
+			self.__changed = False #XXX set from callback
+			self.__set_current_file_name(fname) #XXX set from callback
+			self.__update_recent_files(fname) #XXX set from callback
+		else :
+			self.show_warning("Failed to save file '{0}'".format(fname))
+		return ok
 
 
 	def mnu_mode_build(self, a=None) :
