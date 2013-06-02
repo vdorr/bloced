@@ -330,7 +330,11 @@ class Cache(object) :
 		pass
 
 
-	def __init__(self, workbench_file) :
+	def get_dir(self) :
+		return self.cache_dir_path
+
+
+	def __init__(self, workbench_file, create_if_needed) :
 		wb_path = os.path.abspath(workbench_file)
 		wb_file = os.path.basename(wb_path)
 		wb_dir = os.path.dirname(wb_path)
@@ -338,7 +342,7 @@ class Cache(object) :
 		cache_dir_name = cache_dir_base_name + "~"
 		self.cache_dir_path = os.path.join(wb_dir, cache_dir_name)
 		print here(), wb_path, self.cache_dir_path
-		if not self.check() :
+		if not self.check() and create_if_needed :
 			self.init()
 #		self.work_dir = 
 

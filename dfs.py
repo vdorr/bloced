@@ -1094,8 +1094,8 @@ class WorkbenchData(object) :
 			do_create_block_factory=True,
 			blockfactory=None) :
 
-		self.PERSISTENT = ( "__port", "__board", "__gateway_enabled",
-			"__baudrate" )
+		self.PERSISTENT = ("__port", "__board", "__gateway_enabled",
+			"__baudrate", "__revision")
 
 		self.blockfactory = blockfactory
 		if do_create_block_factory :
@@ -1325,10 +1325,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			kwargs={ "other" : { "info" : (blob_time, prog_mcu, port) }})
 
 		#TODO implement in chain.py
-		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
-			a_hex_blob=blob,
-			verbose=False,
-			dry_run=False)
+		rc = chain.write_program(prog_mcu, port, blob)
+#		rc = build.program("avrdude", port, "arduino", prog_mcu, None,
+#			a_hex_blob=blob,
+#			verbose=False,
+#			dry_run=False)
 
 		if rc[0] :
 #			print("programming failed ({})".format(rc[0]))
@@ -1530,6 +1531,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 	def set_baudrate(self, value) :
 #TODO do deeper check (and also move to target-specific settings)
 		self.__baudrate = value if 0 < value else self.__baudrate
+		self.__changed("baudrate_set", (self.__baudrate, ))
 		return self.__baudrate
 
 
@@ -1584,7 +1586,18 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		return False
 
 
+	def increment_revision(self) :
+		if self.__revision is None :
+			self.__revision = 0
+		self.__revision += 1
+
+
+	def get_revision(self) :
+		return self.__revision
+
+
 	def __changed(self, event, data) :
+		self.increment_revision() #XXX should we signal also change in revsion?
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
 
@@ -1655,11 +1668,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def clear_state_vars(self) :
 		self.__board = None
-
+		self.__revision = 0
 		self.__baudrate = 9600 #TODO should be separated as target-specific settings
 		self.__port = None
-
 		self.__gateway_enabled = False
+
 		self.__probe = None
 		self.__cache = None
 
@@ -1709,7 +1722,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 			self.__cache = None
 
 		if new_filename :
-			self.__cache = serializer.Cache(new_filename) #XXX try?
+			self.__cache = serializer.Cache(new_filename, True) #XXX try?
 
 
 	MULTITHREADED = True
@@ -1747,11 +1760,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 # state vars -------------------------------------------------------
 
 		self.__board = None
-
 		self.__baudrate = 9600 #TODO should be separated as target-specific settings
 		self.__port = None
-
+		self.__revision = 0
 		self.__gateway_enabled = False
+
 		self.__probe = None
 		self.__cache = None
 

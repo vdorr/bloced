@@ -127,36 +127,46 @@ def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_a
 	return build_rc, blob_stream.getvalue(), probes,
 
 
-#def main(argv) :
-
-#	try :
-#		_, actions, fname = sys.argv
-#	except :
-#		print("expected exactly 2 arguments")
-#		sys.stdout.write(USAGE)
-#		exit(100)
-
-#	if not all(c in "gbp" for c in actions) :
-#		print("invalid action")
-#		sys.stdout.write(USAGE)
-#		exit(101)
-
-#	if not os.path.isfile(fname) :
-#		print("file not found")
-#		sys.stdout.write(USAGE)
-#		exit(102)
-
-#	if "g" in actions :
-#		print(here())
-
-#	if "b" in actions :
-#		print(here())
-
-#	if "p" in actions :
-#		print(here())
+def write_program(prog_mcu, port, blob) :
+	rc = build.program("avrdude", port, "arduino", prog_mcu, None,
+		a_hex_blob=blob,
+		verbose=False,
+		dry_run=False)
+	return rc
 
 
-#if __name__ == "__main__" :
-#	main(sys.argv)
+def execute(action, fname) :
+	cache = serializer.Cache(new_filename, True)
+
+	if "g" in actions :
+		print(here())
+
+	if "b" in actions :
+		print(here())
+
+	if "p" in actions :
+		print(here())
+
+
+def main(argv) :
+	try :
+		_, actions, fname = sys.argv
+	except :
+		print("expected exactly 2 arguments")
+		sys.stdout.write(USAGE)
+		exit(100)
+	if not all(c in "gbp" for c in actions) :
+		print("invalid action")
+		sys.stdout.write(USAGE)
+		exit(101)
+	if not os.path.isfile(fname) :
+		print("file not found")
+		sys.stdout.write(USAGE)
+		exit(102)
+	execute(action, fname)
+
+
+if __name__ == "__main__" :
+	main(sys.argv)
 
 
