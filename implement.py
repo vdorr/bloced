@@ -1427,7 +1427,43 @@ def implement_workbench(w, sheets, w_meta, codegen, known_types, lib, out_fobj) 
 
 # ------------------------------------------------------------------------------------------------------------
 
-def main() :
+#TODO this functionality should be probably moved to chain.py
+def execute(action, fname) :
+
+	import serializer
+
+	main_lib = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
+	local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
+	local_lib.load_standalone_workbench_lib(fname, "<local>")
+	library = core.SuperLibrary([main_lib, local_lib])
+
+	w = dfs.Workbench(
+#		lib_dir=os.path.join(os.getcwd(), "library"),
+		passive=True)
+
+	try :
+		with open(fname, "rb") as f :
+			serializer.unpickle_workbench(f, w, use_cached_proto=False, library=library)
+	except :
+		print("error loading workbench file")
+		raise
+
+	sheets = w.sheets
+	global_meta = w.get_meta()
+
+	if action == "c" :
+		import ccodegen as cg
+	elif action == "f" :
+		import fcodegen as cg
+	else :
+		return 666
+
+	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, sys.stdout)
+
+	return 0
+
+
+def main(argv) :
 	"""
 	standalone entry point, looking for arguments in sys.argv
 	"""
@@ -1437,7 +1473,6 @@ def main() :
 #                   help="input file")
 #	args = parser.parse_args()
 #	fname = args.file[0]
-	import serializer
 
 	if len(sys.argv) != 3 :
 		print("expected exactly 2 arguments")
@@ -1450,40 +1485,13 @@ def main() :
 		print("formats other than .w are not supported anymore")
 		exit(1)
 
-	main_lib = core.create_block_factory(scan_dir=os.path.join(os.getcwd(), "library"))#TODO multiple search dirs
-	local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
-	local_lib.load_standalone_workbench_lib(fname, "<local>")
-#	print here(), local_lib.block_list
-	library = core.SuperLibrary([main_lib, local_lib])
+	rc = execute(action, fname)
+	exit(rc)
 
-	w = dfs.Workbench(
-#		lib_dir=os.path.join(os.getcwd(), "library"),
-		passive=True)
-
-#	library = w.blockfactory
-
-	try :
-		with open(fname, "rb") as f :
-			serializer.unpickle_workbench(f, w, use_cached_proto=False, library=library)
-	except :
-		print("error loading workbench file")
-		raise
-#		exit(666)
-	sheets = w.sheets
-	global_meta = w.get_meta()
-
-	if action == "c" :
-		import ccodegen as cg
-	elif action == "f" :
-		import fcodegen as cg
-	else :
-		exit(666)
-
-	implement_workbench(w, sheets, global_meta, cg, core.KNOWN_TYPES, library, sys.stdout)
 
 # ------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__" :
-	main()
+	main(sys.argv)
 
 
