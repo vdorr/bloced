@@ -31,7 +31,18 @@ action - g|b|p
 
 
 def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_arduino_dir) :
+	w, board_type, variant, source, source_dirs, probes = workbench_generate_code(w_data,
+		cache, blockfactory, msgq)
+#TODO cache probes
+	print(source)
+#TODO cache source
+	build_rc, blob_stream = compile_worbench(w, board_type, variant, source, source_dirs,
+		all_in_one_arduino_dir, msgq, term_stream)
+#TODO cache blob and object files
+	return build_rc, blob_stream, probes
 
+
+def workbench_generate_code(w_data, cache, blockfactory, msgq) :
 	try :
 #TODO reduce number of statements within try block
 		w = dfs.Workbench(passive=True, do_create_block_factory=False,
@@ -74,10 +85,6 @@ def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_a
 		return None
 
 	source = out_fobj.getvalue()
-	print(source)
-
-	libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir = build.get_avr_arduino_paths(
-		all_in_one_arduino_dir=all_in_one_arduino_dir)
 
 	source_dirs = set()
 	for l in library.libs :
@@ -85,16 +92,25 @@ def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_a
 			for src_file in l.source_files :
 				source_dirs.add(os.path.dirname(src_file))
 
+	return w, board_type, variant, source, source_dirs, probes
+
+
+def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_arduino_dir, msgq, term_stream) :
+
+	libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir = build.get_avr_arduino_paths(
+		all_in_one_arduino_dir=all_in_one_arduino_dir)
+
 	install_path = os.getcwd()#XXX replace os.getcwd() with path to dir with executable file
-	blob_stream = io.StringIO()
 
 	defines = {}
 	defines["ARDUINO"] = 100 #FIXME determine "correct" value
 	if w.get_gateway_enabled() :
 		defines["DBG_ENABLE_GATEWAY"] = 1
 
-	try :
-#TODO implement in chain.py
+	blob_stream = io.StringIO()
+
+#	try :
+	if 1 :
 		build_rc, = build.build_source(board_type, source,
 			aux_src_dirs=(
 				(os.path.join(target_files_dir, "cores", "arduino"), False),
@@ -119,12 +135,14 @@ def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_a
 #			dry_run=False,
 			blob_stream=blob_stream,
 			term=term_stream)
-	except Exception as e :
-		msgq.int_msg_put("status", args=("build", False, "compilation_failed"),
-			kwargs={"term_stream" : str(e)})
-		return None
+#	except Exception as e :
+##		print here(), str(e)
+#		raise e
+#		msgq.int_msg_put("status", args=("build", False, "compilation_failed"),
+#			kwargs={"term_stream" : str(e)})
+#		return None
 
-	return build_rc, blob_stream.getvalue(), probes,
+	return build_rc, blob_stream.getvalue()
 
 
 def write_program(prog_mcu, port, blob) :
