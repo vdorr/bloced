@@ -280,6 +280,11 @@ extern "C" void probes_transmit()//TODO add timestamp as argument
 	Serial.write((uint8_t)0x01);
 }
 
+void handle_incoming_data()
+{
+
+}
+
 #endif /* #if defined(DBG_ENABLE_GATEWAY) && DBG_ENABLE_GATEWAY >= 1 */
 
 extern "C" void vm_idle_hook()
