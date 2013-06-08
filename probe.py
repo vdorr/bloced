@@ -4,9 +4,35 @@ import time
 from collections import namedtuple
 import struct
 import binascii
+import bisect
 
 import core
 from utils import here
+
+
+def query(a, date_to=None, date_from="now", span=None) :
+	"""
+	return range of values
+	date_to - None|datetime
+	date_from - None|"now"|datetime
+	span
+	"""
+
+	if not span is None :#XXX better do this in ui
+#		assert()
+		pass
+
+	end = bisect.bisect_right(a, date_to)
+	if date_from == "now" :
+		start = 0
+	else :
+		start = bisect.bisect_left(a, date_from, hi=end)
+	print start, end, a[start:end]
+
+
+#def main() :
+#	a = [ 10, 33, 40, 66, 67, 80, 81, 90, 92, 503, 600, 620, 678, 1000 ]
+#	query(a, date_to=620, date_from=34.25)
 
 
 class DebugPort(object) :

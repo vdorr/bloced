@@ -1238,6 +1238,8 @@ def load_library(lib, library=None) :
 
 		blocks = []
 
+#TODO library version!
+
 		if file_info.file_type == "c" :
 			if __is_header(file_info.path) :
 				include_files.append(file_info.path)

@@ -31,22 +31,31 @@ action - g|b|p
 
 
 def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_arduino_dir) :
+#TODO workbench_generate_code need to be split to take advanrage od caching generated code
 	w, board_type, variant, source, source_dirs, probes = workbench_generate_code(w_data,
-		cache, blockfactory, msgq)
+		blockfactory, msgq)
+	revision = w.get_revision()
+#TODO we need to look revision of libraries
 #TODO cache probes
 	print(source)
 #TODO cache source
+	build_workdir = None #TODO use cache
 	build_rc, blob_stream = compile_worbench(w, board_type, variant, source, source_dirs,
-		all_in_one_arduino_dir, msgq, term_stream)
+		all_in_one_arduino_dir, build_workdir, msgq, term_stream)
+	print here(), w.get_revision()
 #TODO cache blob and object files
 	return build_rc, blob_stream, probes
 
 
-def workbench_generate_code(w_data, cache, blockfactory, msgq) :
+def workbench_generate_code(w_data, blockfactory, msgq) :
 	try :
 #TODO reduce number of statements within try block
 		w = dfs.Workbench(passive=True, do_create_block_factory=False,
 			blockfactory=blockfactory)
+		w.loading = True #to keep revision number
+
+		print here(), w.get_revision()
+
 		local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
 		local_lib.load_standalone_workbench_lib(None, "<local>",
 			library=w.blockfactory,
@@ -95,7 +104,8 @@ def workbench_generate_code(w_data, cache, blockfactory, msgq) :
 	return w, board_type, variant, source, source_dirs, probes
 
 
-def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_arduino_dir, msgq, term_stream) :
+def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_arduino_dir,
+		build_workdir, msgq, term_stream) :
 
 	libc_dir, tools_dir, boards_txt, target_files_dir, all_in_one_arduino_dir = build.get_avr_arduino_paths(
 		all_in_one_arduino_dir=all_in_one_arduino_dir)
@@ -111,7 +121,8 @@ def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_ard
 
 #	try :
 	if 1 :
-		build_rc, = build.build_source(board_type, source,
+		build_rc, o_files = build.build_source(board_type, source,
+			workdir_in=build_workdir,
 			aux_src_dirs=(
 				(os.path.join(target_files_dir, "cores", "arduino"), False),
 				(os.path.join(target_files_dir, "variants", variant), False),
@@ -141,6 +152,8 @@ def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_ard
 #		msgq.int_msg_put("status", args=("build", False, "compilation_failed"),
 #			kwargs={"term_stream" : str(e)})
 #		return None
+
+	print here(), build_rc, o_files, blob_stream.tell()
 
 	return build_rc, blob_stream.getvalue()
 

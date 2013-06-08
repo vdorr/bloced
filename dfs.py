@@ -1360,7 +1360,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__should_finish = True
 
 
-	@catch_all
+#	@catch_all
 	def __timer_thread(self) :
 #		port_check = time.time()
 		while not self.__get_should_finish() :
@@ -1587,6 +1587,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def increment_revision(self) :
+		if self.loading :
+			return None
 		if self.__revision is None :
 			self.__revision = 0
 		self.__revision += 1
@@ -1597,7 +1599,8 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 
 	def __changed(self, event, data) :
-		self.increment_revision() #XXX should we signal also change in revsion?
+#		print here(), event, data
+		self.increment_revision() #XXX should we signal also change in revision?
 		if self.__change_callback :
 			self.__change_callback(self, event, data)
 
@@ -1668,7 +1671,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def clear_state_vars(self) :
 		self.__board = None
-		self.__revision = 0
+		self.__revision = None
 		self.__baudrate = 9600 #TODO should be separated as target-specific settings
 		self.__port = None
 		self.__gateway_enabled = False
@@ -1681,6 +1684,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__last_probes_set = None
 		self.__last_probe_query = 0
 
+		self.loading = False
 		self.__block_id_to_block = {}
 
 #		print(here(), self, self.__gateway_enabled)
@@ -1688,13 +1692,16 @@ class Workbench(WorkbenchData, GraphModelListener) :
 
 	def load_file(self, fname) :
 		self.clear()
+		self.loading = True
 		try :
 			with open(fname, "rb") as f :
 				serializer.unpickle_workbench(f, self)#XXX beware of corrupting Workbench when load fail
 		except IOError as e :
 			self.cache(None)
 			print(here(), "Failed to open file '{0}'".format(fname))
+			self.loading = False
 			raise e #this kind of failure should be loud
+		self.loading = False
 		self.cache(fname)
 		self.finalize_load()
 		return True
@@ -1773,6 +1780,7 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		self.__last_probes_set = None
 		self.__last_probe_query = 0
 
+		self.loading = False
 		self.__block_id_to_block = {}
 
 # end state vars ---------------------------------------------------
