@@ -38,7 +38,7 @@ VM_TYPE_BOOL = "vm_bool_t"
 KNOWN_TYPES = {
 	TYPE_VOID : None,
 	TYPE_INFERRED : None,
-	VM_TYPE_BOOL : type_t(None, None, 0, False, "bool", "?"),
+	VM_TYPE_BOOL : type_t(None, 1, 0, False, "bool", "?"),
 	VM_TYPE_CHAR : type_t(1, 1, 0, True, "char", "b"), #TODO
 	VM_TYPE_WORD : type_t(1, 2, 1, True, "word", "h"),
 	VM_TYPE_DWORD : type_t(2, 4, 2, True, "dword", "i"),
