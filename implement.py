@@ -1290,7 +1290,7 @@ def parse_task_period(s) :
 
 #TODO move to probe.py?
 
-probe_info_t = namedtuple("probe_info", (
+probe_info_t = namedtuple("probe_info_t", (
 	"task_name",
 	"block_id",
 	"value_data_type",

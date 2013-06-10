@@ -30,6 +30,29 @@ action - g|b|p
 """
 
 
+USE_CACHE = True
+
+
+def cache_get_probes(cache, w) :
+	rev_my = w.get_revision()
+	if rev_my is None :
+		return False, None
+	with open(cache.path("probes_cache"), "rb") as f :
+		try :
+			rev_cached, timestamp, probes_list = serializer.load(f)
+		except Exception as e :
+			print(here(), e)
+			return False, None
+	if rev_my == rev_cached :
+		return True, (timestamp, probes_list)
+	else :
+		return False, None
+
+
+def cache_get_blob(cache) :
+	revision = w.get_revision()
+
+
 def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_arduino_dir) :
 #TODO workbench_generate_code need to be split to take advanrage od caching generated code
 	w, board_type, variant, source, source_dirs, probes = workbench_generate_code(w_data,
@@ -39,10 +62,19 @@ def build_workbench(w_data, term_stream, cache, blockfactory, msgq, all_in_one_a
 #TODO cache probes
 	print(source)
 #TODO cache source
-	build_workdir = None #TODO use cache
+
+	build_workdir = None
+
+	if USE_CACHE and not cache is None and not revision is None:
+		build_workdir = cache.path("build")
+		if probes :
+			probes_cache = cache.path("probes_cache")
+			with open(probes_cache, "wb") as f :
+				serializer.dump((revision, time.time(), probes), f)
+
 	build_rc, blob_stream = compile_worbench(w, board_type, variant, source, source_dirs,
 		all_in_one_arduino_dir, build_workdir, msgq, term_stream)
-	print here(), w.get_revision()
+#	print(here(), w.get_revision())
 #TODO cache blob and object files
 	return build_rc, blob_stream, probes
 
@@ -53,8 +85,6 @@ def workbench_generate_code(w_data, blockfactory, msgq) :
 		w = dfs.Workbench(passive=True, do_create_block_factory=False,
 			blockfactory=blockfactory)
 		w.loading = True #to keep revision number
-
-		print here(), w.get_revision()
 
 		local_lib = core.BasicBlocksFactory(load_basic_blocks=False)
 		local_lib.load_standalone_workbench_lib(None, "<local>",
@@ -153,7 +183,7 @@ def compile_worbench(w, board_type, variant, source, source_dirs, all_in_one_ard
 #			kwargs={"term_stream" : str(e)})
 #		return None
 
-	print here(), build_rc, o_files, blob_stream.tell()
+	print(here(), build_rc, o_files, blob_stream.tell())
 
 	return build_rc, blob_stream.getvalue()
 

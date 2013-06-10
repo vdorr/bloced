@@ -1556,6 +1556,11 @@ class Workbench(WorkbenchData, GraphModelListener) :
 		print(here())
 		if self.__probe is None :
 			self.__probe = probe.create_probe()
+		if self.__last_probes_set is None :
+			found, probes = chain.cache_get_probes(self.__cache, self)
+			print(here(), found, probes)
+			if found :
+				self.__last_probes_set = probes
 		if not self.__last_probes_set is None :
 			self.__probe.set_probe_list(self.__last_probes_set[1])
 		self.__gateway = gateway.Gateway(dbg_port_instance=self.__probe)

@@ -15,6 +15,14 @@ import shutil
 
 # ------------------------------------------------------------------------------------------------------------
 
+def dump(data, f) :
+	return pickle.dump(data, f, 0)
+
+
+def load(f) :
+	return pickle.load(f)
+
+
 def pickle_dfs_model(m, f) :
 	"""
 	convert GraphModel m to serializable form, pickle and dump it into file-like object f
@@ -298,20 +306,27 @@ def unpickle_workbench_data(f) :
 
 class Cache(object) :
 
+	def create_dir(self, path) :
+		if os.path.isdir(path) :
+			return True
+		try :
+			os.mkdir(path)
+		except :
+			print(here(), "failed to create {}".format(path))
+			return False
+		return True
+
 
 	def init(self, force=True) :
-		try :
-			os.mkdir(self.cache_dir_path)
-		except :
-			print(here(), "failed to create {}".format(self.cache_dir_path))
-#		try :
-#			os.mkdir(os.path.join(self.cache_dir_path, "build"))
-#		except :
-#			print(here(), "failed to create {}".format(self.cache_dir_path))
+		for path in (self.cache_dir_path, ) + self.subdirs :
+			if not self.create_dir(path) :
+				return False
+		return True
 
 
 	def check(self) :
-		exists = os.path.isdir(self.cache_dir_path)
+		exists = (os.path.isdir(self.cache_dir_path)
+			and all(os.path.isdir(path) for path in self.subdirs))
 #TODO check authenticity
 		return exists
 
@@ -326,12 +341,13 @@ class Cache(object) :
 
 
 	def delete(self) :
+		print(here(), "NOT deleting cache!!!")
 #		shutil.rmtree(self.cache_dir_path)
 		pass
 
 
-	def get_dir(self) :
-		return self.cache_dir_path
+	def path(self, *p) :
+		return os.path.join(self.cache_dir_path, *p)
 
 
 	def __init__(self, workbench_file, create_if_needed) :
@@ -341,7 +357,9 @@ class Cache(object) :
 		cache_dir_base_name, ext = os.path.splitext(wb_file)
 		cache_dir_name = cache_dir_base_name + "~"
 		self.cache_dir_path = os.path.join(wb_dir, cache_dir_name)
-		print here(), wb_path, self.cache_dir_path
+
+		self.subdirs = (os.path.join(self.cache_dir_path, "build"), )
+
 		if not self.check() and create_if_needed :
 			self.init()
 #		self.work_dir = 
