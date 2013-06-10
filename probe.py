@@ -27,7 +27,7 @@ def query(a, date_to=None, date_from="now", span=None) :
 		start = 0
 	else :
 		start = bisect.bisect_left(a, date_from, hi=end)
-	print start, end, a[start:end]
+	print(start, end, a[start:end])
 
 
 #def main() :
